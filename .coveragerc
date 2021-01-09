@@ -1,0 +1,25 @@
+[run]
+branch = True
+source =
+    muscle_synergies
+
+[paths]
+source =
+    src/muscle_synergies
+    **/site-packages/muscle_synergies
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    if self.debug
+    raise AssertionError
+    raise NotImplentedError
+    if 0:
+    if __name__ == .__main__.:
+
+ignore_errors = True
+
+[html]
+title = muscle_synergies Coverage Test Report
+directory = docs/source/_static/coverage

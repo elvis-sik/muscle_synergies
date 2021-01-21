@@ -6,3 +6,5 @@ pylint
 sphinx
 twine
 wheel
+py.test
+pytest-mock

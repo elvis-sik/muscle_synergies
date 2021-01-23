@@ -4,46 +4,7 @@ import abc
 import csv
 from enum import Enum
 from typing import (List, Set, Dict, Tuple, Optional, Sequence, Callable, Any,
-                    Mapping)
-
-
-class SingleDeviceDataBuilder:
-    def add_name(self):
-        pass
-
-
-class ForcePlateDataBuilder:
-    # TODO "ForcePlate" might be a misnomer since this is
-    # very similar to the Angelica machines
-
-    # TODO basic idea with this class is for it to propagate down
-    # each piece of info to each of the VectorBuilder classes
-    # might need to rethink
-
-    # go back to how the parser works (split row into parts for each machine)
-    # and try to figure it out
-    def __init__(self, force_data_builder: SingleDeviceDataBuilder,
-                 moment_data_builder: SingleDeviceDataBuilder,
-                 origin_data_builder: SingleDeviceDataBuilder):
-        pass
-
-    def add_name(self):
-        # TODO machine name
-        pass
-
-    def add_sampling_frequency(self):
-        # TODO probably rename this
-        # TODO idea is to let the builder know how many subframes per frame
-        # there are
-        pass
-
-    def add_units(self):
-        pass
-
-
-class ViconOutputData:
-    pass
-
+                    Mapping, Iterator)
 
 # csvfile = open('../../tests/test_data.csv')
 # data_reader = csv.reader(csvfile)
@@ -53,81 +14,30 @@ class ViconOutputData:
 Row = List[str]
 
 
-class LineByLineParser(abc.ABC):
-    """A parser that is fed one line (a list of columns) at a time."""
-    def __init__(self, check_data: bool = True):
-        self.current_line = 0
-        self.check_data = check_data
+class SectionType(Enum):
+    """Type of a section of a Vicon Nexus CSV file.
 
-    def feed(self, row: Row):
-        """Feed one line to the parser."""
-        self.current_line += 1
-        self.check(row)
-        feed_function = self.get_current_feed_function()
-        feed_function(row)
+    The files outputted by experiments are split into sections, each containing
+    different types of data. The sections are separated by a single blank line.
+    Each section contains a header plus several rows of measurements. The header
+    spans 5 lines including, among other things, an identification of its type
+    See the docs for py:class:ReaderState for a full description of the meaning
+    of the different lines.
 
-    def check(self, row: Row):
-        if not self.check_data:
-            return
-
-        check_function = self.get_current_check_function()
-        check_result = check_function(row)
-        is_valid = check_result['is_valid']
-        error_message = check_result['error_message']
-
-        if not is_valid:
-            raise ValueError(
-                f'error in line {self.current_line}: {error_message}')
-
-    @abc.abstractmethod
-    def get_current_feed_function(self) -> Callable[[Row], None]:
-        pass
-
-    @abc.abstractmethod
-    def get_current_check_function(self) -> Callable[[Row], bool]:
-        pass
-
-
-class ViconCSVSectionParser(LineByLineParser):
-    """Parses one of the sections of CSV file outputted by Vicon Nexus.
-
-    Suppose an experiment generates data for all of the following:
-    + trajectories (using kinemetry)
-    + floor reactions (using force plates)
-    + muscle activation (EMG)
-
-    Then the CSV file will have 2 big sections:
-    1. force plate + EMG data
-    2. trajectory data
-
-    Each of those 2 sections have a very similar structure, so this class
-    provides functionality common to both of them.
+    Members:
+    + FORCES_EMG refers to a section that begins with the single word "Devices"
+      and contains measurements from force plates and an EMG device.
+    + TRAJECTORIES refers to a section that begins with the single word
+      "Trajectories" and contains kinemetric measurements of joint position.
     """
-    def __init__(self,
-                 header_parser: 'SectionHeaderParser',
-                 measurement_parser: 'SectionMeasurementParser',
-                 check_data: bool = True):
-        super.__init__(check_data=check_data)
-        self.header_parser = header_parser
-        self.measurement_parser = measurement_parser
-
-    def get_current_feed_function(self):
-        return self.get_current_parser().feed
-
-    def get_current_check_function(self):
-        return self.get_current_parser().check
-
-    def get_current_parser(self):
-        if self.current_line <= 2:
-            return self.header_parser
-        else:
-            return self.measurement_parser
+    FORCES_EMG = 1
+    TRAJECTORIES = 2
 
 
-class ParserState(Enum):
-    """State of a parser going through a CSV file with experimental data.
+class ReaderState(Enum):
+    """State of a reader going through a CSV file with experimental data.
 
-    The members refer to successive states in the parser:
+    The members refer to successive states in the reader:
     + SECTION_TYPE_LINE is the first line in a section, which contains either the
       word "Devices" (for the section with force plate and EMG data) or
       "Trajectories" (for the section with kinematic data).
@@ -159,119 +69,155 @@ class ParserState(Enum):
     BLANK_LINE = 7
 
 
-class SectionType(Enum):
-    FORCES_EMG = 1
-    TRAJECTORIES = 2
+class DeviceType(Enum):
+    """Type of a measurement device.
 
+    Measurement devices are named in the third line of each section of the CSV
+    file outputted by Vicon Nexus. Each name is included in a single column, but
+    the data for each device in the following lines usually span more than 1
+    column:
+    + one column per muscle in the case of EMG data.
+    + 3 columns (1 per spatial coordinate) in the case of trajectory markers.
+    + several columns per force plate (see below).
 
-class DeviceType:
+    Force plates are complicated by the fact that a single one of them is
+    represented as several "devices". For example, take a look at the following:
+    + Imported AMTI OR6 Series Force Plate #1 - Force
+    + Imported AMTI OR6 Series Force Plate #1 - Moment
+    + Imported AMTI OR6 Series Force Plate #1 - CoP
+
+    These 3 refer actually to different measurements (force, moment, origin) for
+    the same experimental device (Force Plate #1). All of the measured
+    quantities are vectors, so each of those 3 "devices" is represented in 3
+    columns.
+
+    At any rate, all 3 of the different columns (Force, Moment and CoP) for each
+    force plate is treated as if they were actually different devices when they
+    are first read by the parsing functions of :py:module:vicon_data, and then
+    later they are unified.
+
+    Members:
+    + FORCE_PLATE is a force plate. The data
+
+    + EMG is EMG measurement.
+
+    + TRAJECTORY_MARKER is a trajectory marker used with kinemetry.
+    """
     FORCE_PLATE = 1
     EMG = 2
     TRAJECTORY_MARKER = 3
 
 
-class Device:
-    devtype: DeviceType
-    str_name: str
+class SectionReaderState(abc.ABC):
+    # TODO Idea is to obsolete TestViconNexusCSVReader
+    # include all check/read/etc functions as State methods.
+    # The BLANK_LINE state can have a side effect so that
+    # the second time it is their turn to act
+    # they instead end the whole process.
+
+    # Also, the idea is for the DataBuilder, in turn, to also be
+    # stateful. In particular, it should have 2 states, corresponding
+    # to the 2 section types.
+
+    # TODO could rename all funcs below if want to
+    # should add signature to them
+    def feed_row():
+        pass
+
+    def _get_validator():
+        pass
+
+    def _get_data_builder():
+        pass
+
+    def _set_new_state():
+        pass
+
+    @abc.abstractmethod
+    def _check_row():
+        pass
+
+    @abc.abstractmethod
+    def _parse_row():
+        pass
+
+    @abc.abstractmethod
+    def _change_state():
+        pass
 
 
-class Validator:
-    current_line: int
-    csv_filename: str
-    should_raise: bool = True
+class SectionReader:
+    """Reader for a single section of the CSV file outputted by Vicon Nexus.
 
-    def __init__(self, csv_filename: str, should_raise: bool = True):
-        self.current_line = 1
-        self.csv_filename = csv_filename
-        self.should_raise = should_raise
+    Initialize it
+    """
+    state: ReaderState
+    data_builder: 'DataBuilder'
+    validator: 'Validator'
 
-    def validate(self, data_check_result: 'DataCheck'):
-        if self.should_raise:
-            self._raise_if_invalid(data_check_result)
-
-        self.current_line += 1
-
-    def _raise_if_invalid(self, data_check_result: 'DataCheck'):
-        is_valid = data_check_result['is_valid']
-        error_description = data_check_result['error_message']
-
-        if not is_valid:
-            raise ValueError(self._build_error_message(error_description))
-
-    def _build_error_message(self, error_description: str) -> str:
-        return f'error parsing line {self.current_line} of file {self.csv_filename}: {error_message}'
-
-
-class SectionParser:
-    state: ParserState
-    aggregator: 'Aggregator'
-    devices_parser: 'DevicesParser'
-    checker: Validator
-
-    def __init__(self, aggregator: 'Aggregator',
-                 devices_parser: 'DevicesParser', validator: Validator):
-        self.state = SECTION_TYPE_LINE
-        self.devices_parser = devices_parser
-        self.aggregator = aggregator
-        self.validator = Validator
+    def __init__(self, section_data_builder: 'DataBuilder',
+                 validator: 'Validator'):
+        self.state = ReaderState.SECTION_TYPE_LINE
+        self.data_builder = section_data_builder
+        self.validator = validator
 
     def feed_line(self, row: Row):
         self._raise_if_ended()
 
-        check_function = self.get_check_function()
-        parse_function = self.get_parse_function()
-        aggregation_function = self.get_build_function()
+        check_function = self._get_check_function()
+        read_function = self._get_read_function()
+        aggregation_function = self._get_build_function()
 
         self._call_validator(check_function(row))
-        parsed_line = parse_function(row)
-        aggregation_function(parsed_line)
+        read_line = read_function(row)
+        aggregation_function(read_line)
 
-        self.transition()
+        self._transition()
 
-    def get_check_function(self):
-        if self.state == ParserState.SECTION_TYPE_LINE:
+    def _get_check_function(self):
+        if self.state == ReaderState.SECTION_TYPE_LINE:
             return check_section_type_line
-        elif self.state == ParserState.SAMPLING_FREQUENCY_LINE:
+        elif self.state == ReaderState.SAMPLING_FREQUENCY_LINE:
             return check_sampling_frequency_line
-        elif self.state == ParserState.DEVICE_NAMES_LINE:
-            return self.devices_parser.check_device_names_line
+        elif self.state == ReaderState.DEVICE_NAMES_LINE:
+            return self.devices_reader.check_device_names_line
 
-    def get_parse_function(self):
-        if self.state == ParserState.SECTION_TYPE_LINE:
-            return parse_section_type_line
-        elif self.state == ParserState.SAMPLING_FREQUENCY_LINE:
-            return parse_sampling_frequency_line
-        elif self.state == ParserState.DEVICE_NAMES_LINE:
-            return self.devices_parser.parse_device_names_line
+    def _get_read_function(self):
+        if self.state == ReaderState.SECTION_TYPE_LINE:
+            return read_section_type_line
+        elif self.state == ReaderState.SAMPLING_FREQUENCY_LINE:
+            return read_sampling_frequency_line
+        elif self.state == ReaderState.DEVICE_NAMES_LINE:
+            return self.devices_reader.read_device_names_line
 
-    def get_build_function(self):
-        if self.state == ParserState.SECTION_TYPE_LINE:
-            return self.aggregator.add_section_type
-        elif self.state == ParserState.SAMPLING_FREQUENCY_LINE:
-            return self.aggregator.add_frequency
-        elif self.state == ParserState.DEVICE_NAMES_LINE:
+    def _get_build_function(self):
+        if self.state == ReaderState.SECTION_TYPE_LINE:
+            return self.data_builder.add_section_type
+        elif self.state == ReaderState.SAMPLING_FREQUENCY_LINE:
+            return self.data_builder.add_frequency
+        elif self.state == ReaderState.DEVICE_NAMES_LINE:
             # TODO Essa é a próxima linha
             return
 
-    def transition(self):
-        if self.state == ParserState.SECTION_TYPE_LINE:
-            self.state = ParserState.SAMPLING_FREQUENCY_LINE
-        elif self.state == ParserState.SAMPLING_FREQUENCY_LINE:
-            self.state = ParserState.DEVICE_NAMES_LINE
-        elif self.state == ParserState.DEVICE_NAMES_LINE:
+    def _transition(self):
+        if self.state == ReaderState.SECTION_TYPE_LINE:
+            self.state = ReaderState.SAMPLING_FREQUENCY_LINE
+        elif self.state == ReaderState.SAMPLING_FREQUENCY_LINE:
+            self.state = ReaderState.DEVICE_NAMES_LINE
+        elif self.state == ReaderState.DEVICE_NAMES_LINE:
             return
 
     def _raise_if_ended(self):
-        if self.state == ParserState.BLANK_LINE:
+        if self.state == ReaderState.BLANK_LINE:
             raise EOFError(
-                'tried to parse another line from a section that has already been completely parsed'
+                'tried to read another line from a section that has already been completely readd'
             )
 
     def _call_validator(self, data_check_result: 'DataCheck'):
         self.validator.validate(data_check_result)
 
 
-class SectionAggregator:
+class SectionDataBuilder:
     section_type: SectionType
     frequency: int
 
@@ -282,13 +228,16 @@ class SectionAggregator:
         self.frequency = frequency
 
 
-class DeviceAggregator:
+class AllDevicesDataBuilder:
     pass
 
 
-class DevicesAggregator:
-    def add_data():
-        pass
+class DeviceHeaderDataBuilder:
+    pass
+
+
+class TimeSeriesDataBuilder:
+    pass
 
 
 # A data check is a dict representing the result of validating the data of a
@@ -301,6 +250,33 @@ class DevicesAggregator:
 DataCheck = Mapping[str, Any]
 
 
+class Validator:
+    current_line: int
+    csv_filename: str
+    should_raise: bool = True
+
+    def __init__(self, csv_filename: str, should_raise: bool = True):
+        self.current_line = 1
+        self.csv_filename = csv_filename
+        self.should_raise = should_raise
+
+    def validate(self, data_check_result: DataCheck):
+        if self.should_raise:
+            self._raise_if_invalid(data_check_result)
+
+        self.current_line += 1
+
+    def _raise_if_invalid(self, data_check_result: DataCheck):
+        is_valid = data_check_result['is_valid']
+        error_description = data_check_result['error_message']
+
+        if not is_valid:
+            raise ValueError(self._build_error_message(error_description))
+
+    def _build_error_message(self, error_description: str) -> str:
+        return f'error parsing line {self.current_line} of file {self.csv_filename}: {error_message}'
+
+
 def check_section_type_line(row: Row) -> DataCheck:
     has_acceptable_value = row[0] in {'Devices', 'Trajectories'}
     is_valid = has_acceptable_value and columns_are_empty(row[1:])
@@ -309,7 +285,7 @@ def check_section_type_line(row: Row) -> DataCheck:
     return {'is_valid': is_valid, 'error_message': message}
 
 
-def parse_section_type_line(row: Row) -> SectionType:
+def read_section_type_line(row: Row) -> SectionType:
     section_type_str = row[0]
     str_to_enum_mapping = {
         'Devices': SectionType.FORCES_EMG,
@@ -331,19 +307,19 @@ def check_sampling_frequency_line(row: Row) -> DataCheck:
     return {'is_valid': is_valid, 'error_message': message}
 
 
-def parse_sampling_frequency_line(row: Row) -> int:
+def read_sampling_frequency_line(row: Row) -> int:
     return int(row[0])
 
 
-class DevicesParser:
-    """Parser for device names, coordinates and units lines of the CSV file."""
+class DevicesReader:
+    """Reader for device names, coordinates and units lines of the CSV file."""
     dev_names: List[str]
     section_type: SectionType
 
     def add_section_type(self, section_type: SectionType):
         self.section_type = section_type
 
-    def parse_device_names_line(self, row: Row) -> List[str]:
+    def read_device_names_line(self, row: Row) -> List[str]:
         names_str = [row[i] for i in range(2, len(row), 3)]
         self.dev_names = dev_names
         return names_str
@@ -370,7 +346,7 @@ class DevicesParser:
             'is_valid':
             self.section_type in SectionType,
             'error_message':
-            'tried to parse device names without first calling add_section_type'
+            'tried to read device names without first calling add_section_type'
         }
 
     def _check_device_names_line_blanks_and_names(self, row: Row) -> DataCheck:
@@ -390,7 +366,7 @@ class DevicesParser:
 
     def _check_device_names_line_consistent_with_section_type(self, row: Row
                                                               ) -> DataCheck:
-        device_names = self.parse_device_names_line(row)
+        device_names = self.read_device_names_line(row)
 
         if self.section_type is SectionType.FORCES_EMG:
             force_plates_until_second_last = all('Force Plate' in name
@@ -415,64 +391,26 @@ class DevicesParser:
         return {'is_valid': is_valid, 'error_message': error_message}
 
 
-class SectionHeaderParser:
-    # TODO it should be this class's responsibility to store the frequencies
-    # to keep track of # subframes per frame
+class ViconNexusCSVReader:
     pass
 
 
-class SectionMeasurementsParser(abc.ABC):
-    pass
+def csv_lines_stream(filename) -> Iterator[Row]:
+    """Yields lines from a CSV file as a stream.
 
-
-class ForcesEMGMeasurementsParser:
-    pass
-
-
-class TrajectoriesMeasurementsParser:
-    pass
-
-
-class ViconForceEMGParser:
-    """Parses the force plate and EMG output of experiments."""
-    def __init__(self, check_data: bool = True):
-        self.check_data = check_data
-
-
-def read_data(filename, check_data=True):
-    def columns_are_empty(row: Row) -> bool:
-        return not ''.join(row)
-
-    def check_first_line(row: Row):
-        is_valid = row[0] == 'Devices' and columns_are_empty(row[1:])
-        message = 'this line should contain "Devices" in its first column and nothing else'
-        return {'is_valid': is_valid, 'message': message}
-
-    def check_second_line(row: Row):
-        try:
-            is_valid = int(row[0])
-        except ValueError:
-            is_valid = False
-
-        is_valid = is_valid and columns_are_empty(row[1:])
-        message = 'this line should contain an integer in its first column and nothing else'
-        return {'is_valid': is_valid, 'message': message}
-
-    def parse_second_line(row, check_data):
-        frequency = int(row[0])
-
-        if not check_data:
-            return
-
-    def raise_if_invalid(check_data: bool, is_valid: bool, message: str,
-                         line_number: int, csv_filename: str) -> None:
-        if check_data and not is_valid:
-            raise ValueError(
-                f'error parsing line {line_number} of file {csv_filename}: {message}'
-            )
-
+    Args:
+        filename: the name of the CSV file which should be read. This argument
+                  is passed to :py:func:open, so it can be a str among other
+                  things.
+    """
     with open(filename) as csvfile:
         data_reader = csv.reader(csvfile)
+        yield from data_reader
 
-        first_line = next(data_reader)
-        check_first_line(first_line, check_data)
+
+def initialize_vicon_nexus_reader():
+    pass
+
+
+def load_vicon_file():
+    pass

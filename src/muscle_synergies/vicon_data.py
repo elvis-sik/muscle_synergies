@@ -2,6 +2,7 @@
 
 import abc
 import csv
+from dataclasses import dataclass
 from enum import Enum
 from typing import (List, Set, Dict, Tuple, Optional, Sequence, Callable, Any,
                     Mapping, Iterator)
@@ -106,6 +107,25 @@ class DeviceType(Enum):
     FORCE_PLATE = 1
     EMG = 2
     TRAJECTORY_MARKER = 3
+
+
+@dataclass
+class DeviceHeaderCols:
+    """Intermediate representation of the data read in the device names line.
+
+    This class is used as a way of communicating data from the :py:class:Reader
+    to the :py:class:DataBuilder. For more information on where the data that
+    is held by this class, see the docs for :py:class:ReaderState.
+
+    Arguments:
+    - device_name: the name of the device, as read from the CSV file
+    - device_type: the type of the device
+    - first_col_index: the index in a Row in which the data for the device
+      begins
+    """
+    device_type: DeviceType
+    device_name: str
+    first_col_index: int
 
 
 class SectionReaderState(abc.ABC):

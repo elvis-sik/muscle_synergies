@@ -158,6 +158,18 @@ class DeviceHeaderCols:
             self.num_of_cols = 3
 
 
+@dataclass
+class ForcePlateCols:
+    """The 3 DeviceHeaderCols with the data of a single force plate.
+
+    See the docs for :py:class:DeviceHeaderCols for more details. Since each
+    force plate is represented in 3 different device headers, this class
+    provides a standard way to represent those.
+    """
+    force: DeviceHeaderCols
+    moment: DeviceHeaderCols
+    cop: DeviceHeaderCols
+
 
 class SectionReaderState(abc.ABC):
     # TODO Idea is to obsolete TestViconNexusCSVReader

@@ -54,114 +54,120 @@ class TestValidator:
         assert validator(data_check) is None
 
 
+class TestDeviceHeaderCols:
+    pass
+
+
 class TestTimeSeriesDataBuilder:
     pass
 
 
 class TestDeviceHeaderDataBuilder:
-    pass
-
-
-class TestAllDevicesDataBuilder:
     """Class spec:
 
     1. initialization:
 
     Arguments:
-    - force_plates (Mapping[str, List[DeviceHeaderCols]]): a dict like
-      {'Force plate 1': [its, DeviceHeaderCols]}
-    - emg_device (DeviceHeaderCols)
-    - trajectory_marker_devices (List[DeviceHeaderCols])
-    - device_header_data_builder_type (optional): the class used to represent
-      individual device headers. By default, it is DeviceHeaderDataBuilder
     - time_series_data_builder_type (optional): the class used to represent
       individual time series. By default, it is TimeSeriesDataBuilder.
 
     Behavior:
-    - initializes one DeviceHeaderDataBuilder per DeviceHeaderCols it is
-      fed
-    - the class blindly believes the data it is provided with makes sense
+    - None
     """
+    #
+    """ 2. add_coordinates
+
+    Behavior:
+    - this is where the class learns how many time series it is responsible for
+
+    """
+
+
+class TestAllDevicesDataBuilder:
     @pt.fixture
     def mock_device_header_data_builder_type(self, mocker):
-        return mocker.create_autospec(vd.DeviceHeaderDataBuilder)
+        singleton_device_header_data_builder_mock = mocker.create_autospec(
+            vd.DeviceHeaderDataBuilder)
+
+        data_builder_factory = mocker.Mock(
+            spec=vd.DeviceHeaderDataBuilder.__init__,
+            return_value=singleton_device_header_data_builder_mock)
+
+        return data_builder_factory
 
     @pt.fixture
     def mock_time_series_data_builder_type(self, mocker):
-        return mocker.create_autospec(vd.TimeSeriesDataBuilder)
+        return 'fake time series data builder'
 
     @pt.fixture
-    def force_plate_header_cols(self):
-        return {
-            'first force plate': [
-                vd.DeviceHeaderCols(device_name='first force plate',
-                                    device_type=vd.DeviceType.FORCE_PLATE,
-                                    first_col_index=2)
-            ]
-        }
+    def force_plate_arg(self):
+        return [
+            vd.ForcePlateCols(
+                force=vd.DeviceHeaderCols(
+                    device_name='force plate 1 force',
+                    device_type=vd.DeviceType.FORCE_PLATE,
+                    first_col_index=2),
+                moment=vd.DeviceHeaderCols(
+                    device_name='force plate 1 moment',
+                    device_type=vd.DeviceType.FORCE_PLATE,
+                    first_col_index=5),
+                cop=vd.DeviceHeaderCols(device_name='force plate 1 cop',
+                                        device_type=vd.DeviceType.FORCE_PLATE,
+                                        first_col_index=8),
+            )
+        ]
 
     @pt.fixture
     def trajectory_marker_header_cols(self):
-        return vd.DeviceHeaderCols(device_name='trajectory marker',
-                                   device_type=vd.DeviceType.TRAJECTORY_MARKER,
-                                   first_col_index=5)
+        return [
+            vd.DeviceHeaderCols(device_name='trajectory marker',
+                                device_type=vd.DeviceType.TRAJECTORY_MARKER,
+                                first_col_index=11)
+        ]
 
     @pt.fixture
     def emg_header_cols(self):
         return vd.DeviceHeaderCols(device_name='emg',
                                    device_type=vd.DeviceType.EMG,
-                                   first_col_index=8)
+                                   first_col_index=14)
 
     @pt.fixture
     def all_devices_data_builder(self, mock_device_header_data_builder_type,
                                  mock_time_series_data_builder_type,
-                                 force_plate_header_cols,
+                                 force_plate_arg,
                                  trajectory_marker_header_cols,
                                  emg_header_cols):
         return vd.AllDevicesDataBuilder(
-            force_plates=force_plater_header_cols,
-            emg_device=emg_header_cols,
-            trajectory_marker_devices=trajectory_marker_header_cols,
+            force_plate_cols=force_plate_arg,
+            emg_cols=emg_header_cols,
+            trajectory_marker_cols=trajectory_marker_header_cols,
             device_header_data_builder_type=
             mock_device_header_data_builder_type,
             time_series_data_builder_type=mock_time_series_data_builder_type,
         )
 
-    def test_initializes_data_header_for_force_plate(
+    """Class spec:
+
+    1. initialization
+    - initializes one DeviceHeaderDataBuilder per DeviceHeaderCols it is
+      fed
+    - the class blindly believes the data it is provided with makes sense
+    - passes along its time_series_data_builder_type to the
+      DeviceHeaderDataBuilder it instantiates
+    """
+    def test_initializes_data_header_creates_data_header_builders(
             self, all_devices_data_builder,
             mock_device_header_data_builder_type,
             mock_time_series_data_builder_type):
-        device_name = 'first force plate'
-        device_type = vd.DeviceType.FORCE_PLATE
-        mock_time_series_data_builder_type
-        mock_device_header_data_builder_type.__init__.assert_called_with(
-            device_name=device_name,
-            device_type=device_type,
+        mock_device_header_data_builder_type.assert_called_with(
             time_series_data_builder_type=mock_time_series_data_builder_type)
 
-    def test_initializes_data_header_for_trajectory_marker(
+    def test_initializes_correct_number_of_data_header_builders(
             self, all_devices_data_builder,
-            mock_device_header_data_builder_type,
-            mock_time_series_data_builder_type):
-        device_name = 'trajectory marker'
-        device_type = vd.DeviceType.TRAJECTORY_MARKER
-        mock_time_series_data_builder_type
-        mock_device_header_data_builder_type.__init__.assert_called_with(
-            device_name=device_name,
-            device_type=device_type,
-            time_series_data_builder_type=mock_time_series_data_builder_type)
-
-    def test_initializes_data_header_for_force_plate(
-            self, all_devices_data_builder,
-            mock_device_header_data_builder_type,
-            mock_time_series_data_builder_type):
-        device_name = 'emg'
-        device_type = vd.DeviceType.EMG
-        mock_time_series_data_builder_type
-        mock_device_header_data_builder_type.__init__.assert_called_with(
-            device_name=device_name,
-            device_type=device_type,
-            time_series_data_builder_type=mock_time_series_data_builder_type)
+            mock_device_header_data_builder_type):
+        mock_object = mock_device_header_data_builder_type
+        number_of_devices = 5
+        assert mock_object.call_count == number_of_devices
 
     # 2. has a add_coordinates method:
     #
@@ -174,11 +180,6 @@ class TestAllDevicesDataBuilder:
     #      instances that were created during AllDevicesDataBuilder
     #      initialization.
     #    - the method it calls is named add_coordinates as well
-    #    - each device spans 3 columns, the first one being the one given in
-    #      AllDevicesDataBuilder initialization
-    #    - EMG devices are different, they have a variable number of columns
-    #      which should corresponds to the number of columns from its first
-    #      until the final one provided
 
     # 3. has a add_units method
     #
@@ -204,18 +205,23 @@ class TestSectionDataBuilder:
     pass
 
 
-class TestSectionReader:
+class TestReader:
     # NEXT create tests for these behaviors:
+
+    # 0. change name to Reader since it is not constrained for a single section
+    #    anymore
 
     # 1. when it is fed a row, it simply calls .feed_row(row, itself) on its
     #    current state (which then becomes responsible for all of the following:
-    #    + checking and calling Validator
-    #    + passing parsed data to data builder (which it gets from the Reader)
-    #    + deciding whether the state should change and telling the Reader if it
-    #    should)
-
-    # 2. ???? it should tell the builder to do something after everything ends?
-    #    I don't know.
+    #    1. checking and calling Validator
+    #    2. passing parsed data to data builder (which it gets from the Reader)
+    #    3. deciding whether the state should change and telling the Reader if it
+    #       should
+    #    4. the blank state will basically notify builder to change its own
+    #       state
+    #    5. when Builder's first state creates the second one, it passes itself
+    #       as an argument.
+    #    6. when the second "change state" message comes,
     pass
 
 
@@ -261,6 +267,7 @@ class TestSectionReader:
 
 
 class TestViconNexusCSVReader:
+    # TODO this class is obsolete
     @pt.fixture
     def section_reader_mock(self, mocker):
         mock = mocker.Mock(name='SectionReader')
@@ -294,6 +301,3 @@ class TestViconNexusCSVReader:
             fores_emg_reader=section_reader_that_raises_mock,
             trajectories_reader=section_reader_mock)
 
-    # TODO idea is for this guy to have its own state (unneeded for tests)
-    # then call his forces_emg_reader in its first state
-    # then transition to the second when it raises EOF

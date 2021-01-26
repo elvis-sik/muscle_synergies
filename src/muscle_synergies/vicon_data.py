@@ -7,9 +7,6 @@ from enum import Enum
 from typing import (List, Set, Dict, Tuple, Optional, Sequence, Callable, Any,
                     Mapping, Iterator)
 
-# csvfile = open('../../tests/test_data.csv')
-# data_reader = csv.reader(csvfile)
-
 # a row from the CSV file is simply a list of strings,
 # corresponding to different values
 Row = List[str]

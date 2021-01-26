@@ -291,16 +291,119 @@ class SectionDataBuilder:
         self.frequency = frequency
 
 
-class AllDevicesDataBuilder:
-    pass
-
-
 class DeviceHeaderDataBuilder:
     pass
 
 
 class TimeSeriesDataBuilder:
     pass
+
+
+class AllDevicesDataBuilder:
+    """Accumulates data as it is being read for a section of a CSV file.
+
+    This class keeps track of 2 components referring to individual device
+    headers (see :py:class:ReaderState for an explanation of what is a device
+    header):
+    * :py:class:DeviceHeaderCols
+    * :py:class:DeviceHeaderDataBuilder
+
+    The first of those (:py:class:DeviceHeaderCols) keeps track of which
+    columns from the CSV file refer to that device. The second
+    (:py:class:DeviceHeaderDataBuilder) is accumulates data of different vector
+    time series, each of which coming from an individual column of the CSV
+    file.
+
+    Then, when a column of data is read, AllDevicesDataBuilder slices the data
+    as dictated by :py:class:DeviceHeaderCols and passes it along to
+    :py:class:DeviceHeaderDataBuilder.
+
+    In its initialization, this class takes :py:class:DeviceHeaderCols (which
+    are created during the parsing of the device headers line in the CSV file)
+    and instantiates as many instances as needed of
+    :py:class:DeviceHeaderDataBuilder.
+
+    Args:
+        force_plates (optional): a list of :py:class:ForcePlateCols or None.
+
+        emg_device (optional): a :py:class:DeviceHeaderCols representing the
+            columns of an EMG data header or None.
+
+        trajectory_marker_devices (optional): a list of
+            :py:class:DeviceHeaderCols, each representing the columns of a data
+            header which is a trajectory marker or None.
+
+        device_header_data_builder_type (optional): the class used to represent
+            individual device headers. By default, it is
+            DeviceHeaderDataBuilder
+
+        time_series_data_builder_type (optional): the class used to represent
+            individual time series. By default, it is TimeSeriesDataBuilder.
+    """
+    @dataclass
+    class Device:
+        device_cols: DeviceHeaderCols
+        device_data_builder: DeviceHeaderDataBuilder
+
+    @dataclass
+    class ForcePlate:
+        force: 'Device'
+        moment: 'Device'
+        cop: 'Device'
+
+    force_plates: Optional[List[ForcePlate]]
+    emg: Optional[Device]
+    trajectory_markers: Optional[List[Device]]
+
+    def __init__(self,
+                 force_plate_cols: List[ForcePlateCols] = None,
+                 emg_cols: Optional[DeviceHeaderCols] = None,
+                 trajectory_marker_cols: List[DeviceHeaderCols] = None,
+                 device_header_data_builder_type=DeviceHeaderDataBuilder,
+                 time_series_data_builder_type=TimeSeriesDataBuilder):
+        self._device_header_data_builder_type = device_header_data_builder_type
+        self._time_series_data_builder_type = time_series_data_builder_type
+
+        if force_plate_cols is None:
+            self.force_plates = None
+        else:
+            self.force_plates = [
+                self._create_force_plate_device(fp) for fp in force_plate_cols
+            ]
+
+        if emg_cols is None:
+            self.emg = None
+        else:
+            self.emg = self._create_device(emg_cols)
+
+        if trajectory_marker_cols is None:
+            self.trajectory_markers = None
+        else:
+            self.trajectory_markers = [
+                self._create_device(tm) for tm in trajectory_marker_cols
+            ]
+
+    def _create_force_plate_device(self,
+                                   force_plates: ForcePlateCols) -> ForcePlate:
+        force = force_plates.force
+        moment = force_plates.moment
+        cop = force_plates.cop
+
+        return self.ForcePlate(force=self._create_device(force),
+                               moment=self._create_device(moment),
+                               cop=self._create_device(cop))
+
+    def _create_device(self, device_cols: DeviceHeaderCols) -> Device:
+        return self.Device(
+            device_cols=device_cols,
+            device_data_builder=self._create_device_header_data_builder())
+
+    def _create_device_header_data_builder(self):
+        return self._device_header_data_builder_type(
+            time_series_data_builder_type=self._time_series_data_builder_type)
+
+    def _all_devices_iterator(self) -> Iterator[Device]:
+        raise NotImplementedError()
 
 
 # A data check is a dict representing the result of validating the data of a

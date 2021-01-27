@@ -395,7 +395,7 @@ class DeviceHeaderDataBuilder:
             ValueError: the data doesn't have the same length as the
                 `time_series_list` provided during initialization.
         """
-        self._call_method_on_each(parsed_data, 'add_coordinates')
+        self._call_method_on_each(parsed_data, 'add_coordinate')
 
     def add_units(self, parsed_data: List[pint.Unit]):
         """Add units to each individual time series.
@@ -407,7 +407,7 @@ class DeviceHeaderDataBuilder:
             ValueError: the data doesn't have the same length as the
                 `time_series_list` provided during initialization.
         """
-        self._call_method_on_each(parsed_data, 'add_units')
+        self._call_method_on_each(parsed_data, 'add_unit')
 
     def add_data(self, parsed_data: List[float]):
         """Add a data entry to each individual time series.

@@ -342,11 +342,36 @@ class AllDevicesDataBuilder:
     """
     @dataclass
     class Device:
+        """A device header.
+
+        This dataclass combines the components of the device header
+        representation adopted by :py:class:AllDevicesDataBuilder. See the docs
+        of that class for more details.
+
+        Args:
+            device_cols: the DeviceHeaderCols object, which must refer to the
+                same device header as :py:param:device_data_builder.
+
+            device_data_builder: the DeviceHeaderDataBuilder object, which must
+                refer to the same device header as :py:param:device_cols
+        """
         device_cols: DeviceHeaderCols
         device_data_builder: DeviceHeaderDataBuilder
 
     @dataclass
     class ForcePlate:
+        """The 3 Devices with the data of a single force plate.
+
+        Since each force plate is represented in 3 different device headers,
+        this class provides a standard way to unify them.
+
+        Args:
+            force: the device header with force measurements
+
+            moment: the device header with moment measurements
+
+            cop: the device header with cop measurements
+        """
         force: 'Device'
         moment: 'Device'
         cop: 'Device'
@@ -385,6 +410,15 @@ class AllDevicesDataBuilder:
 
     def _create_force_plate_device(self,
                                    force_plates: ForcePlateCols) -> ForcePlate:
+        """Creates a ForcePlates object.
+
+        This is used during the initialization of
+        :py:class:AllDevicesDataBuilder instances.
+
+        Args:
+            force_plates: the object describing columns of force plates passed
+                for :py:class:AllDevicesDataBuilder.__init__
+        """
         force = force_plates.force
         moment = force_plates.moment
         cop = force_plates.cop
@@ -394,15 +428,30 @@ class AllDevicesDataBuilder:
                                cop=self._create_device(cop))
 
     def _create_device(self, device_cols: DeviceHeaderCols) -> Device:
+        """Creates a Device object.
+
+        This is used during the initialization of
+        :py:class:AllDevicesDataBuilder instances.
+
+        Args:
+            device_cols: the device_cols member of the newly created Device
+                object
+        """
         return self.Device(
             device_cols=device_cols,
             device_data_builder=self._create_device_header_data_builder())
 
     def _create_device_header_data_builder(self):
+        """Instantiates a new :py:class:DeviceHeaderDataBuilder
+
+        This is used during the initialization of
+        :py:class:AllDevicesDataBuilder instances.
+        """
         return self._device_header_data_builder_type(
             time_series_data_builder_type=self._time_series_data_builder_type)
 
     def _all_devices_iterator(self) -> Iterator[Device]:
+        """Iterates over all different Devices."""
         raise NotImplementedError()
 
 

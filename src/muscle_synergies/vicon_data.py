@@ -327,7 +327,7 @@ class AllDevicesDataBuilder:
         force_plates (optional): a list of :py:class:ForcePlateCols or None.
 
         emg_device (optional): a :py:class:DeviceHeaderCols representing the
-            columns of an EMG data header or None.
+            columns of an EMG device header or None.
 
         trajectory_marker_devices (optional): a list of
             :py:class:DeviceHeaderCols, each representing the columns of a data

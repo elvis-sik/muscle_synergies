@@ -85,39 +85,25 @@ class TestDeviceHeaderDataBuilder:
     """
 
 
-class TestAllDevicesDataBuilder:
+class TestDeviceHeaderCols:
     @pt.fixture
-    def mock_device_header_data_builder_type(self, mocker):
-        singleton_device_header_data_builder_mock = mocker.create_autospec(
-            vd.DeviceHeaderDataBuilder)
-
-        data_builder_factory = mocker.Mock(
-            spec=vd.DeviceHeaderDataBuilder.__init__,
-            return_value=singleton_device_header_data_builder_mock)
-
-        return data_builder_factory
+    def emg_dev_cols(self):
+        return vd.DeviceHeaderCols(device_type=vd.DeviceType.EMG,
+                                   device_name='EMG',
+                                   first_col_index=3)
 
     @pt.fixture
-    def mock_time_series_data_builder_type(self, mocker):
-        return 'fake time series data builder'
+    def force_plate_dev_cols(self):
+        return vd.DeviceHeaderCols(device_type=vd.DeviceType.FORCE_PLATE,
+                                   device_name='Force Plate',
+                                   first_col_index=0)
 
-    @pt.fixture
-    def force_plate_arg(self):
-        return [
-            vd.ForcePlateCols(
-                force=vd.DeviceHeaderCols(
-                    device_name='force plate 1 force',
-                    device_type=vd.DeviceType.FORCE_PLATE,
-                    first_col_index=2),
-                moment=vd.DeviceHeaderCols(
-                    device_name='force plate 1 moment',
-                    device_type=vd.DeviceType.FORCE_PLATE,
-                    first_col_index=5),
-                cop=vd.DeviceHeaderCols(device_name='force plate 1 cop',
-                                        device_type=vd.DeviceType.FORCE_PLATE,
-                                        first_col_index=8),
-            )
-        ]
+    def test_initialization_non_emg(self, force_plate_dev_cols):
+        assert force_plate_dev_cols.num_of_cols == 3
+
+    def test_initialization_emg(self, emg_dev_cols):
+        assert emg_dev_cols.num_of_cols is None
+
     def test_add_num_cols(self, emg_dev_cols):
         emg_dev_cols.add_num_cols(4)
         assert emg_dev_cols.num_of_cols == 4
@@ -140,88 +126,68 @@ class TestAllDevicesDataBuilder:
         created_slice = force_plate_dev_cols.create_slice()
         expected_slice = slice(0, 3)
         assert created_slice == expected_slice
-    @pt.fixture
-    def trajectory_marker_header_cols(self):
-        return [
-            vd.DeviceHeaderCols(device_name='trajectory marker',
-                                device_type=vd.DeviceType.TRAJECTORY_MARKER,
-                                first_col_index=11)
-        ]
 
+
+class TestDataChanneler:
     @pt.fixture
-    def emg_header_cols(self):
-        return vd.DeviceHeaderCols(device_name='emg',
-                                   device_type=vd.DeviceType.EMG,
-                                   first_col_index=14)
+    def mock_data_builder(self, mocker):
+        return mocker.Mock(autospec=vd.DeviceHeaderDataBuilder)
+
+    mock_another_data_builder = mock_data_builder
 
     @pt.fixture
-    def all_devices_data_builder(self, mock_device_header_data_builder_type,
-                                 mock_time_series_data_builder_type,
-                                 force_plate_arg,
-                                 trajectory_marker_header_cols,
-                                 emg_header_cols):
-        return vd.AllDevicesDataBuilder(
-            force_plate_cols=force_plate_arg,
-            emg_cols=emg_header_cols,
-            trajectory_marker_cols=trajectory_marker_header_cols,
-            device_header_data_builder_type=
-            mock_device_header_data_builder_type,
-            time_series_data_builder_type=mock_time_series_data_builder_type,
-        )
+    def mock_cols_0_1(self, mocker):
+        device_cols = mocker.Mock()
+        device_cols.create_slice = mocker.Mock(return_value=slice(0, 2))
+        return device_cols
 
-    """Class spec:
+    @pt.fixture
+    def mock_cols_2_3(self, mocker):
+        device_cols = mocker.Mock()
+        device_cols.create_slice = mocker.Mock(return_value=slice(2, 4))
+        return device_cols
 
-    1. initialization
-    - initializes one DeviceHeaderDataBuilder per DeviceHeaderCols it is
-      fed
-    - the class blindly believes the data it is provided with makes sense
-    - passes along its time_series_data_builder_type to the
-      DeviceHeaderDataBuilder it instantiates
-    """
-    def test_initializes_data_header_creates_data_header_builders(
-            self, all_devices_data_builder,
-            mock_device_header_data_builder_type,
-            mock_time_series_data_builder_type):
-        mock_device_header_data_builder_type.assert_called_with(
-            time_series_data_builder_type=mock_time_series_data_builder_type)
+    @pt.fixture
+    def mock_device_0_1(self, mock_data_builder, mock_cols_0_1):
+        return vd.DeviceHeader(device_cols=mock_cols_0_1,
+                               device_data_builder=mock_data_builder)
 
-    def test_initializes_correct_number_of_data_header_builders(
-            self, all_devices_data_builder,
-            mock_device_header_data_builder_type):
-        mock_object = mock_device_header_data_builder_type
-        number_of_devices = 5
-        assert mock_object.call_count == number_of_devices
+    @pt.fixture
+    def mock_device_2_3(self, mock_another_data_builder, mock_cols_2_3):
+        return vd.DeviceHeader(device_cols=mock_cols_2_3,
+                               device_data_builder=mock_another_data_builder)
 
-    # 2. has a add_coordinates method:
-    #
-    #    Arguments:
-    #    - parsed_row (Row): the coordinates line of the input with its empty
-    #                        columns at the end stripped.
-    #
-    #    Behaviors:
-    #    - passes downstream the columns for the DeviceHeaderDataBuilder
-    #      instances that were created during AllDevicesDataBuilder
-    #      initialization.
-    #    - the method it calls is named add_coordinates as well
+    @pt.fixture
+    def data_channeler(self, mock_device_0_1, mock_device_2_3):
+        devices = [mock_device_0_1, mock_device_2_3]
+        return vd.DataChanneler(devices)
 
-    # 3. has a add_units method
-    #
-    #    Arguments:
-    #    - physical_units_row (List[pint.Unit]): the units line of the csv file
-    #                                            with its empty columns at the
-    #                                            end stripped
-    #
-    #    Behaviors:
-    #    - similar to add_coordinates
+    @pt.fixture
+    def row(self):
+        return ['first', 'second', 'third', 'fourth']
 
-    # 4. has a add_data method
-    #
-    #    Arguments:
-    #    - data_row (List[float]): a data line of the csv file with its empty
-    #                              columns at the end stripped
-    #
-    #    Behaviors:
-    #    - similar to add_coordinates
+    def test_add_coordinates(self, data_channeler, row, mock_data_builder,
+                             mock_another_data_builder):
+        data_channeler.add_coordinates(row)
+        mock_data_builder.add_coordinates.assert_called_once_with(
+            ['first', 'second'])
+        mock_another_data_builder.add_coordinates.assert_called_once_with(
+            ['third', 'fourth'])
+
+    def test_add_units(self, data_channeler, row, mock_data_builder,
+                       mock_another_data_builder):
+        data_channeler.add_units(row)
+        mock_data_builder.add_units.assert_called_once_with(
+            ['first', 'second'])
+        mock_another_data_builder.add_units.assert_called_once_with(
+            ['third', 'fourth'])
+
+    def test_add_data(self, data_channeler, row, mock_data_builder,
+                      mock_another_data_builder):
+        data_channeler.add_data(row)
+        mock_data_builder.add_data.assert_called_once_with(['first', 'second'])
+        mock_another_data_builder.add_data.assert_called_once_with(
+            ['third', 'fourth'])
 
 
 class TestSectionDataBuilder:

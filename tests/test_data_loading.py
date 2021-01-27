@@ -268,6 +268,10 @@ class TestSectionReader:
         raise NotImplementedError
 
 
+class TestViconDataLoader:
+    pass
+
+
 class TestViconNexusCSVReader:
     # TODO this class is obsolete
     @pt.fixture

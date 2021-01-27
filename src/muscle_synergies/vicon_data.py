@@ -481,14 +481,16 @@ class Validator:
 
         self.current_line += 1
 
+    __call__ = validate
+
     def _raise_if_invalid(self, data_check_result: DataCheck):
         is_valid = data_check_result['is_valid']
-        error_description = data_check_result['error_message']
+        error_message = data_check_result['error_message']
 
         if not is_valid:
-            raise ValueError(self._build_error_message(error_description))
+            raise ValueError(self._build_error_message(error_message))
 
-    def _build_error_message(self, error_description: str) -> str:
+    def _build_error_message(self, error_message: str) -> str:
         return f'error parsing line {self.current_line} of file {self.csv_filename}: {error_message}'
 
 

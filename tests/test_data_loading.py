@@ -354,3 +354,53 @@ class TestViconNexusCSVReader:
         return vd.ViconNexusCSVReader(
             fores_emg_reader=section_reader_that_raises_mock,
             trajectories_reader=section_reader_mock)
+
+
+class TestState:
+    @pt.fixture
+    def mock_validator(self, mocker):
+        validator = mocker.Mock(autospec=vd.Validator)
+
+        def record_call(data_check_result):
+            nonlocal validator
+            validator.mock_validate_call = data_check_result
+
+        # The Validator mock uses a side effect
+        # because otherwise it is difficult to check whether .validate
+        # was called with the proper value for the 'is_valid' key.
+        validator.validate.side_effect = record_call
+        return validator
+
+    @pt.fixture
+    def mock_data_builder(self, mocker):
+        return mocker.Mock(autospec=vd.DataBuilder)
+
+    @pt.fixture
+    def mock_reader(self, mocker, mock_validator, mock_data_builder):
+        reader = mocker.Mock(name='reader')
+        reader.get_validator = mocker.Mock(name='get_validator',
+                                           return_value=mock_validator)
+        reader.get_data_builder = mocker.Mock(name='get_data_builder',
+                                              return_value=mock_data_builder)
+        reader.set_state = mocker.Mock(name='set_state')
+        return reader
+
+    class TestSectionTypeLineState:
+        @pt.fixture
+        def mock_next_state_init(self, mocker):
+            mocker.patch('vd.SamplingFrequencyLineState')
+            vd.SamplingFrequencyLineState.__init__ = mocker.Mock()
+
+        @pt.fixture
+        def state(self):
+            return vd.SectionTypeLineState()
+
+        @pt.fixture(params=['Devices', 'Trajectories'])
+        def valid_line(self, request):
+            return [request.param, '', '', '', '', '', '', '']
+
+        def test_accepts_valid_line(self, state, valid_line, mock_reader,
+                                    mock_validator):
+            state.feed_row(valid_line, mock_reader)
+            mock_validator.validate.assert_called_once()
+            assert mock_validator.mock_validate_call['is_valid']

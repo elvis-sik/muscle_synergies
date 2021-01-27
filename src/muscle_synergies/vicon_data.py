@@ -315,7 +315,35 @@ class ForcePlateCols:
 
 
 class TimeSeriesDataBuilder:
-    pass
+    """Builds data of an individual time series.
+
+    Columns in the CSV file correspond to measurements made over time (at
+    least in parts of it, see :py:class:ReaderState for more details on the
+    structure of the CSV file).
+
+    This class keeps track of the information for one such time series as that
+    information is read line by line from the input.
+    """
+    coordinate_name: Optional[str]
+    physical_unit: Optional[pint.Unit]
+    data: List[float]
+
+    def __init__(self):
+        self.coordinate_name = None
+        self.physical_unit = None
+        self.data = []
+
+    def add_coordinate(self, coord_name: str):
+        """Adds the coordinate name."""
+        self.coordinate_name = coord_name
+
+    def add_unit(self, physical_unit: pint.Unit):
+        """Adds the physical units."""
+        self.physical_unit = physical_unit
+
+    def add_data(self, data_entry: float):
+        """Adds a data entry."""
+        self.data.append(data_entry)
 
 
 class DeviceHeaderDataBuilder:

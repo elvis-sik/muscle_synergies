@@ -260,6 +260,13 @@ class DeviceHeaderCols:
         self._initialize_num_of_cols()
 
     def create_slice(self):
+        """Creates a slice object corresponding to the device header columns.
+
+        Raises:
+            TypeError: if num_of_cols is None. This will happen for an EMG
+                device header if :py:func:DeviceHeaderCols.add_num_cols isn't
+                called explicitly.
+        """
         if self.num_of_cols is None:
             raise TypeError('add_num_of_cols should be called before slice')
 
@@ -267,6 +274,14 @@ class DeviceHeaderCols:
                      self.first_col_index + self.num_of_cols)
 
     def add_num_cols(self, num_of_cols: int):
+        """Add number of columns.
+
+        This should only be used for EMG devices, and only once.
+
+        Raises:
+            TypeError: if either the device isn't a EMG one or the method is
+                called more than once.
+        """
         if self.num_of_cols is not None:
             raise TypeError(
                 'tried to set num_of_cols with the variable already set')
@@ -279,6 +294,7 @@ class DeviceHeaderCols:
         self.num_of_cols = num_of_cols
 
     def _initialize_num_of_cols(self):
+        """Determines if possible the number of columns of the device"""
         if self.device_type is DeviceType.EMG:
             self.num_of_cols = None
         else:

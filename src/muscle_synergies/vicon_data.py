@@ -606,7 +606,7 @@ class DevicesReader:
         return {'is_valid': is_valid, 'error_message': error_message}
 
 
-class ViconNexusCSVReader:
+class ViconDataLoader:
     pass
 
 

@@ -399,8 +399,18 @@ class TestState:
         def valid_line(self, request):
             return [request.param, '', '', '', '', '', '', '']
 
-        def test_accepts_valid_line(self, state, valid_line, mock_reader,
-                                    mock_validator):
+        def test_accepts_valid(self, state, valid_line, mock_reader,
+                               mock_validator):
             state.feed_row(valid_line, mock_reader)
             mock_validator.validate.assert_called_once()
             assert mock_validator.mock_validate_call['is_valid']
+
+        @pt.fixture
+        def invalid_line(self):
+            return ['Invalid', '', '', '', '', '']
+
+        def test_doesnt_accept_invalid(self, state, invalid_line, mock_reader,
+                                       mock_validator):
+            state.feed_row(invalid_line, mock_reader)
+            mock_validator.validate.assert_called_once()
+            assert not mock_validator.mock_validate_call['is_valid']

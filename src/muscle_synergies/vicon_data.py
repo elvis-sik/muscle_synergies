@@ -219,12 +219,11 @@ class SectionTypeLineState(ReaderState):
 
     def _parse_row(self, row: Row) -> SectionType:
         section_type_str = row[0]
-        str_to_enum_mapping = {
-            'Devices': SectionType.FORCES_EMG,
-            'Trajectories': SectionType.TRAJECTORIES
-        }
 
-        return str_to_enum_mapping[section_type_str]
+        if section_type_str == 'Devices':
+            return SectionType.FORCES_EMG
+        elif section_type_str == 'Trajectories':
+            return SectionType.TRAJECTORIES
 
     def _build_data(self, parsed_data: SectionType,
                     data_builder: 'DataBuilder'):

@@ -57,7 +57,28 @@ class TestValidator:
 
 
 class TestTimeSeriesDataBuilder:
-    pass
+    @pt.fixture
+    def data_builder(self):
+        return vd.TimeSeriesDataBuilder()
+
+    def test_add_coordinate_name(self, data_builder):
+        coord_name = 'foo'
+        data_builder.add_coordinate(coord_name=coord_name)
+        assert coord_name == data_builder.coordinate_name
+
+    def test_add_unit(self, data_builder):
+        unit = 'foo'
+        data_builder.add_unit(physical_unit=unit)
+        assert unit == data_builder.physical_unit
+
+    def test_add_data(self, data_builder):
+        first_entry = 1.
+        data_builder.add_data(data_entry=first_entry)
+        assert [first_entry] == data_builder.data
+
+        second_entry = 2.
+        data_builder.add_data(data_entry=second_entry)
+        assert [first_entry, second_entry] == data_builder.data
 
 
 class TestDeviceHeaderDataBuilder:
@@ -80,8 +101,8 @@ class TestDeviceHeaderDataBuilder:
         parsed_data = [first_data, second_data]
         data_builder.add_coordinates(parsed_data)
 
-        mock_time_series.add_coordinates.assert_called_once_with(first_data)
-        mock_another_time_series.add_coordinates.assert_called_once_with(
+        mock_time_series.add_coordinate.assert_called_once_with(first_data)
+        mock_another_time_series.add_coordinate.assert_called_once_with(
             second_data)
 
     def test_add_coordinates_wrong_number(self, data_builder):
@@ -98,8 +119,8 @@ class TestDeviceHeaderDataBuilder:
         parsed_data = [first_data, second_data]
         data_builder.add_units(parsed_data)
 
-        mock_time_series.add_units.assert_called_once_with(first_data)
-        mock_another_time_series.add_units.assert_called_once_with(second_data)
+        mock_time_series.add_unit.assert_called_once_with(first_data)
+        mock_another_time_series.add_unit.assert_called_once_with(second_data)
 
     def test_add_units_wrong_number(self, data_builder):
         parsed_data = ['one', 'two', 'three']

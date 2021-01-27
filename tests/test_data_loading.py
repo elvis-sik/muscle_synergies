@@ -65,24 +65,68 @@ class TestTimeSeriesDataBuilder:
 
 
 class TestDeviceHeaderDataBuilder:
-    """Class spec:
+    @pt.fixture
+    def mock_time_series(self, mocker):
+        return mocker.Mock(autospec=vd.TimeSeriesDataBuilder)
 
-    1. initialization:
+    mock_another_time_series = mock_time_series
 
-    Arguments:
-    - time_series_data_builder_type (optional): the class used to represent
-      individual time series. By default, it is TimeSeriesDataBuilder.
+    @pt.fixture
+    def data_builder(self, mock_time_series, mock_another_time_series):
+        return vd.DeviceHeaderDataBuilder(
+            time_series_list=[mock_time_series, mock_another_time_series])
 
-    Behavior:
-    - None
-    """
-    #
-    """ 2. add_coordinates
+    def test_add_coordinates(self, data_builder, mock_time_series,
+                             mock_another_time_series):
+        first_data = 'first'
+        second_data = 'second'
 
-    Behavior:
-    - this is where the class learns how many time series it is responsible for
+        parsed_data = [first_data, second_data]
+        data_builder.add_coordinates(parsed_data)
 
-    """
+        mock_time_series.add_coordinates.assert_called_once_with(first_data)
+        mock_another_time_series.add_coordinates.assert_called_once_with(
+            second_data)
+
+    def test_add_coordinates_wrong_number(self, data_builder):
+        parsed_data = ['one', 'two', 'three']
+
+        with pt.raises(ValueError):
+            data_builder.add_coordinates(parsed_data)
+
+    def test_add_units(self, data_builder, mock_time_series,
+                       mock_another_time_series):
+        first_data = 'first'
+        second_data = 'second'
+
+        parsed_data = [first_data, second_data]
+        data_builder.add_units(parsed_data)
+
+        mock_time_series.add_units.assert_called_once_with(first_data)
+        mock_another_time_series.add_units.assert_called_once_with(second_data)
+
+    def test_add_units_wrong_number(self, data_builder):
+        parsed_data = ['one', 'two', 'three']
+
+        with pt.raises(ValueError):
+            data_builder.add_units(parsed_data)
+
+    def test_add_data(self, data_builder, mock_time_series,
+                      mock_another_time_series):
+        first_data = 'first'
+        second_data = 'second'
+
+        parsed_data = [first_data, second_data]
+        data_builder.add_data(parsed_data)
+
+        mock_time_series.add_data.assert_called_once_with(first_data)
+        mock_another_time_series.add_data.assert_called_once_with(second_data)
+
+    def test_add_data_wrong_number(self, data_builder):
+        parsed_data = ['one', 'two', 'three']
+
+        with pt.raises(ValueError):
+            data_builder.add_data(parsed_data)
 
 
 class TestDeviceHeaderCols:

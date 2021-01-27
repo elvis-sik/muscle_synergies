@@ -314,9 +314,112 @@ class ForcePlateCols:
     cop: DeviceHeaderCols
 
 
+class TimeSeriesDataBuilder:
+    pass
+
+
 class DeviceHeaderDataBuilder:
-    def add_coordinates(self):
-        pass
+    """The data builder of a single device header.
+
+    Most device headers have exactly 3 columns, like the ones for trajectory
+    markers. EMG device headers can have an arbitrary number of columns, each
+    referring to a different muscle. What they all have in common is that they
+    all have components.
+
+    This class passes along data from each line following the device header
+    line to each component. The exact pipeline is this:
+    1. the caller finds the columns of the CSV file which refer to the device
+       header asssociated with a :py:class:DeviceHeaderDataBuilder instance.
+    2. the caller then passes exactly those columns to that instance using the
+       appropriate method
+       (e.g., :py:func:DeviceHeaderDataBuilder.add_coordinates)
+    3. this class channels the data forward for different TimeSeriesDataBuilder
+       objects, which are taken during initialization.
+
+    Args:
+        time_series_list: the list of :py:class:TimeSeriesDataBuilder objects
+            to which the data has to be passed.
+    """
+    time_series_tuple: Tuple[TimeSeriesDataBuilder]
+
+    def __init__(self, time_series_list: List[TimeSeriesDataBuilder]):
+        self.time_series_tuple = tuple(time_series_list)
+
+    def _call_method_on_each(self, parsed_data: List, method_name: str):
+        """Calls a method on each time series with the data as argument.
+
+        Args:
+            parsed_data: the data, parsed from a line from the CSV input, to be
+                passed along to the different :py:class:TimeSeriesDataBuilder
+                instances.
+
+            method_name: the name of the method to be called from each
+                :py:class:TimeSeriesDataBuilder.
+
+        Raises:
+            ValueError: if the length of `parsed_data` doesn't match that of
+               the `time_series_list` provided during initialization.
+        """
+        self._validate_data(parsed_data)
+
+        for data_entry, time_series in zip(parsed_data,
+                                           self.time_series_tuple):
+            method = getattr(time_series, method_name)
+            method(data_entry)
+
+    def _validate_data(self, parsed_data: List):
+        """Raises an exception if the data doesn't have the correct length.
+
+        Args:
+            parsed_data: the data the length of which is to be compared with
+                that of the `time_series_list` provided during initialization.
+
+        Raises:
+            ValueError: if the length of `parsed_data` doesn't match that of
+               the `time_series_list` provided during initialization.
+        """
+        if len(parsed_data) != len(self.time_series_tuple):
+            raise ValueError(f'provided parsed_data argument with length'
+                             f' {len(parsed_data)}'
+                             f' but was expecting length'
+                             f' {len(self.time_series_tuple)}')
+
+    def add_coordinates(self, parsed_data: List[str]):
+        """Add coordinates to each individual time series.
+
+        Args:
+            parsed_data: the strings from the CSV file describing the
+                coordinate or muscle.
+
+        Raises:
+            ValueError: the data doesn't have the same length as the
+                `time_series_list` provided during initialization.
+        """
+        self._call_method_on_each(parsed_data, 'add_coordinates')
+
+    def add_units(self, parsed_data: List[pint.Unit]):
+        """Add units to each individual time series.
+
+        Args:
+            parsed_data: the physical units parsed from the CSV file.
+
+        Raises:
+            ValueError: the data doesn't have the same length as the
+                `time_series_list` provided during initialization.
+        """
+        self._call_method_on_each(parsed_data, 'add_units')
+
+    def add_data(self, parsed_data: List[float]):
+        """Add a data entry to each individual time series.
+
+        Args:
+            parsed_data: data parsed from one line of the CSV file.
+
+        Raises:
+            ValueError: the data doesn't have the same length as the
+                `time_series_list` provided during initialization.
+        """
+        self._call_method_on_each(parsed_data, 'add_data')
 
 
 @dataclass
@@ -371,10 +474,6 @@ class ForcePlate:
     force: DeviceHeader
     moment: DeviceHeader
     cop: DeviceHeader
-
-
-class TimeSeriesDataBuilder:
-    pass
 
 
 class DataChanneler:

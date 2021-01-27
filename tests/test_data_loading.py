@@ -22,24 +22,25 @@ class TestValidator:
     def invalid_data_check(self):
         return {'is_valid': False, 'error_message': 'the error message'}
 
-    def test_validator_starts_at_1(validator_that_should_raise):
+    def test_validator_starts_at_1(self, validator_that_should_raise):
         validator = validator_that_should_raise
         assert validator.current_line == 1
 
-    def test_validator_increases_line_count(validator_that_should_raise,
+    def test_validator_increases_line_count(self, validator_that_should_raise,
                                             valid_data_check):
         validator = validator_that_should_raise
         data_check = valid_data_check
         validator.validate(data_check)
         assert validator.current_line == 2
 
-    def test_validator_that_shouldnt_doesnt_raise(validator_that_doesnt_raise,
+    def test_validator_that_shouldnt_doesnt_raise(self,
+                                                  validator_that_doesnt_raise,
                                                   invalid_data_check):
         validator = validator_that_doesnt_raise
         data_check = invalid_data_check
         assert validator(data_check) is None
 
-    def test_validator_raises_with_invalid(validator_that_should_raise,
+    def test_validator_raises_with_invalid(self, validator_that_should_raise,
                                            invalid_data_check):
         validator = validator_that_should_raise
         data_check = invalid_data_check
@@ -47,7 +48,8 @@ class TestValidator:
         with pt.raises(ValueError):
             validator(data_check)
 
-    def test_validator_doesnt_raise_with_valid(validator_that_should_raise,
+    def test_validator_doesnt_raise_with_valid(self,
+                                               validator_that_should_raise,
                                                valid_data_check):
         validator = validator_that_should_raise
         data_check = valid_data_check

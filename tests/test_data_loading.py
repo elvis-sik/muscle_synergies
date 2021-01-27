@@ -118,7 +118,28 @@ class TestAllDevicesDataBuilder:
                                         first_col_index=8),
             )
         ]
+    def test_add_num_cols(self, emg_dev_cols):
+        emg_dev_cols.add_num_cols(4)
+        assert emg_dev_cols.num_of_cols == 4
 
+    def test_add_num_cols_twice_raises(self, emg_dev_cols):
+        emg_dev_cols.add_num_cols(4)
+
+        with pt.raises(TypeError):
+            emg_dev_cols.add_num_cols(4)
+
+    def test_add_num_cols_non_emg_raises(self, force_plate_dev_cols):
+        with pt.raises(TypeError):
+            force_plate_dev_cols.add_num_cols(4)
+
+    def test_create_slice_no_num_cols_raises(self, emg_dev_cols):
+        with pt.raises(TypeError):
+            emg_dev_cols.create_slice()
+
+    def test_create_slice(self, force_plate_dev_cols):
+        created_slice = force_plate_dev_cols.create_slice()
+        expected_slice = slice(0, 3)
+        assert created_slice == expected_slice
     @pt.fixture
     def trajectory_marker_header_cols(self):
         return [

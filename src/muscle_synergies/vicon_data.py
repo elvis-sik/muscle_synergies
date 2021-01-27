@@ -106,71 +106,6 @@ class DeviceType(Enum):
     TRAJECTORY_MARKER = 3
 
 
-class DeviceHeaderCols:
-    """Intermediate representation of the data read in the device names line.
-
-    This class is used as a way of communicating data from the :py:class:Reader
-    to the :py:class:DataBuilder. For more information on where the data that
-    is held by this class, see the docs for :py:class:ReaderState.
-
-    Args:
-        device_name: the name of the device, as read from the CSV file
-
-        device_type: the type of the device
-
-        first_col_index: the index in a Row in which the data for the device
-            begins
-    """
-    device_type: DeviceType
-    device_name: str
-    first_col_index: int
-    num_of_cols: Optional[int]
-
-    def __init__(self, device_type: DeviceType, device_name: str,
-                 first_col_index: int):
-        self.device_name = device_name
-        self.device_type = device_type
-        self.first_col_index: int
-        self._initialize_num_of_cols
-
-    def slice(self):
-        if self.num_of_cols is None:
-            raise TypeError('add_num_of_cols should be called before slice')
-
-        return slice(self.first_col_index, self.first_col_index + num_of_cols)
-
-    def add_num_of_cols(self, num_of_cols: int):
-        if self.num_of_cols is not None:
-            raise TypeError(
-                'tried to set num_of_cols with the variable already set')
-
-        if self.device_type is not DeviceType.EMG:
-            raise TypeError(
-                "tried to set num_of_cols for a device the type of which isn't EMG"
-            )
-
-        self.num_of_cols = num_of_cols
-
-    def _initialize_num_of_cols(self):
-        if self.device_type is DeviceType.EMG:
-            self.num_of_cols = None
-        else:
-            self.num_of_cols = 3
-
-
-@dataclass
-class ForcePlateCols:
-    """The 3 DeviceHeaderCols with the data of a single force plate.
-
-    See the docs for :py:class:DeviceHeaderCols for more details. Since each
-    force plate is represented in 3 different device headers, this class
-    provides a standard way to represent those.
-    """
-    force: DeviceHeaderCols
-    moment: DeviceHeaderCols
-    cop: DeviceHeaderCols
-
-
 class SectionReaderState(abc.ABC):
     # TODO Idea is to obsolete TestViconNexusCSVReader
     # include all check/read/etc functions as State methods.
@@ -293,14 +228,73 @@ class SectionDataBuilder:
 
 class DeviceHeaderDataBuilder:
     pass
+class DeviceHeaderCols:
+    """Intermediate representation of the data read in the device names line.
 
+    This class is used as a way of communicating data from the :py:class:Reader
+    to the :py:class:DataBuilder. For more information on where the data that
+    is held by this class, see the docs for :py:class:ReaderState.
 
-class TimeSeriesDataBuilder:
-    pass
+    Args:
+        device_name: the name of the device, as read from the CSV file
 
+        device_type: the type of the device
+
+        first_col_index: the index in a Row in which the data for the device
+            begins
+    """
+    device_type: DeviceType
+    device_name: str
+    first_col_index: int
+    num_of_cols: Optional[int]
+
+    def __init__(self, device_type: DeviceType, device_name: str,
+                 first_col_index: int):
+        self.device_name = device_name
+        self.device_type = device_type
+        self.first_col_index = first_col_index
+        self._initialize_num_of_cols()
+
+    def create_slice(self):
+        if self.num_of_cols is None:
+            raise TypeError('add_num_of_cols should be called before slice')
+
+        return slice(self.first_col_index,
+                     self.first_col_index + self.num_of_cols)
+
+    def add_num_cols(self, num_of_cols: int):
+        if self.num_of_cols is not None:
+            raise TypeError(
+                'tried to set num_of_cols with the variable already set')
+
+        if self.device_type is not DeviceType.EMG:
+            raise TypeError(
+                "tried to set num_of_cols for a device the type of which isn't EMG"
+            )
+
+        self.num_of_cols = num_of_cols
+
+    def _initialize_num_of_cols(self):
+        if self.device_type is DeviceType.EMG:
+            self.num_of_cols = None
+        else:
+            self.num_of_cols = 3
 
 class AllDevicesDataBuilder:
     """Accumulates data as it is being read for a section of a CSV file.
+
+@dataclass
+class ForcePlateCols:
+    """The 3 DeviceHeaderCols with the data of a single force plate.
+
+    See the docs for :py:class:DeviceHeaderCols for more details. Since each
+    force plate is represented in 3 different device headers, this class
+    provides a standard way to represent those.
+    """
+    force: DeviceHeaderCols
+    moment: DeviceHeaderCols
+    cop: DeviceHeaderCols
+
 
     This class keeps track of 2 components referring to individual device
     headers (see :py:class:ReaderState for an explanation of what is a device

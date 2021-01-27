@@ -7,6 +7,8 @@ from enum import Enum
 from typing import (List, Set, Dict, Tuple, Optional, Sequence, Callable, Any,
                     Mapping, Iterator)
 
+import pint
+
 # a row from the CSV file is simply a list of strings,
 # corresponding to different values
 Row = List[str]
@@ -215,9 +217,13 @@ class SectionReader:
         self.validator.validate(data_check_result)
 
 
-class SectionDataBuilder:
+class DataBuilder:
     section_type: SectionType
     frequency: int
+
+    force_plates_device_header: Optional[List['ForcePlate']]
+    emg_device_header: Optional['DeviceHeader']
+    trajectory_device_header: Optional[List['DeviceHeader']]
 
     def add_section_type(self, section_type: SectionType):
         self.section_type = section_type
@@ -226,8 +232,6 @@ class SectionDataBuilder:
         self.frequency = frequency
 
 
-class DeviceHeaderDataBuilder:
-    pass
 class DeviceHeaderCols:
     """Intermediate representation of the data read in the device names line.
 
@@ -280,8 +284,6 @@ class DeviceHeaderCols:
         else:
             self.num_of_cols = 3
 
-class AllDevicesDataBuilder:
-    """Accumulates data as it is being read for a section of a CSV file.
 
 @dataclass
 class ForcePlateCols:
@@ -296,6 +298,15 @@ class ForcePlateCols:
     cop: DeviceHeaderCols
 
 
+class DeviceHeaderDataBuilder:
+    def add_coordinates(self):
+        pass
+
+
+@dataclass
+class DeviceHeader:
+    """A device header.
+
     This class keeps track of 2 components referring to individual device
     headers (see :py:class:ReaderState for an explanation of what is a device
     header):
@@ -308,145 +319,103 @@ class ForcePlateCols:
     time series, each of which coming from an individual column of the CSV
     file.
 
-    Then, when a column of data is read, AllDevicesDataBuilder slices the data
-    as dictated by :py:class:DeviceHeaderCols and passes it along to
-    :py:class:DeviceHeaderDataBuilder.
+    Args:
+        device_cols: the DeviceHeaderCols object, which must refer to the
+            same device header as :py:param:device_data_builder.
 
-    In its initialization, this class takes :py:class:DeviceHeaderCols (which
-    are created during the parsing of the device headers line in the CSV file)
-    and instantiates as many instances as needed of
-    :py:class:DeviceHeaderDataBuilder.
+        device_data_builder: the DeviceHeaderDataBuilder object, which must
+            refer to the same device header as :py:param:device_cols
+    """
+    device_cols: DeviceHeaderCols
+    device_data_builder: DeviceHeaderDataBuilder
+
+    @property
+    def device_name(self):
+        return self.device_cols.device_name
+
+    @property
+    def device_type(self):
+        return self.device_cols.device_type
+
+
+@dataclass
+class ForcePlate:
+    """The 3 DevicesHeader with the data of a single force plate.
+
+    Since each force plate is represented in 3 different device headers,
+    this class provides a standard way to unify them.
 
     Args:
-        force_plates (optional): a list of :py:class:ForcePlateCols or None.
+        force: the device header with force measurements
 
-        emg_device (optional): a :py:class:DeviceHeaderCols representing the
-            columns of an EMG device header or None.
+        moment: the device header with moment measurements
 
-        trajectory_marker_devices (optional): a list of
-            :py:class:DeviceHeaderCols, each representing the columns of a data
-            header which is a trajectory marker or None.
-
-        device_header_data_builder_type (optional): the class used to represent
-            individual device headers. By default, it is
-            DeviceHeaderDataBuilder
-
-        time_series_data_builder_type (optional): the class used to represent
-            individual time series. By default, it is TimeSeriesDataBuilder.
+        cop: the device header with cop measurements
     """
-    @dataclass
-    class Device:
-        """A device header.
+    force: DeviceHeader
+    moment: DeviceHeader
+    cop: DeviceHeader
 
-        This dataclass combines the components of the device header
-        representation adopted by :py:class:AllDevicesDataBuilder. See the docs
-        of that class for more details.
 
-        Args:
-            device_cols: the DeviceHeaderCols object, which must refer to the
-                same device header as :py:param:device_data_builder.
+class TimeSeriesDataBuilder:
+    pass
 
-            device_data_builder: the DeviceHeaderDataBuilder object, which must
-                refer to the same device header as :py:param:device_cols
-        """
-        device_cols: DeviceHeaderCols
-        device_data_builder: DeviceHeaderDataBuilder
 
-    @dataclass
-    class ForcePlate:
-        """The 3 Devices with the data of a single force plate.
+class DataChanneler:
+    """Channels rows of data from the CSV input to the its data builder.
 
-        Since each force plate is represented in 3 different device headers,
-        this class provides a standard way to unify them.
+    Args:
+        devices: the list of Device objects to which to channel the data.
+    """
+    _DeviceSlice = Tuple[DeviceHeaderDataBuilder, slice]
 
-        Args:
-            force: the device header with force measurements
+    devices: List[DeviceHeader]
 
-            moment: the device header with moment measurements
+    def __init__(self, devices):
+        self.devices = devices
 
-            cop: the device header with cop measurements
-        """
-        force: 'Device'
-        moment: 'Device'
-        cop: 'Device'
+    def _device_builder(self, device: DeviceHeader) -> DeviceHeaderDataBuilder:
+        return device.device_data_builder
 
-    force_plates: Optional[List[ForcePlate]]
-    emg: Optional[Device]
-    trajectory_markers: Optional[List[Device]]
+    def _device_row_slice(self, device: DeviceHeader) -> slice:
+        device_cols = device.device_cols
+        return device_cols.create_slice()
 
-    def __init__(self,
-                 force_plate_cols: List[ForcePlateCols] = None,
-                 emg_cols: Optional[DeviceHeaderCols] = None,
-                 trajectory_marker_cols: List[DeviceHeaderCols] = None,
-                 device_header_data_builder_type=DeviceHeaderDataBuilder,
-                 time_series_data_builder_type=TimeSeriesDataBuilder):
-        self._device_header_data_builder_type = device_header_data_builder_type
-        self._time_series_data_builder_type = time_series_data_builder_type
+    def _iter_device_slice(self) -> Iterator[_DeviceSlice]:
+        for device in self.devices:
+            builder = self._device_builder(device)
+            row_slice = self._device_row_slice(device)
+            yield (builder, row_slice)
 
-        if force_plate_cols is None:
-            self.force_plates = None
-        else:
-            self.force_plates = [
-                self._create_force_plate_device(fp) for fp in force_plate_cols
-            ]
+    def _call_method_of_each_device(self, parsed_row: List, method_name: str):
+        for device, row_slice in self._iter_device_slice():
+            data = parsed_row[row_slice]
+            method = getattr(device, method_name)
+            method(data)
 
-        if emg_cols is None:
-            self.emg = None
-        else:
-            self.emg = self._create_device(emg_cols)
-
-        if trajectory_marker_cols is None:
-            self.trajectory_markers = None
-        else:
-            self.trajectory_markers = [
-                self._create_device(tm) for tm in trajectory_marker_cols
-            ]
-
-    def _create_force_plate_device(self,
-                                   force_plates: ForcePlateCols) -> ForcePlate:
-        """Creates a ForcePlates object.
-
-        This is used during the initialization of
-        :py:class:AllDevicesDataBuilder instances.
+    def add_coordinates(self, parsed_row: List[str]):
+        """Adds coordinates to devices.
 
         Args:
-            force_plates: the object describing columns of force plates passed
-                for :py:class:AllDevicesDataBuilder.__init__
+            parsed_row: the coordinates line of the input.
         """
-        force = force_plates.force
-        moment = force_plates.moment
-        cop = force_plates.cop
+        self._call_method_of_each_device(parsed_row, 'add_coordinates')
 
-        return self.ForcePlate(force=self._create_device(force),
-                               moment=self._create_device(moment),
-                               cop=self._create_device(cop))
-
-    def _create_device(self, device_cols: DeviceHeaderCols) -> Device:
-        """Creates a Device object.
-
-        This is used during the initialization of
-        :py:class:AllDevicesDataBuilder instances.
+    def add_units(self, parsed_row: List[pint.Unit]):
+        """Adds physical units to devices.
 
         Args:
-            device_cols: the device_cols member of the newly created Device
-                object
+            parsed_row: the units line of the input, already parsed.
         """
-        return self.Device(
-            device_cols=device_cols,
-            device_data_builder=self._create_device_header_data_builder())
+        self._call_method_of_each_device(parsed_row, 'add_units')
 
-    def _create_device_header_data_builder(self):
-        """Instantiates a new :py:class:DeviceHeaderDataBuilder
+    def add_data(self, parsed_row: List[float]):
+        """Adds physical units to devices.
 
-        This is used during the initialization of
-        :py:class:AllDevicesDataBuilder instances.
+        Args:
+            parsed_row: a data line of the input, already parsed.
         """
-        return self._device_header_data_builder_type(
-            time_series_data_builder_type=self._time_series_data_builder_type)
-
-    def _all_devices_iterator(self) -> Iterator[Device]:
-        """Iterates over all different Devices."""
-        raise NotImplementedError()
+        self._call_method_of_each_device(parsed_row, 'add_data')
 
 
 # A data check is a dict representing the result of validating the data of a

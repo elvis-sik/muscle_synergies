@@ -56,10 +56,6 @@ class TestValidator:
         assert validator(data_check) is None
 
 
-class TestDeviceHeaderCols:
-    pass
-
-
 class TestTimeSeriesDataBuilder:
     pass
 

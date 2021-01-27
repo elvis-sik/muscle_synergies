@@ -440,10 +440,10 @@ class DeviceHeader:
 
     Args:
         device_cols: the DeviceHeaderCols object, which must refer to the
-            same device header as :py:param:device_data_builder.
+            same device header as `device_data_builder`.
 
         device_data_builder: the DeviceHeaderDataBuilder object, which must
-            refer to the same device header as :py:param:device_cols
+            refer to the same device header as `device_cols`
     """
     device_cols: DeviceHeaderCols
     device_data_builder: DeviceHeaderDataBuilder
@@ -484,25 +484,37 @@ class DataChanneler:
     """
     _DeviceSlice = Tuple[DeviceHeaderDataBuilder, slice]
 
-    devices: List[DeviceHeader]
+    devices: Tuple[DeviceHeader]
 
-    def __init__(self, devices):
-        self.devices = devices
+    def __init__(self, devices: List[DeviceHeader]):
+        self.devices = tuple(devices)
 
     def _device_builder(self, device: DeviceHeader) -> DeviceHeaderDataBuilder:
+        """Gets data builder from a device."""
         return device.device_data_builder
 
     def _device_row_slice(self, device: DeviceHeader) -> slice:
+        """Gets the slice object corresponding to a device."""
         device_cols = device.device_cols
         return device_cols.create_slice()
 
     def _iter_device_slice(self) -> Iterator[_DeviceSlice]:
+        """Yields all pairs of data builder and row slice."""
         for device in self.devices:
             builder = self._device_builder(device)
             row_slice = self._device_row_slice(device)
             yield (builder, row_slice)
 
     def _call_method_of_each_device(self, parsed_row: List, method_name: str):
+        """Calls method on each device with the parsed row as an argument.
+
+        Args:
+            parsed_row: the entire parsed row which is sliced and passed along
+                to data builders.
+
+            method_name: the name of the method which is to be called on each
+                data builder.
+        """
         for device, row_slice in self._iter_device_slice():
             data = parsed_row[row_slice]
             method = getattr(device, method_name)

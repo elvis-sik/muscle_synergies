@@ -306,4 +306,3 @@ class TestViconNexusCSVReader:
         return vd.ViconNexusCSVReader(
             fores_emg_reader=section_reader_that_raises_mock,
             trajectories_reader=section_reader_mock)
-

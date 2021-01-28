@@ -387,30 +387,48 @@ class TestState:
 
     class TestSectionTypeLineState:
         @pt.fixture
-        def mock_next_state_init(self, mocker):
-            mocker.patch('vd.SamplingFrequencyLineState')
-            vd.SamplingFrequencyLineState.__init__ = mocker.Mock()
+        def patch_next_state_init(self, mocker):
+            mock_init = mocker.Mock(name='next state init',
+                                    autospec=vd.SamplingFrequencyLineState)
+            mocker.patch.object(vd, 'SamplingFrequencyLineState', mock_init)
+            return mock_init
 
         @pt.fixture
-        def state(self):
+        def state(self, patch_next_state_init):
             return vd.SectionTypeLineState()
 
-        @pt.fixture(params=['Devices', 'Trajectories'])
-        def valid_line(self, request):
-            return [request.param, '', '', '', '', '', '', '']
+        @pt.fixture(params=[('Devices', vd.SectionType.FORCES_EMG),
+                            ('Trajectories', vd.SectionType.TRAJECTORIES)])
+        def row_and_expected_output(self, request):
+            return ([request.param[0], '', '', '', '', '', '',
+                     ''], request.param[1])
 
-        def test_accepts_valid(self, state, valid_line, mock_reader,
-                               mock_validator):
-            state.feed_row(valid_line, mock_reader)
+        def test_accepts_valid(self, state, row_and_expected_output,
+                               mock_reader, mock_validator):
+            row = row_and_expected_output[0]
+            state.feed_row(row, mock_reader)
             mock_validator.validate.assert_called_once()
             assert mock_validator.mock_validate_call['is_valid']
 
         @pt.fixture
-        def invalid_line(self):
+        def invalid_row(self):
             return ['Invalid', '', '', '', '', '']
 
-        def test_doesnt_accept_invalid(self, state, invalid_line, mock_reader,
+        def test_doesnt_accept_invalid(self, state, invalid_row, mock_reader,
                                        mock_validator):
-            state.feed_row(invalid_line, mock_reader)
+            state.feed_row(invalid_row, mock_reader)
             mock_validator.validate.assert_called_once()
             assert not mock_validator.mock_validate_call['is_valid']
+
+        def test_creates_new_state(self, state, row_and_expected_output,
+                                   mock_reader, patch_next_state_init):
+            row = row_and_expected_output[0]
+            state.feed_row(row, mock_reader)
+            patch_next_state_init.assert_called_once_with()
+
+        def test_builds_data_line(self, state, row_and_expected_output,
+                                  mock_reader, mock_data_builder):
+            row, expected_output = row_and_expected_output
+            state.feed_row(row, mock_reader)
+            mock_data_builder.add_section_type.assert_called_once_with(
+                expected_output)

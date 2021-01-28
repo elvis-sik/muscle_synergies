@@ -230,7 +230,7 @@ class SectionTypeLineState(ReaderState):
         data_builder.add_section_type(parsed_data)
 
     def _new_state(self):
-        pass
+        return SamplingFrequencyLineState()
 
 
 class SamplingFrequencyLineState(ReaderState):
@@ -239,7 +239,6 @@ class SamplingFrequencyLineState(ReaderState):
     For an explanation of what are the different lines of the CSV input, see
     the docs for :py:class:ViconCSVLines.
     """
-    pass
 
 
 class Reader:

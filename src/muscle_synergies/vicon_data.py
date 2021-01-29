@@ -204,7 +204,7 @@ class ReaderState(abc.ABC):
         pass
 
 
-class SectionTypeLineState(ReaderState):
+class SectionTypeState(ReaderState):
     """The state of a reader that is expecting the section type line.
 
     For an explanation of what are the different lines of the CSV input, see
@@ -230,15 +230,41 @@ class SectionTypeLineState(ReaderState):
         data_builder.add_section_type(parsed_data)
 
     def _new_state(self):
-        return SamplingFrequencyLineState()
+        return SamplingFrequencyState()
 
 
-class SamplingFrequencyLineState(ReaderState):
+class SamplingFrequencyState(ReaderState):
     """The state of a reader that is expecting the sampling frequency line.
 
     For an explanation of what are the different lines of the CSV input, see
     the docs for :py:class:ViconCSVLines.
     """
+    def _check_row(self, row: Row) -> DataCheck:
+        try:
+            is_valid = int(row[0])
+        except ValueError:
+            is_valid = False
+
+        message = (
+            'this line should contain an integer representing'
+            f' sampling frequency in its first column and not {row[0]}.')
+        return {'is_valid': is_valid, 'error_message': message}
+
+    def _parse_row(self, row: Row) -> int:
+        try:
+            return int(row[0])
+        except ValueError:
+            return None
+
+    def _build_data(self, parsed_data: int, data_builder: 'DataBuilder'):
+        data_builder.add_frequency(parsed_data)
+
+    def _new_state(self) -> 'ReaderState':
+        return DevicesState()
+
+
+class DevicesState:
+    pass
 
 
 class Reader:
@@ -675,22 +701,6 @@ class DataChanneler:
             parsed_row: a data line of the input, already parsed.
         """
         self._call_method_of_each_device(parsed_row, 'add_data')
-
-
-def check_sampling_frequency_line(row: Row) -> DataCheck:
-    try:
-        is_valid = int(row[0])
-    except ValueError:
-        is_valid = False
-
-    is_valid = is_valid and columns_are_empty(row[1:])
-    message = ('this line should contain an integer representing'
-               ' sampling frequency in its first column and nothing else')
-    return {'is_valid': is_valid, 'error_message': message}
-
-
-def read_sampling_frequency_line(row: Row) -> int:
-    return int(row[0])
 
 
 class DevicesReader:

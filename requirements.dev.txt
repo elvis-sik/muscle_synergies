@@ -8,3 +8,4 @@ twine
 wheel
 py.test
 pytest-mock
+pytest-lazy-fixture

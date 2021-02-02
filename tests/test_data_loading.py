@@ -2,6 +2,146 @@ import pytest as pt
 
 import muscle_synergies.vicon_data as vd
 
+f = pt.lazy_fixture
+
+
+@pt.fixture
+def valid_check():
+    return vd.DataCheck.valid_data()
+
+
+@pt.fixture
+def invalid_check():
+    return vd.DataCheck(False, '')
+
+
+class TestDataCheck:
+    def test_cant_create_with_error(self):
+        with pt.raises(ValueError):
+            vd.DataCheck(is_valid=False, error_message=None)
+
+    @pt.fixture
+    def another_valid_check(self):
+        return vd.DataCheck.valid_data()
+
+    def test_combine_2_valids_gives_valid(self, valid_check,
+                                          another_valid_check):
+        combined = valid_check.combine(another_valid_check)
+        assert combined.is_valid
+        assert combined.error_message is None
+
+    @pt.fixture
+    def first_invalid(self):
+        return vd.DataCheck(is_valid=False, error_message='first invalid')
+
+    def test_combine_invalid_with_valid_gives_invalid(self, first_invalid,
+                                                      valid_check):
+        combined = first_invalid.combine(valid_check)
+        assert not combined.is_valid
+        assert combined.error_message == 'first invalid'
+
+    def test_combine_valid_with_invalid_gives_invalid(self, first_invalid,
+                                                      valid_check):
+        combined = valid_check.combine(first_invalid)
+        assert not combined.is_valid
+        assert combined.error_message == 'first invalid'
+
+    @pt.fixture
+    def second_invalid(self):
+        return vd.DataCheck(is_valid=False, error_message='second invalid')
+
+    def test_combine_invalids_give_invalid(self, first_invalid,
+                                           second_invalid):
+        combined = first_invalid.combine(second_invalid)
+        assert not combined.is_valid
+
+    def test_combine_preserves_order(self, first_invalid, second_invalid):
+        combined = first_invalid.combine(second_invalid)
+        assert combined.error_message == 'first invalid'
+
+    third_valid = another_valid_check
+
+    def test_combine_multiple_valid(self, valid_check, another_valid_check,
+                                    third_valid):
+        checks = (valid_check, another_valid_check, third_valid)
+        combined = vd.DataCheck.combine_multiple(checks)
+        assert combined.is_valid
+
+    def test_combine_multiple_invalid(self, valid_check, another_valid_check,
+                                      first_invalid):
+        checks = (valid_check, another_valid_check, first_invalid)
+        combined = vd.DataCheck.combine_multiple(checks)
+        assert not combined.is_valid
+
+    def test_combine_multiple_order(self, second_invalid, first_invalid):
+        checks = (second_invalid, first_invalid)
+        combined = vd.DataCheck.combine_multiple(checks)
+        assert combined.error_message == 'second invalid'
+
+    def test_combine_multiple_empty(self):
+        checks = []
+        combined = vd.DataCheck.combine_multiple(checks)
+        assert combined.is_valid
+
+
+class TestFailableResult:
+    def test_initialize_with_result_ok(self, valid_check):
+        # dummy check
+        assert vd.FailableResult(parse_result=3) is not None
+        assert vd.FailableResult(parse_result=3,
+                                 data_check=valid_check) is not None
+
+    def test_initialize_with_result_and_invalid_check_raises(
+            self, invalid_check):
+        with pt.raises(ValueError):
+            vd.FailableResult(parse_result=3, data_check=invalid_check)
+
+    @pt.fixture
+    def failed(self, invalid_check):
+        return vd.FailableResult(data_check=invalid_check)
+
+    def test_initialize_with_invalid_check_ok(self, failed):
+        assert failed.parse_result is None
+
+    def test_auto_adds_valid_check(self):
+        result = vd.FailableResult(parse_result=3)
+        assert not result.failed
+
+    def test_no_data_check_no_result_raises(self):
+        with pt.raises(ValueError):
+            vd.FailableResult()
+
+    @pt.fixture
+    def result_1(self):
+        return vd.FailableResult(parse_result=1)
+
+    @pt.fixture
+    def result_2(self):
+        return vd.FailableResult(parse_result=2)
+
+    @pt.mark.parametrize(
+        'arg1,arg2,exp',
+        [
+            # combining 2 successful parses
+            (f('result_1'), f('result_2'),
+             vd.FailableResult(parse_result=[1, 2])),
+
+            # combining a failure with a sucessful one
+            (f('failed'), f('result_2'), f('failed')),
+
+            # combining a succesful one with a failure
+            (f('result_1'), f('failed'), f('failed'))
+        ])
+    def test_sequence_fail(self, arg1, arg2, exp):
+        inp = [arg1, arg2]
+        out = vd.FailableResult.sequence_fail(inp)
+        assert out == exp
+
+    def test_sequence_fail_with_empty_list_returns_failed(self):
+        inp = []
+        out = vd.FailableResult.sequence_fail(inp)
+        assert out.failed
+
 
 class TestValidator:
     @pt.fixture
@@ -14,45 +154,37 @@ class TestValidator:
         return vd.Validator(csv_filename='not important.csv',
                             should_raise=False)
 
-    @pt.fixture
-    def valid_data_check(self):
-        return {'is_valid': True, 'error_message': 'irrelevant'}
-
-    @pt.fixture
-    def invalid_data_check(self):
-        return {'is_valid': False, 'error_message': 'the error message'}
-
     def test_validator_starts_at_1(self, validator_that_should_raise):
         validator = validator_that_should_raise
         assert validator.current_line == 1
 
     def test_validator_increases_line_count(self, validator_that_should_raise,
-                                            valid_data_check):
+                                            valid_check):
         validator = validator_that_should_raise
-        data_check = valid_data_check
+        data_check = valid_check
         validator.validate(data_check)
         assert validator.current_line == 2
 
     def test_validator_that_shouldnt_doesnt_raise(self,
                                                   validator_that_doesnt_raise,
-                                                  invalid_data_check):
+                                                  invalid_check):
         validator = validator_that_doesnt_raise
-        data_check = invalid_data_check
+        data_check = invalid_check
         assert validator(data_check) is None
 
     def test_validator_raises_with_invalid(self, validator_that_should_raise,
-                                           invalid_data_check):
+                                           invalid_check):
         validator = validator_that_should_raise
-        data_check = invalid_data_check
+        data_check = invalid_check
 
         with pt.raises(ValueError):
             validator(data_check)
 
     def test_validator_doesnt_raise_with_valid(self,
                                                validator_that_should_raise,
-                                               valid_data_check):
+                                               valid_check):
         validator = validator_that_should_raise
-        data_check = valid_data_check
+        data_check = valid_check
         assert validator(data_check) is None
 
 
@@ -275,6 +407,7 @@ class TestReader:
     pass
 
 
+@pt.mark.skip
 class TestSectionReader:
     @staticmethod
     def patch_section_reader_method(mocker, method_name):
@@ -407,7 +540,7 @@ class TestState:
             row = row_and_expected_output[0]
             state.feed_row(row, mock_reader)
             mock_validator.validate.assert_called_once()
-            assert mock_validator.mock_validate_call['is_valid']
+            assert mock_validator.mock_validate_call.is_valid
 
         @pt.fixture
         def invalid_row(self):
@@ -417,7 +550,7 @@ class TestState:
                                        mock_validator):
             state.feed_row(invalid_row, mock_reader)
             mock_validator.validate.assert_called_once()
-            assert not mock_validator.mock_validate_call['is_valid']
+            assert not mock_validator.mock_validate_call.is_valid
 
         def test_creates_new_state(self, state, row_and_expected_output,
                                    mock_reader, patch_next_state_init):
@@ -457,7 +590,7 @@ class TestState:
             row = row_and_expected_output[0]
             state.feed_row(row, mock_reader)
             mock_validator.validate.assert_called_once()
-            assert mock_validator.mock_validate_call['is_valid']
+            assert mock_validator.mock_validate_call.is_valid
 
         @pt.fixture
         def invalid_row(self):
@@ -467,7 +600,7 @@ class TestState:
                                        mock_validator):
             state.feed_row(invalid_row, mock_reader)
             mock_validator.validate.assert_called_once()
-            assert not mock_validator.mock_validate_call['is_valid']
+            assert not mock_validator.mock_validate_call.is_valid
 
         def test_creates_new_state(self, state, row_and_expected_output,
                                    mock_reader, patch_next_state_init):
@@ -481,3 +614,95 @@ class TestState:
             state.feed_row(row, mock_reader)
             mock_data_builder.add_frequency.assert_called_once_with(
                 expected_output)
+
+    class TestDeviceColsCreator:
+        @pt.fixture
+        def force_plate_header_str(self):
+            return 'Imported AMTI OR6 Series Force Plate #1 - Force'
+
+        @pt.fixture
+        def trajectory_header_str(self):
+            return 'Angelica:HV'
+
+        @pt.fixture
+        def emg_header_str(self):
+            return 'EMG2000 - Voltage'
+
+        @pt.fixture
+        def force_plate_col_of_header(self, force_plate_header_str):
+            return vd.ColOfHeader(2, force_plate_header_str)
+
+        @pt.fixture
+        def force_plate_exp_type(self):
+            return vd.DeviceType.FORCE_PLATE
+
+        @pt.fixture
+        def trajectory_col_of_header(self, trajectory_header_str):
+            return vd.ColOfHeader(5, trajectory_header_str)
+
+        @pt.fixture
+        def trajectory_exp_type(self):
+            return vd.DeviceType.TRAJECTORY_MARKER
+
+        @pt.fixture
+        def emg_col_of_header(self, emg_header_str):
+            return vd.ColOfHeader(8, emg_header_str)
+
+        @pt.fixture
+        def emg_exp_type(self):
+            return vd.DeviceType.EMG
+
+        @pt.fixture
+        def unknown_device(self):
+            return vd.ColOfHeader(2, 'Trajectory Marker')
+
+        @pt.fixture
+        def creator(self):
+            return vd.DeviceColsCreator()
+
+        @pt.mark.parametrize(
+            'col_of_header,exp_type',
+            [
+                # force plate case
+                (f('force_plate_col_of_header'), f('force_plate_exp_type')),
+
+                # emg case
+                (f('emg_col_of_header'), f('emg_exp_type')),
+
+                # trajectory marker case
+                (f('trajectory_col_of_header'), f('trajectory_exp_type')),
+            ])
+        def test_create_force_plate_correct_type(self, creator, col_of_header,
+                                                 exp_type):
+            inp = [col_of_header]
+            failable_result = creator.create_cols(inp)
+            header_cols = failable_result.parse_result[0]
+            assert header_cols.device_type is exp_type
+
+        @pt.mark.parametrize(
+            'col_of_header,exp_name',
+            [
+                # force plate case
+                (f('force_plate_col_of_header'), f('force_plate_header_str')),
+
+                # emg case
+                (f('emg_col_of_header'), f('emg_header_str')),
+
+                # trajectory marker case
+                (f('trajectory_col_of_header'), f('trajectory_header_str')),
+            ])
+        def test_create_force_plate_correct_name(self, creator, col_of_header,
+                                                 exp_name):
+            inp = [col_of_header]
+            failable_result = creator.create_cols(inp)
+            header_cols = failable_result.parse_result[0]
+            assert header_cols.device_name == exp_name
+
+        def test_create_unknown(self, creator, unknown_device):
+            inp = [unknown_device]
+            failable_result = creator.create_cols(inp)
+            assert failable_result.parse_result is None
+            assert not failable_result.data_check.is_valid
+
+    class TestColsCategorizer:
+        pass

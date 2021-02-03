@@ -1,4 +1,4 @@
-"""Load data from the csv outputted by Vicon Nexus."""
+"""Data types used internally while parsing Vicon Nexus data."""
 
 import abc
 from collections import defaultdict
@@ -18,6 +18,9 @@ Y = TypeVar('Y')
 # a row from the CSV file is simply a list of strings,
 # corresponding to different values
 Row = NewType('Row', List[str])
+
+DeviceHeaderRepresentation = Union['ColOfHeader', 'DeviceHeaderCols',
+                                   'DeviceHeader']
 
 
 class SectionType(Enum):
@@ -194,214 +197,158 @@ class Validator:
         return f'error parsing line {self.current_line} of file {self.csv_filename}: {error_message}'
 
 
-class _ReaderState(abc.ABC):
-    @abc.abstractmethod
-    def feed_row(self, row: Row, reader: 'Reader'):
-        # TODO document:
-        # this should call validator exactly once.
-        # it should also change the state of the reader.
-        pass
+@dataclass(frozen=True, eq=True)
+class ForcePlate:
+    """The 3 device headers with the data of a single force plate.
 
-    def _preprocess_row(self, row: Row) -> Row:
-        row = list(row)
-        while row and row[-1]:
-            row.pop()
-        return Row(row)
+    Since each force plate is represented in 3 different device headers, this
+    class provides a standard way to represent those.
 
-    def _validate(self, validator: Validator, check_result: DataCheck):
-        validator.validate(check_result)
+    Args:
+        name: the name of a force plate, that is, everything happening in its
+            column in the devices line before the dash (excluding the space).
+            For example, the header
+            'Imported AMTI OR6 Series Force Plate #1 - Force' should have name
+            'Imported AMTI OR6 Series Force Plate #1'.
 
-    def _reader_validator(self, reader: 'Reader') -> Validator:
-        return reader.get_validator()
+        force: the device referring to the force time series.
 
-    def _reader_data_builder(self, reader: 'Reader') -> 'DataBuilder':
-        return reader.get_data_builder()
+        moment: the device referring to the moment time series.
 
-    def _reader_set_new_state(self, reader: 'Reader',
-                              new_state: '_ReaderState'):
-        reader.set_state(new_state)
-
-    def _create_data_check(self,
-                           is_valid: bool,
-                           error_message: Optional[str] = None):
-        return DataCheck(is_valid=is_valid, error_message=error_message)
-
-    def _create_valid_data_check(self):
-        return DataCheck.valid_data()
-
-
-class _EasyReaderState(_ReaderState, Generic[T]):
-    def feed_row(self, row: Row, reader: 'Reader'):
-        row = self._preprocess_row(row)
-
-        # check and validate
-        check_result = self._check_row(row)
-        validator = self._reader_validator(reader)
-        self._validate(validator, check_result)
-
-        # parse and build up the data
-        parsed_row = self._parse_row(row)
-        self._build_data(parsed_row, self._reader_data_builder(reader))
-
-        # transition to next state
-        new_state = self._new_state()
-        self._reader_set_new_state(reader, new_state)
-
-    @abc.abstractmethod
-    def _check_row(self, row: Row) -> DataCheck:
-        pass
-
-    @abc.abstractmethod
-    def _parse_row(self, row: Row) -> T:
-        pass
-
-    @abc.abstractmethod
-    def _build_data(self, parsed_data: T, data_builder: 'DataBuilder'):
-        pass
-
-    @abc.abstractmethod
-    def _new_state(self) -> '_ReaderState':
-        pass
-
-
-class SectionTypeState(_EasyReaderState):
-    """The state of a reader that is expecting the section type line.
-
-    For an explanation of what are the different lines of the CSV input, see
-    the docs for :py:class:ViconCSVLines.
+        cop: the device referring to the cop time series.
     """
-    def _check_row(self, row: Row) -> DataCheck:
-        is_valid = row[0] in {'Devices', 'Trajectories'}
-        message = (
-            'this line should contain either "Devices" or "Trajectories"'
-            ' in its first column')
-        return self._create_data_check(is_valid, message)
+    name: str
+    force: DeviceHeaderRepresentation
+    moment: DeviceHeaderRepresentation
+    cop: DeviceHeaderRepresentation
 
-    def _parse_row(self, row: Row) -> SectionType:
-        section_type_str = row[0]
-
-        if section_type_str == 'Devices':
-            return SectionType.FORCES_EMG
-        elif section_type_str == 'Trajectories':
-            return SectionType.TRAJECTORIES
-
-    def _build_data(self, parsed_data: SectionType,
-                    data_builder: 'DataBuilder'):
-        data_builder.add_section_type(parsed_data)
-
-    def _new_state(self):
-        return SamplingFrequencyState()
+    def list_devices(self) -> List[DeviceHeaderRepresentation]:
+        return [self.force, self.moment, self.cop]
 
 
-class SamplingFrequencyState(_EasyReaderState):
-    """The state of a reader that is expecting the sampling frequency line.
+@dataclass
+class CategorizedHeaders:
+    force_plates: Union[List[DeviceHeaderRepresentation], ForcePlate]
+    emg: Optional[DeviceHeaderRepresentation]
+    trajectory_markers: List[DeviceHeaderRepresentation]
 
-    For an explanation of what are the different lines of the CSV input, see
-    the docs for :py:class:ViconCSVLines.
-    """
-    def _check_row(self, row: Row) -> DataCheck:
+    def from_device_type(self, device_type: DeviceType
+                         ) -> Union[List[DeviceHeaderCols], ForcePlate,
+                                    Optional[DeviceHeaderRepresentation]]:
+        if device_type is DeviceType.FORCE_PLATE:
+            return self.force_plates
+        if device_type is DeviceType.EMG:
+            return self.emg
+        if device_type is DeviceType.TRAJECTORY_MARKER:
+            return self.trajectory_markers
+
+        raise ValueError(f'device type {device_type} not understood')
+
+    def all_header_cols(self) -> List[DeviceHeaderCols]:
         try:
-            is_valid = int(row[0])
-        except ValueError:
-            is_valid = False
+            force_plates = self.force_plates.list_devices()
+        except AttributeError:
+            force_plates = self.force_plates
 
-        message = (
-            'this line should contain an integer representing'
-            f' sampling frequency in its first column and not {row[0]}.')
-
-        return self._create_data_check(is_valid, message)
-
-    def _parse_row(self, row: Row) -> int:
-        try:
-            return int(row[0])
-        except ValueError:
-            return None
-
-    def _build_data(self, parsed_data: int, data_builder: 'DataBuilder'):
-        data_builder.add_frequency(parsed_data)
-
-    def _new_state(self) -> '_ReaderState':
-        return DevicesState()
+        if self.emg is None:
+            emg = []
+        else:
+            emg = [self.emg]
+        return force_plates + emg + self.trajectory_markers
 
 
-class Reader:
-    """Reader for a single section of the CSV file outputted by Vicon Nexus.
+@dataclass
+class ColOfHeader:
+    """The string describing a device and the column in which it occurs.
 
-    Initialize it
+    This is used as an intermediate representation of the data being read in
+    the device names line (see :py:class:ViconCSVLines). The structure of that
+    line is complex, so the logic of its parsing is split into several classes.
+    ColOfHeader is used for communication between them.
+
+    Args:
+        col_index: the index of the column in the CSV file in which the
+            device header is described.
+
+        header_str: the exact string occurring in that column.
     """
-    _state: _ReaderState
-    _data_builder: 'DataBuilder'
-    _validator: Validator
+    col_index: int
+    header_str: str
 
-    def __init__(self, section_data_builder: 'DataBuilder',
-                 validator: Validator):
-        self.state = ViconCSVLines.SECTION_TYPE_LINE
-        self.data_builder = section_data_builder
-        self.validator = validator
 
-    def set_state(self, new_state: _ReaderState):
-        self._state = new_state
+class DeviceHeaderCols:
+    """Intermediate representation of the data read in the device names line.
 
-    def get_data_builder(self):
-        return self._data_builder
+    This class is used as a way of communicating data from the :py:class:Reader
+    to the :py:class:DataBuilder. For more information on where the data that
+    is held by this class, see the docs for :py:class:ViconCSVLines.
 
-    def get_validator(self):
-        return self._validator
+    Args:
+        device_name: the name of the device, as read from the CSV file
 
-    def feed_line(self, row: Row):
-        self._raise_if_ended()
+        device_type: the type of the device
 
-        check_function = self._get_check_function()
-        read_function = self._get_read_function()
-        aggregation_function = self._get_build_function()
+        first_col_index: the index in a Row in which the data for the device
+            begins
+    """
+    _col_of_header: ColOfHeader
+    device_type: DeviceType
+    num_of_cols: Optional[int]
 
-        self._call_validator(check_function(row))
-        read_line = read_function(row)
-        aggregation_function(read_line)
+    def __init__(self, col_of_header: ColOfHeader, device_type: DeviceType):
+        self._col_of_header = col_of_header
+        self.device_type = device_type
+        self.num_of_cols = None
+        self._initialize_num_of_cols()
 
-        self._transition()
+    @property
+    def device_name(self):
+        return self._col_of_header.header_str
 
-    def _get_check_function(self):
-        if self.state == ViconCSVLines.SECTION_TYPE_LINE:
-            return check_section_type_line
-        elif self.state == ViconCSVLines.SAMPLING_FREQUENCY_LINE:
-            return check_sampling_frequency_line
-        elif self.state == ViconCSVLines.DEVICE_NAMES_LINE:
-            return self.devices_reader.check_device_names_line
+    @property
+    def first_col_index(self):
+        return self._col_of_header.col_index
 
-    def _get_read_function(self):
-        if self.state == ViconCSVLines.SECTION_TYPE_LINE:
-            return read_section_type_line
-        elif self.state == ViconCSVLines.SAMPLING_FREQUENCY_LINE:
-            return read_sampling_frequency_line
-        elif self.state == ViconCSVLines.DEVICE_NAMES_LINE:
-            return self.devices_reader.read_device_names_line
+    def create_slice(self):
+        """Creates a slice object corresponding to the device header columns.
 
-    def _get_build_function(self):
-        if self.state == ViconCSVLines.SECTION_TYPE_LINE:
-            return self.data_builder.add_section_type
-        elif self.state == ViconCSVLines.SAMPLING_FREQUENCY_LINE:
-            return self.data_builder.add_frequency
-        elif self.state == ViconCSVLines.DEVICE_NAMES_LINE:
-            # TODO Essa é a próxima linha
-            return
+        Raises:
+            TypeError: if num_of_cols is None. This will happen for an EMG
+                device header if :py:func:DeviceHeaderCols.add_num_cols isn't
+                called explicitly.
+        """
+        if self.num_of_cols is None:
+            raise TypeError('add_num_of_cols should be called before slice')
 
-    def _transition(self):
-        if self.state == ViconCSVLines.SECTION_TYPE_LINE:
-            self.state = ViconCSVLines.SAMPLING_FREQUENCY_LINE
-        elif self.state == ViconCSVLines.SAMPLING_FREQUENCY_LINE:
-            self.state = ViconCSVLines.DEVICE_NAMES_LINE
-        elif self.state == ViconCSVLines.DEVICE_NAMES_LINE:
-            return
+        return slice(self.first_col_index,
+                     self.first_col_index + self.num_of_cols)
 
-    def _raise_if_ended(self):
-        if self.state == ViconCSVLines.BLANK_LINE:
-            raise EOFError(
-                'tried to read another line from a section that has already been completely readd'
+    def add_num_cols(self, num_of_cols: int):
+        """Add number of columns.
+
+        This should only be used for EMG devices, and only once.
+
+        Raises:
+            TypeError: if either the device isn't a EMG one or the method is
+                called more than once.
+        """
+        if self.num_of_cols is not None:
+            raise TypeError(
+                'tried to set num_of_cols with the variable already set')
+
+        if self.device_type is not DeviceType.EMG:
+            raise TypeError(
+                "tried to set num_of_cols for a device the type of which isn't EMG"
             )
 
-    def _call_validator(self, data_check_result: DataCheck):
-        self.validator.validate(data_check_result)
+        self.num_of_cols = num_of_cols
+
+    def _initialize_num_of_cols(self):
+        """Determines if possible the number of columns of the device"""
+        if self.device_type is DeviceType.EMG:
+            self.num_of_cols = None
+        else:
+            self.num_of_cols = 3
 
 
 class DataBuilder:
@@ -590,25 +537,6 @@ class DeviceHeader:
         return self.device_cols.device_type
 
 
-@dataclass
-class ForcePlate:
-    """The 3 DevicesHeader with the data of a single force plate.
-
-    Since each force plate is represented in 3 different device headers,
-    this class provides a standard way to unify them.
-
-    Args:
-        force: the device header with force measurements
-
-        moment: the device header with moment measurements
-
-        cop: the device header with cop measurements
-    """
-    force: DeviceHeader
-    moment: DeviceHeader
-    cop: DeviceHeader
-
-
 class DataChanneler:
     """Channels rows of data from the CSV input to the its data builder.
 
@@ -676,204 +604,3 @@ class DataChanneler:
             parsed_row: a data line of the input, already parsed.
         """
         self._call_method_of_each_device(parsed_row, 'add_data')
-
-
-class ViconDataLoader:
-    pass
-
-
-def csv_lines_stream(filename) -> Iterator[Row]:
-    """Yields lines from a CSV file as a stream.
-
-    Args:
-        filename: the name of the CSV file which should be read. This argument
-                  is passed to :py:func:open, so it can be a str among other
-                  things.
-    """
-    with open(filename) as csvfile:
-        data_reader = csv.reader(csvfile)
-        yield from data_reader
-
-
-def initialize_vicon_nexus_reader():
-    pass
-
-
-def load_vicon_file():
-    pass
-
-
-class _TEMPORARY_STORAGE:
-    """Temporary holder for code previously used for AllDevicesDataBuilder.
-
-    This code will likely be useful in one of the Reader states, so it is kept
-    here.
-
-    Args:
-        force_plates (optional): a list of :py:class:ForcePlateCols or None.
-
-        emg_device (optional): a :py:class:DeviceHeaderCols representing the
-            columns of an EMG device header or None.
-
-        trajectory_marker_devices (optional): a list of
-            :py:class:DeviceHeaderCols, each representing the columns of a data
-            header which is a trajectory marker or None.
-
-        device_header_data_builder_type (optional): the class used to represent
-            individual device headers. By default, it is
-            DeviceHeaderDataBuilder
-
-        time_series_data_builder_type (optional): the class used to represent
-            individual time series. By default, it is TimeSeriesDataBuilder.
-    """
-    class Obj:
-        pass
-
-    pt = Obj()
-    pt.fixture = lambda f: f
-
-    def __init__(self,
-                 force_plate_cols: List[ForcePlateCols] = None,
-                 emg_cols: Optional[DeviceHeaderCols] = None,
-                 trajectory_marker_cols: List[DeviceHeaderCols] = None,
-                 device_header_data_builder_type=DeviceHeaderDataBuilder,
-                 time_series_data_builder_type=TimeSeriesDataBuilder):
-        self._device_header_data_builder_type = device_header_data_builder_type
-        self._time_series_data_builder_type = time_series_data_builder_type
-
-        if force_plate_cols is None:
-            self.force_plates = None
-        else:
-            self.force_plates = [
-                self._create_force_plate_device(fp) for fp in force_plate_cols
-            ]
-
-        if emg_cols is None:
-            self.emg = None
-        else:
-            self.emg = self._create_device(emg_cols)
-
-        if trajectory_marker_cols is None:
-            self.trajectory_markers = None
-        else:
-            self.trajectory_markers = [
-                self._create_device(tm) for tm in trajectory_marker_cols
-            ]
-
-    def _create_force_plate_device(self,
-                                   force_plates: ForcePlateCols) -> ForcePlate:
-        """Creates a ForcePlates object.
-
-        This is used during the initialization of
-        :py:class:AllDevicesDataBuilder instances.
-
-        Args:
-            force_plates: the object describing columns of force plates passed
-                for :py:class:AllDevicesDataBuilder.__init__
-        """
-        force = force_plates.force
-        moment = force_plates.moment
-        cop = force_plates.cop
-
-        return self.ForcePlate(force=self._create_device(force),
-                               moment=self._create_device(moment),
-                               cop=self._create_device(cop))
-
-    def _create_device(self, device_cols: DeviceHeaderCols) -> DeviceHeader:
-        """Creates a Device object.
-
-        This is used during the initialization of
-        :py:class:AllDevicesDataBuilder instances.
-
-        Args:
-            device_cols: the device_cols member of the newly created Device
-                object
-        """
-        return self.Device(
-            device_cols=device_cols,
-            device_data_builder=self._create_device_header_data_builder())
-
-    def _create_device_header_data_builder(self):
-        """Instantiates a new :py:class:DeviceHeaderDataBuilder
-
-        This is used during the initialization of
-        :py:class:AllDevicesDataBuilder instances.
-        """
-        return self._device_header_data_builder_type(
-            time_series_data_builder_type=self._time_series_data_builder_type)
-
-    @pt.fixture
-    def mock_device_header_data_builder_type(self, mocker):
-        singleton_device_header_data_builder_mock = mocker.create_autospec(
-            vd.DeviceHeaderDataBuilder)
-
-        data_builder_factory = mocker.Mock(
-            spec=vd.DeviceHeaderDataBuilder.__init__,
-            return_value=singleton_device_header_data_builder_mock)
-
-        return data_builder_factory
-
-    @pt.fixture
-    def mock_time_series_data_builder_type(self, mocker):
-        return 'fake time series data builder'
-
-    @pt.fixture
-    def force_plate_arg(self):
-        return [
-            vd.ForcePlateCols(
-                force=vd.DeviceHeaderCols(
-                    device_name='force plate 1 force',
-                    device_type=vd.DeviceType.FORCE_PLATE,
-                    first_col_index=2),
-                moment=vd.DeviceHeaderCols(
-                    device_name='force plate 1 moment',
-                    device_type=vd.DeviceType.FORCE_PLATE,
-                    first_col_index=5),
-                cop=vd.DeviceHeaderCols(device_name='force plate 1 cop',
-                                        device_type=vd.DeviceType.FORCE_PLATE,
-                                        first_col_index=8),
-            )
-        ]
-
-    @pt.fixture
-    def trajectory_marker_header_cols(self):
-        return [
-            vd.DeviceHeaderCols(device_name='trajectory marker',
-                                device_type=vd.DeviceType.TRAJECTORY_MARKER,
-                                first_col_index=11)
-        ]
-
-    @pt.fixture
-    def emg_header_cols(self):
-        return vd.DeviceHeaderCols(device_name='emg',
-                                   device_type=vd.DeviceType.EMG,
-                                   first_col_index=14)
-
-    @pt.fixture
-    def all_devices_data_builder(self, mock_device_header_data_builder_type,
-                                 mock_time_series_data_builder_type,
-                                 force_plate_arg,
-                                 trajectory_marker_header_cols,
-                                 emg_header_cols):
-        return vd.AllDevicesDataBuilder(
-            force_plate_cols=force_plate_arg,
-            emg_cols=emg_header_cols,
-            trajectory_marker_cols=trajectory_marker_header_cols,
-            device_header_data_builder_type=
-            mock_device_header_data_builder_type,
-            time_series_data_builder_type=mock_time_series_data_builder_type,
-        )
-
-    def test_initializes_data_header_creates_data_header_builders(
-            self, all_devices_data_builder,
-            mock_device_header_data_builder_type,
-            mock_time_series_data_builder_type):
-        mock_device_header_data_builder_type.assert_called_with(
-            time_series_data_builder_type=mock_time_series_data_builder_type)
-
-    def test_initializes_correct_number_of_data_header_builders(
-            self, all_devices_data_builder,
-            mock_device_header_data_builder_type):
-        mock_object = mock_device_header_data_builder_type
-        number_of_devices = 5
-        assert mock_object.call_count == number_of_devices

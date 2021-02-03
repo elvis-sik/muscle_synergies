@@ -1,8 +1,9 @@
+import random
+from typing import List
+
 import pytest as pt
 
 import muscle_synergies.vicon_data as vd
-
-f = pt.lazy_fixture
 
 
 @pt.fixture
@@ -107,9 +108,10 @@ class TestFailableResult:
         result = vd.FailableResult(parse_result=3)
         assert not result.failed
 
-    def test_no_data_check_no_result_raises(self):
-        with pt.raises(ValueError):
-            vd.FailableResult()
+    def test_no_data_check_no_result_ok(self):
+        result = vd.FailableResult()
+        assert not result.failed
+        assert result.parse_result == None
 
     @pt.fixture
     def result_1(self):
@@ -123,14 +125,14 @@ class TestFailableResult:
         'arg1,arg2,exp',
         [
             # combining 2 successful parses
-            (f('result_1'), f('result_2'),
+            (pt.lazy_fixture('result_1'), pt.lazy_fixture('result_2'),
              vd.FailableResult(parse_result=[1, 2])),
 
             # combining a failure with a sucessful one
-            (f('failed'), f('result_2'), f('failed')),
+            pt.lazy_fixture(['failed', 'result_2', 'failed']),
 
             # combining a succesful one with a failure
-            (f('result_1'), f('failed'), f('failed'))
+            pt.lazy_fixture(['result_1', 'failed', 'failed'])
         ])
     def test_sequence_fail(self, arg1, arg2, exp):
         inp = [arg1, arg2]
@@ -281,15 +283,15 @@ class TestDeviceHeaderDataBuilder:
 class TestDeviceHeaderCols:
     @pt.fixture
     def emg_dev_cols(self):
+        col_of_header = vd.ColOfHeader(3, 'emg')
         return vd.DeviceHeaderCols(device_type=vd.DeviceType.EMG,
-                                   device_name='EMG',
-                                   first_col_index=3)
+                                   col_of_header=col_of_header)
 
     @pt.fixture
     def force_plate_dev_cols(self):
+        col_of_header = vd.ColOfHeader(0, 'force plate')
         return vd.DeviceHeaderCols(device_type=vd.DeviceType.FORCE_PLATE,
-                                   device_name='Force Plate',
-                                   first_col_index=0)
+                                   col_of_header=col_of_header)
 
     def test_initialization_non_emg(self, force_plate_dev_cols):
         assert force_plate_dev_cols.num_of_cols == 3
@@ -664,13 +666,15 @@ class TestState:
             'col_of_header,exp_type',
             [
                 # force plate case
-                (f('force_plate_col_of_header'), f('force_plate_exp_type')),
+                pt.lazy_fixture(
+                    ['force_plate_col_of_header', 'force_plate_exp_type']),
 
                 # emg case
-                (f('emg_col_of_header'), f('emg_exp_type')),
+                pt.lazy_fixture(['emg_col_of_header', 'emg_exp_type']),
 
                 # trajectory marker case
-                (f('trajectory_col_of_header'), f('trajectory_exp_type')),
+                pt.lazy_fixture(
+                    ['trajectory_col_of_header', 'trajectory_exp_type']),
             ])
         def test_create_force_plate_correct_type(self, creator, col_of_header,
                                                  exp_type):
@@ -683,13 +687,15 @@ class TestState:
             'col_of_header,exp_name',
             [
                 # force plate case
-                (f('force_plate_col_of_header'), f('force_plate_header_str')),
+                pt.lazy_fixture(
+                    ['force_plate_col_of_header', 'force_plate_header_str']),
 
                 # emg case
-                (f('emg_col_of_header'), f('emg_header_str')),
+                pt.lazy_fixture(['emg_col_of_header', 'emg_header_str']),
 
                 # trajectory marker case
-                (f('trajectory_col_of_header'), f('trajectory_header_str')),
+                pt.lazy_fixture(
+                    ['trajectory_col_of_header', 'trajectory_header_str']),
             ])
         def test_create_force_plate_correct_name(self, creator, col_of_header,
                                                  exp_name):
@@ -704,5 +710,275 @@ class TestState:
             assert failable_result.parse_result is None
             assert not failable_result.data_check.is_valid
 
+    class TestDeviceHeaderFinder:
+        # yapf: disable
+        WRONG_ROWS = (
+            [
+                'WRONG', '',
+                'first_value', '', '',
+                'second_value', '', '',
+                '', '', '', '',
+            ], [
+                '', '',
+                '', '', '',
+                'second_value', '', '',
+                '', '', '', '',
+            ])
+        # yapf: enable
+
+        @pt.fixture
+        def finder(self):
+            return vd.DevicesLineFinder()
+
+        @pt.mark.parametrize('wrong_row', WRONG_ROWS)
+        def test_raises_if_wrong(self, finder, wrong_row):
+            fail_res = finder.find_headers(wrong_row)
+            assert fail_res.failed
+
+        @pt.fixture
+        def correct_row(self):
+            # yapf: disable
+            return  [
+                '', '',
+                'first_value', '', '',
+                'second_value',
+            ]
+            # yapf: enable
+
+        @pt.fixture
+        def expected_output(self):
+            return [
+                vd.ColOfHeader(2, 'first_value'),
+                vd.ColOfHeader(5, 'second_value')
+            ]
+
+        def test_finds_valid_input_doesnt_fail(self, finder, correct_row):
+            fail_res = finder.find_headers(correct_row)
+            assert not fail_res.failed
+
+        def test_finds_correctly(self, finder, correct_row, expected_output):
+            fail_res = finder.find_headers(correct_row)
+            parse_result = fail_res.parse_result
+            assert parse_result == expected_output
+
     class TestColsCategorizer:
-        pass
+        @pt.fixture
+        def categorizer(self):
+            return vd.ColsCategorizer()
+
+        def test_empty_cols_list_fails(self, categorizer):
+            fail_res = categorizer([])
+            assert fail_res.failed
+
+        @pt.fixture
+        def force_plate_header_cols(self):
+            col_of_header = vd.ColOfHeader(0, 'force plate')
+            return vd.DeviceHeaderCols(device_type=vd.DeviceType.FORCE_PLATE,
+                                       col_of_header=col_of_header)
+
+        @pt.fixture
+        def traj_header_cols(self):
+            col_of_header = vd.ColOfHeader(0, 'traj')
+            return vd.DeviceHeaderCols(
+                device_type=vd.DeviceType.TRAJECTORY_MARKER,
+                col_of_header=col_of_header)
+
+        @pt.fixture
+        def emg_header_cols(self):
+            col_of_header = vd.ColOfHeader(0, 'emg')
+            return vd.DeviceHeaderCols(device_type=vd.DeviceType.EMG,
+                                       col_of_header=col_of_header)
+
+        each_singleton_header_cols = pt.lazy_fixture(
+            ['force_plate_header_cols', 'traj_header_cols', 'emg_header_cols'])
+
+        @pt.mark.parametrize('inp', each_singleton_header_cols)
+        def test_categorizes_singleton_doesnt_fail(self, categorizer, inp):
+            fail_res = categorizer(inp)
+            assert not fail_res.failed
+
+        @pt.mark.parametrize('inp', each_singleton_header_cols)
+        def test_categorizes_singleton_correctly(self, categorizer, inp):
+            dev_type = inp.device_type
+            fail_res = categorizer(inp)
+            categorized_cols = fail_res.parse_result
+            list_of_exp_type = categorized_cols.from_device_type(dev_type)
+            assert list_of_exp_type[0] == inp
+            assert len(list_of_exp_type) == 1
+
+        @pt.mark.parametrize('inp', each_singleton_header_cols)
+        def test_doesnt_categorize_spuriously(self, categorizer, inp):
+            fail_res = categorizer(inp)
+            categorized_cols = fail_res.parse_result
+            all_header_cols = categorized_cols.all_header_cols()
+            assert len(all_header_cols) == 1
+
+        def test_categorize_3_at_once(self, categorizer,
+                                      force_plate_header_cols,
+                                      traj_header_cols, emg_header_cols):
+            inp = [force_plate_header_cols, traj_header_cols, emg_header_cols]
+            exp = vd.CategorizedCols(force_plates=[force_plate_header_cols],
+                                     emg=emg_header_cols,
+                                     trajectory_markers=[traj_header_cols])
+            out = categorizer(inp)
+            assert out == exp
+
+        def test_fails_if_nonsense_section(self):
+            # TODO fails if section doesn't make sense
+            raise NotImplementedError()
+
+    class TestForcePlateGrouper:
+        @pt.fixture
+        def first_force_plate_name(self):
+            return 'Imported AMTI OR6 Series Force Plate #1'
+
+        @pt.fixture
+        def second_force_plate_name(self):
+            return 'Imported AMTI OR6 Series Force Plate #2'
+
+        @pt.fixture
+        def first_force_plate_str(self):
+            return {
+                'force': 'Imported AMTI OR6 Series Force Plate #1 - Force',
+                'moment': 'Imported AMTI OR6 Series Force Plate #1 - Moment',
+                'cop': 'Imported AMTI OR6 Series Force Plate #1 - CoP'
+            }
+
+        @pt.fixture
+        def second_force_plate_str(self):
+            return {
+                'force': 'Imported AMTI OR6 Series Force Plate #2 - Force',
+                'moment': 'Imported AMTI OR6 Series Force Plate #2 - Moment',
+                'cop': 'Imported AMTI OR6 Series Force Plate #2 - CoP'
+            }
+
+        def create_device_headers(self, device_names: List[str]
+                                  ) -> List[vd.DeviceHeaderCols]:
+            all_dev_cols = []
+
+            for dev_name in device_names:
+                dev_col = vd.DeviceHeaderCols(vd.DeviceType.FORCE_PLATE,
+                                              dev_name, 0)
+                all_dev_cols.append(dev_col)
+
+            return all_dev_cols
+
+        @pt.fixture
+        def inp_cols_first_force_plate(self, first_force_plate_str):
+            return create_device_headers(first_force_plate_str)
+
+        @pt.fixture
+        def inp_cols_second_force_plate(self, second_force_plate_str):
+            return create_device_headers(second_force_plate_str)
+
+        @pt.fixture
+        def shuffled_inp(self, inp_cols_first_force_plate,
+                         inp_cols_second_force_plate):
+            full_inp = inp_cols_first_force_plate + inp_cols_second_force_plate
+            random.seed(0)
+            full_inp.shuffle()
+            return full_inp
+
+        @pt.fixture
+        def exp_first_force_plate_cols(self, first_force_plate_str):
+            return vd.ForcePlateCols(**first_force_plate_str)
+
+        @pt.fixture
+        def exp_second_force_plate_cols(self, second_force_plate_str):
+            return vd.ForcePlateCols(**second_force_plate_str)
+
+        @pt.fixture
+        def grouper(self):
+            return vd.ForcePlateGrouper()
+
+        def test_group_valid_input_doesnt_fail(self, shuffled_inp):
+            fail_res = grouper.group(shuffled_inp)
+            assert not fail_res.failed
+
+        @pt.fixture
+        def inp_with_deleted_col(self, shuffled_inp):
+            inp = list(shuffled_inp)
+            inp.pop()
+            return inp
+
+        def test_group_invalid_fails(self, grouper, inp_with_deleted_col):
+            fail_res = grouper.group(inp_with_deleted_col)
+            assert fail_res.failed
+
+        def test_groups_correctly(self, grouper, shuffled_inp,
+                                  exp_first_force_plate_cols,
+                                  exp_second_force_plate_cols):
+            fail_res = grouper.group(inp_with_deleted_col)
+            out_force_plate_col_list = fail_res.parse_result
+            expected = {
+                exp_first_force_plate_cols, exp_second_force_plate_cols
+            }
+            output = set(out_force_plate_col_list)
+            assert output == expected
+
+        def test_empty_list_fails(self, grouper):
+            fail_res = grouper.group([])
+            assert fail_res.failed
+
+    class TestDevicesState:
+        def successful_fail_res(self, parse_res):
+            fail_res = mocker.Mock()
+            fail_res.failed = False
+            fail_res.parse_result = parse_res
+            return fail_res
+
+        @pt.fixture
+        def mock_succ_finder(self, mocker):
+            return mocker.Mock(return_value=self.successful_fail_res('finder'))
+
+        @pt.fixture
+        def mock_succ_creator(self, mocker):
+            creator
+
+            return mocker.Mock(return_value=self.successful_fail_res())
+
+        @pt.fixture
+        def mock_succ_categorizer(self, mocker):
+            return mocker.Mock(
+                return_value=self.successful_fail_res('categorizer'))
+
+        @pt.fixture
+        def mock_succ_grouper(self, mocker):
+            return mocker.Mock(
+                return_value=self.successful_fail_res('grouper'))
+
+        @pt.fixture
+        def succ_state(self, mock_succ_finder, mock_succ_creator,
+                       mock_succ_categorizer, mock_succ_grouper):
+            return vd.DevicesState(finder=mock_succ_finder,
+                                   creator=mock_succ_creator,
+                                   categorizer=mock_succ_categorizer,
+                                   grouper=mock_succ_grouper)
+
+        @pt.fixture
+        def mock_row(self, mocker):
+            return mocker.Mock(name='row')
+
+        def test_succ_state_passes_output_along_components(
+                self, succ_state, mock_row, mock_succ_finder,
+                mock_succ_creator, mock_succ_categorizer, mock_succ_grouper):
+            succ_state.feed_row(mock_row)
+            mock_succ_finder.assert_called_once_with(mock_row)
+            # TODO should get member .force_plates of categorizer output
+            # to pass along to grouper
+
+        def test_succ_state_creates_next_state(self):
+            pass
+            # TODO should get member .emg at the very least and pass along
+
+        def test_succ_state_calls_validator(self):
+            pass
+            # TODO
+
+        # TODO unscessful states can likely be all done in a single
+        # parametrized test
+
+        # this state does not call any DataBuilder method
+        # the next one (coordinates line) does after it creates
+        # a DataChanneler
+        # after that, it should be easy

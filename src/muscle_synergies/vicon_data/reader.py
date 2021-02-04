@@ -1,4 +1,5 @@
 import abc
+import collections.abc
 from collections import defaultdict
 import csv
 from dataclasses import dataclass
@@ -6,16 +7,115 @@ from enum import Enum
 from functools import partial
 import re
 from typing import (List, Set, Dict, Tuple, Optional, Sequence, Callable, Any,
-                    Mapping, Iterator, Generic, TypeVar, NewType, Union)
+                    Mapping, Iterator, Generic, TypeVar, NewType, Union,
+                    Iterable)
 
+import pandas as pd
 import pint
 
-from .reader_data import (CategorizedHeaders, ColOfHeader, DataBuilder,
+from .reader_data import (CategorizedHeaders, ColOfHeader, SectionDataBuilder,
                           DataCheck, DeviceHeader, DeviceHeaderCols,
-                          DeviceHeaderDataBuilder, DeviceType, ForcePlate, Row,
-                          SectionType, Union, Validator, ViconCSVLines, T, X,
-                          Y, DeviceHeaderRepresentation, Failable,
-                          FailableResult, ureg)
+                          DeviceHeaderSectionDataBuilder, DeviceType,
+                          ForcePlate, Row, SectionType, Union, Validator,
+                          ViconCSVLines, T, X, Y, DeviceHeaderRepresentation,
+                          Failable, FailableResult, ureg)
+
+
+class _ParsedDataRepresentation(collections.abc.Mapping):
+    _data_frame_dict: Mapping[X, pd.DataFrame]
+
+    def __init__(
+            self,
+            data_frame_dict: Mapping[X, pd.DataFrame],
+    ):
+        self._data_frame_dict = dict(data_frame_dict)
+
+    @staticmethod
+    def convert_dev_data_builder(header_builders: DeviceHeaderDataBuilder
+                                 ) -> pd.DataFrame:
+        pass
+        # TODO Preciso terminar esse planejamento:
+        # 1. implementar esse método
+        # 2. o que vai ser devolvido pro user precisa ser o seguinte:
+        #    - algo muito similar a um CategorizedHeaders
+        #    - o membro force_plates pode literalmente ser ForcePlate
+        #    - os 3 dev_headers de ForcePlate podem ser um
+        #      _ParsedDataRepresentation (?)
+        # 3. a classe _ParsedDataRepresentation precisa saber a respeito de
+        #    frames e subframes.
+        # 4. talvez ter um from_list_of_device_headers na ABC. Talvez nas
+        #    filhas. Ou isso é responsabilidade do caller?
+        # 5. daí faltam implementar:
+        #    a. 2 métodos de DataBuilder
+        #    b. mudar as classes do topo desse arquivo para o reader_data
+        #    c. corrigir o Reader
+        #    d. finalizar os 2 ReaderState pela metade
+        #    e. começar os testes
+
+    def __getitem__(self, ind: X) -> pd.DataFrame:
+        return self._data_frame_dict.__getitem__(ind)
+
+    def __len__(self) -> int:
+        return len(self._data_frame_dict)
+
+    def __iter__(self) -> Iterable[X]:
+        yield from iter(self._data_frame_dict)
+
+
+class TrajectoriesData(_ParsedDataRepresentation):
+    pass
+
+
+class ForcePlateData(_ParsedDataRepresentation):
+    pass
+
+
+class EMGData(_ParsedDataRepresentation):
+    pass
+
+
+class DataBuilder:
+    _current_section_type: Otional[SectionType]
+
+    _forces_emg_data_builder: SectionDataBuilder
+    _trajs_data_builder: SectionDataBuilder
+
+    def __init__(self,
+                 forces_emg_data_builder: SectionDataBuilder,
+                 trajs_data_builder: SectionDataBuilder,
+                 initial_section_type=SectionType.FORCES_EMG):
+        self._forces_emg_data_builder = forces_emg_data_builder
+        self._trajs_data_builder = trajs_data_builder
+        self._current_section_type = initial_section_type
+
+    def get_section_type(self) -> SectionType:
+        return self._current_section_type
+
+    def get_section_data_builder(self) -> Optional[SectionDataBuilder]:
+        if self.get_section_type() is SectionType.FORCES_EMG:
+            return self._forces_emg_data_builder
+        elif self.get_section_type() is SectionType.TRAJECTORIES:
+            return self._trajs_data_builder
+        return
+
+    def transition(self):
+        if self.get_section_type() is SectionType.FORCES_EMG:
+            self._current_section_type = SectionType.TRAJECTORIES
+        elif self.get_section_type() is SectionType.TRAJECTORIES:
+            self._build_data()
+        elif self.get_section_type() is None:
+            raise TypeError(
+                'tried to transition the state of a finished data builder')
+
+    @property
+    def finished(self):
+        return self._current_section_type is None
+
+    def get_built_data(self):
+        pass
+
+    def _build_data(self) -> 'DataRepresentation':
+        pass
 
 
 class Reader:
@@ -24,12 +124,12 @@ class Reader:
     Initialize it
     """
     _state: _ReaderState
-    _data_builder: DataBuilder
+    _data_builder: SectionDataBuilder
     _validator: Validator
     _section_type: SectionType
 
     def __init__(self,
-                 section_data_builder: DataBuilder,
+                 section_data_builder: SectionDataBuilder,
                  validator: Validator,
                  initial_section_type=SectionType.FORCES_EMG):
         self.state = ViconCSVLines.SECTION_TYPE_LINE
@@ -113,7 +213,7 @@ class _ReaderState(abc.ABC):
     def feed_row(self, row: Row, reader: 'Reader'):
         # TODO document:
         # this should call validator exactly once.
-        # it should also change the state of the reader.
+        # it also has exactly 4 responsibilities apart from that one
         pass
 
     def _preprocess_row(self, row: Row) -> Row:
@@ -129,7 +229,7 @@ class _ReaderState(abc.ABC):
     def _reader_validator(self, reader: 'Reader') -> Validator:
         return reader.get_validator()
 
-    def _reader_data_builder(self, reader: 'Reader') -> 'DataBuilder':
+    def _reader_data_builder(self, reader: 'Reader') -> 'SectionDataBuilder':
         return reader.get_data_builder()
 
     def _reader_set_new_state(self, reader: 'Reader',
@@ -191,7 +291,7 @@ class _StepByStepReaderState(_ReaderState, Generic[T]):
         pass
 
     @abc.abstractmethod
-    def _build_data(self, parsed_data: T, data_builder: 'DataBuilder'):
+    def _build_data(self, parsed_data: T, data_builder: 'SectionDataBuilder'):
         pass
 
     @abc.abstractmethod
@@ -221,7 +321,7 @@ class SectionTypeState(_StepByStepReaderState):
             return SectionType.TRAJECTORIES
 
     def _build_data(self, parsed_data: SectionType,
-                    data_builder: 'DataBuilder'):
+                    data_builder: 'SectionDataBuilder'):
         data_builder.add_section_type(parsed_data)
 
     def _new_state(self):
@@ -252,7 +352,8 @@ class SamplingFrequencyState(_StepByStepReaderState):
         except ValueError:
             return None
 
-    def _build_data(self, parsed_data: int, data_builder: 'DataBuilder'):
+    def _build_data(self, parsed_data: int,
+                    data_builder: 'SectionDataBuilder'):
         data_builder.add_frequency(parsed_data)
 
     def _new_state(self) -> '_ReaderState':
@@ -477,7 +578,7 @@ class DevicesState(_ReaderState):
     # Responsibilities:
     # 1. understanding from the device headers what is their type
     # 2. initialize DeviceCols with that
-    # 3. initialize DeviceDataBuilders (trivial)
+    # 3. initialize DeviceSectionDataBuilders (trivial)
     # 4. create the DeviceHeaders (trivial)
     #    TODO figure out if there is a design pattern for that
     #    it honestly seems to me that abstracting all of that crap out of
@@ -548,7 +649,8 @@ class _EntryByEntryParser(_ReaderState, Failable, Generic[T]):
         pass
 
     @abc.abstractmethod
-    def _get_build_method(self, data_builder: DataBuilder) -> Callable[[T]]:
+    def _get_build_method(self,
+                          data_builder: SectionDataBuilder) -> Callable[[T]]:
         pass
 
 
@@ -561,7 +663,8 @@ class UnitsLineParser(_EntryByEntryParser):
         else:
             return self._success(unit)
 
-    def _get_build_method(self, data_builder: DataBuilder) -> Callable[[T]]:
+    def _get_build_method(self,
+                          data_builder: SectionDataBuilder) -> Callable[[T]]:
         return data_builder.add_units
 
 
@@ -595,7 +698,8 @@ class DataLineParser(_EntryByEntryParser):
         else:
             return self._success(data)
 
-    def _get_build_method(self, data_builder: DataBuilder) -> Callable[[T]]:
+    def _get_build_method(self,
+                          data_builder: SectionDataBuilder) -> Callable[[T]]:
         return data_builder.add_measurements
 
 
@@ -609,7 +713,7 @@ class GettingMeasurementsState(_ReaderState):
         row = self._preprocess_row(row)
 
         if self._is_blank_line(row):
-            self._transition_state(reader)
+            self._transition(reader)
         else:
             self._feed_forward(row, reader)
 
@@ -620,56 +724,40 @@ class GettingMeasurementsState(_ReaderState):
     def _feed_forward(self, row: Row, reader: Reader):
         self._data_line_parser.feed_row(row, reader)
 
-    def _transition_state(self, reader: Reader):
-        section_type = self._reader_section_type()
+    def _transition(self, reader: Reader):
+        current_section_type = self._reader_section_type()
 
-        # TODO esse método privado discreto dá a ilusão
-        # de que será fácil implementar a funcionalidade aqui
-        # segue então tudo o que precisa ser implementado:
+        if current_section_type is SectionType.FORCES_EMG:
+            self._new_section_state(reader)
+        elif current_section_type is SectionType.TRAJECTORIES:
+            self._blank_state(reader)
+        else:
+            raise TypeError(
+                "current section type isn't a member of SectionType")
 
-        # 1. se estamos na primeira Section:
-        #    - mudar para a segunda
-        #    - transicionar pra um segundo DataBuilder somehow
-        #    - mudar o estado para um SectionTypeState
+        self._reader_transition_section(reader)
 
-        # 2. se estamos na segunda Section:
-        #    - somehow, fundir os 2 DataBuilder
-        #    - somehow, bubble up the news
+    def _reader_transition_section(self, reader: Reader):
+        reader.transition_section()
 
-        # ----
-        # Minha ideia por enquanto:
-        # ----
+    def _new_section_state(self, reader: Reader):
+        new_state = SectionTypeState()
+        self._reader_set_new_state(reader, new_state)
 
-        # a) Migrar estado
-        # - eu aviso o Reader que é hora de migrar a Section
-        # - pergunto pro Reader em qual Section estamos
-        # - dependendo da Section atual, transiciono o estado para um dentre:
-        #   + BlankLineState (trivialíssimo)
-        #   + SectionTypeState
+    def _blank_state(self, reader: Reader):
+        new_state = BlankLinesState()
+        self._reader_set_new_state(reader, new_state)
 
-        # b) Mudar seção + encerrar dados
-        # - o Reader avisa uma espécie de SectionManager que é hora de migrar
-        #   a Section
-        # - o SectionManager fica responsável por:
-        #   + guardar 2 DataBuilder
-        #   + guardar em qual SectionType estamos
-        #   + passar o DataBuilder certo pro Reader quando ele pergunta por um
-        #   + transicionar Seção (primeira vez)
-        #   + encerrar DataBuilders (segunda vez)
-        #   + passar a representação de dados final pro Reader
 
-        # c) Como representar ParsedData
-        # - o mais importante é ter um basicão em pé. Depois é fácil mudar a
-        #   a representação e adicionar métodos conforme a necessidade da
-        #   análise.
-        # - nexus_data.trajectory_markers['Angelica:HV']['X']
-        #   mas acho que deixando só o 'HV'.
-        # - nexus_data.force_plates['1']['Force']['X'].at(frame=10, subframe=20)
+class BlankLinesState(_StepByStepReaderState):
+    def _check_row(self, row: Row) -> DataCheck:
+        assert not bool(row)
 
-        # d) O todo
-        # - Reader terá um método "get_parsed_data"
-        # - realmente a gambiarra de o caller ou chamar "get_parsed_data" ou
-        #   esperar feedar todas as linhas será necessária
-        # - teste de integração com um CSV simplificado parece brilhante
-        # - teste de integração com o CSV todo mas só checando, p. ex., #linhas
-        #   também
+    def _new_state(self) -> _ReaderState:
+        return self
+
+    def _do_nothing(self, *args, **kwargs) -> None:
+        return
+
+    _parse_row = _do_nothing
+    _build_data = _do_nothing

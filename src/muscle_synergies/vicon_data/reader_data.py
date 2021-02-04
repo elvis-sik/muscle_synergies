@@ -353,13 +353,10 @@ class DeviceHeaderCols:
             self.num_of_cols = 3
 
 
-class DataBuilder:
+class SectionDataBuilder:
     section_type: SectionType
     frequency: int
-
-    force_plates_device_header: Optional[List['ForcePlate']]
-    emg_device_header: Optional['DeviceHeader']
-    trajectory_device_header: Optional[List['DeviceHeader']]
+    data_channeler: 'DataChanneler'
 
     def add_section_type(self, section_type: SectionType):
         self.section_type = section_type
@@ -367,14 +364,14 @@ class DataBuilder:
     def add_frequency(self, frequency: int):
         self.frequency = frequency
 
-    def add_data_channeler(self, data_channeler):
-        pass
+    def add_data_channeler(self, data_channeler: 'DataChanneler'):
+        self.data_channeler = data_channeler
 
     def add_units(self, units):
-        pass
+        self.data_channeler.add_units(units)
 
     def add_measurements(self, data):
-        pass
+        self.data_channeler.add_data(data)
 
 
 class TimeSeriesDataBuilder:
@@ -511,6 +508,14 @@ class DeviceHeaderDataBuilder:
                 `time_series_list` provided during initialization.
         """
         self._call_method_on_each(parsed_data, 'add_data')
+
+    def get_time_series(self, ind: int) -> TimeSeriesDataBuilder:
+        return self.time_series_tuple[ind]
+
+    __getitem__ = get_time_series
+
+    def __len__(self):
+        return len(self.time_series_tuple)
 
 
 @dataclass

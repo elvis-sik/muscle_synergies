@@ -41,7 +41,7 @@ requirements = parse_requirements('requirements.txt')
 if __name__ == '__main__':
     setup(
         name='muscle_synergies',
-        description='Determine muscle synergies on the data outputted by the Vicon Nexus machine.',
+        description='Determine muscle synergies on the data outputted by Vicon Nexus.',
         long_description='\n\n'.join([readme, changes]),
         license='MIT license',
         url='https://github.com/elvis-sik/muscle_synergies',

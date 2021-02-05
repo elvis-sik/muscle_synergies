@@ -1,6 +1,6 @@
 # Muscle Synergies
 
-README.md in English: [README.md](README.md)
+English version of this document: [inglês](README.md)
 
 Extração de sinergias musculares a partir de dados experimentais obtidos usando
 Vicon Nexus.

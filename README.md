@@ -30,4 +30,6 @@ Sciences](https://mor.ccb.ufsc.br/) in the Federal University of Santa Catarina
 
 ## References
 <a id="1">[1]</a>
-Rabbi, M.F., Pizzolato, C., Lloyd, D.G. et al. Non-negative matrix factorisation is the most appropriate method for extraction of muscle synergies in walking and running. Sci Rep 10, 8266 (2020). https://doi.org/10.1038/s41598-020-65257-w
+Rabbi, M.F., Pizzolato, C., Lloyd, D.G. et al. Non-negative matrix factorisation is the most appropriate method for extraction of muscle synergies in walking and running.  
+Sci Rep 10, 8266 (2020).  
+https://doi.org/10.1038/s41598-020-65257-w

@@ -10,8 +10,10 @@ from typing import (List, Set, Dict, Tuple, Optional, Sequence, Callable, Any,
                     Mapping, Iterator, Generic, TypeVar, NewType, Union)
 
 import pint
+from pint_pandas import PintArray, PintType
 
 ureg = pint.UnitRegistry()
+pint_pandas.PintType.ureg = ureg
 
 T = TypeVar('T')
 X = TypeVar('X')
@@ -404,6 +406,20 @@ class TimeSeriesDataBuilder:
     def add_data(self, data_entry: float):
         """Adds a data entry."""
         self.data.append(data_entry)
+
+    def get_coordinate_name(self) -> Optional[str]:
+        return self.coordinate_name
+
+    def get_physical_unit(self) -> Optional[pint.Unit]:
+        return self.physical_unit
+
+    def get_data(self) -> List[float]:
+        """Gets the data added so far.
+
+        The list returned is the same one used internally by this class, so
+        mutating it will mutate it as well.
+        """
+        return self.data
 
 
 class DeviceHeaderDataBuilder:

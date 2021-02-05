@@ -18,7 +18,7 @@ from .reader_data import (CategorizedHeaders, ColOfHeader, SectionDataBuilder,
                           DeviceHeaderSectionDataBuilder, DeviceType,
                           ForcePlate, Row, SectionType, Union, Validator,
                           ViconCSVLines, T, X, Y, DeviceHeaderRepresentation,
-                          Failable, FailableResult, ureg)
+                          Failable, FailableResult, ureg, PintArray)
 
 
 class _ParsedDataRepresentation(collections.abc.Mapping):
@@ -30,27 +30,38 @@ class _ParsedDataRepresentation(collections.abc.Mapping):
     ):
         self._data_frame_dict = dict(data_frame_dict)
 
+    # TODO Preciso terminar esse planejamento:
+    # 1. implementar esse método
+    # 2. o que vai ser devolvido pro user precisa ser o seguinte:
+    #    - algo muito similar a um CategorizedHeaders
+    #    - o membro force_plates pode literalmente ser ForcePlate
+    #    - os 3 dev_headers de ForcePlate podem ser um
+    #      _ParsedDataRepresentation (?)
+    # 3. a classe _ParsedDataRepresentation precisa saber a respeito de
+    #    frames e subframes.
+    # 4. talvez ter um from_list_of_device_headers na ABC. Talvez nas
+    #    filhas. Ou isso é responsabilidade do caller?
+    # 5. daí faltam implementar:
+    #    a. 2 métodos de DataBuilder
+    #    b. mudar as classes do topo desse arquivo para o reader_data
+    #    c. corrigir o Reader
+    #    d. finalizar os 2 ReaderState pela metade
+    #    e. começar os testes
+
     @staticmethod
-    def convert_dev_data_builder(header_builders: DeviceHeaderDataBuilder
-                                 ) -> pd.DataFrame:
-        pass
-        # TODO Preciso terminar esse planejamento:
-        # 1. implementar esse método
-        # 2. o que vai ser devolvido pro user precisa ser o seguinte:
-        #    - algo muito similar a um CategorizedHeaders
-        #    - o membro force_plates pode literalmente ser ForcePlate
-        #    - os 3 dev_headers de ForcePlate podem ser um
-        #      _ParsedDataRepresentation (?)
-        # 3. a classe _ParsedDataRepresentation precisa saber a respeito de
-        #    frames e subframes.
-        # 4. talvez ter um from_list_of_device_headers na ABC. Talvez nas
-        #    filhas. Ou isso é responsabilidade do caller?
-        # 5. daí faltam implementar:
-        #    a. 2 métodos de DataBuilder
-        #    b. mudar as classes do topo desse arquivo para o reader_data
-        #    c. corrigir o Reader
-        #    d. finalizar os 2 ReaderState pela metade
-        #    e. começar os testes
+    def convert_device_header_builder(
+            device_header_builder: DeviceHeaderDataBuilder) -> pd.DataFrame:
+        def create_pint_array(data, physical_unit):
+            PintArray(data, dtype=physical_unit)
+
+        data_dict = {}
+        for time_series_builder in device_header_builder:
+            coord_name = time_series_builder.get_coordinate_name()
+            physical_unit = time_series_builder.get_physical_unit()
+            data = time_series_builder.get_data()
+            data_dict[coord_name] = create_pint_parray(data, physical_unit)
+
+        return pd.DataFrame(data_dict)
 
     def __getitem__(self, ind: X) -> pd.DataFrame:
         return self._data_frame_dict.__getitem__(ind)

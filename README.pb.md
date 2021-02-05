@@ -19,7 +19,7 @@ testes precisam ser refatorados.  Também pelo fato de ainda estar terminando de
 implementar essa funcionalidade, as docstrings estão incompletas.
 
 Depois que essa primeira parte do projeto estiver terminada, a análise de EMG
-baseada em fatoração de matrizes não-negatives, um método que foi recentemente
+baseada em fatoração de matrizes não-negatives, método que foi recentemente
 demonstrado superior a outros [[1]](#1), será implementada.
 
 ## Agradecimentos
@@ -30,6 +30,6 @@ Morfológicas](https://mor.ccb.ufsc.br/) na Universidade Federal de Santa
 Catarina (UFSC).
 
 ## Referências
-<a id="1">[1]</a> Rabbi, M.F., Pizzolato, C., Lloyd, D.G. et al. Non-negative matrix factorisation is the most appropriate method for extraction of muscle synergies in walking and running.
-Sci Rep 10, 8266 (2020).
+<a id="1">[1]</a> Rabbi, M.F., Pizzolato, C., Lloyd, D.G. et al. Non-negative matrix factorisation is the most appropriate method for extraction of muscle synergies in walking and running.  
+Sci Rep 10, 8266 (2020).  
 https://doi.org/10.1038/s41598-020-65257-w

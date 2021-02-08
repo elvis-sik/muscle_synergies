@@ -4,4 +4,10 @@ from .load_csv import *
 from .reader_data import *
 from .reader import *
 
-# TODO include __all__
+__all__ = (
+    DeviceHeader,
+    TrajectoriesData,
+    ForcePlateData,
+    EMGData,
+    load_vicon_file,
+)

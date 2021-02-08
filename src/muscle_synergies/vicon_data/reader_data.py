@@ -24,7 +24,7 @@ Y = TypeVar('Y')
 Row = NewType('Row', List[str])
 
 DeviceHeaderRepresentation = Union['ColOfHeader', 'DeviceHeaderCols',
-                                   'DeviceHeader']
+                                   'DeviceHeaderPair']
 
 
 class SectionType(Enum):
@@ -535,7 +535,7 @@ class DeviceHeaderDataBuilder:
 
 
 @dataclass
-class DeviceHeader:
+class DeviceHeaderPair:
     """A device header.
 
     This class keeps track of 2 components referring to individual device
@@ -575,23 +575,24 @@ class DataChanneler:
     Args:
         devices: the list of Device objects to which to channel the data.
     """
-    _DeviceSlice = Tuple[DeviceHeaderDataBuilder, slice]
 
-    devices: Tuple[DeviceHeader]
+    devices: Tuple[DeviceHeaderPair]
 
-    def __init__(self, devices: List[DeviceHeader]):
+    def __init__(self, devices: List[DeviceHeaderPair]):
         self.devices = tuple(devices)
 
-    def _device_builder(self, device: DeviceHeader) -> DeviceHeaderDataBuilder:
+    def _device_builder(self,
+                        device: DeviceHeaderPair) -> DeviceHeaderDataBuilder:
         """Gets data builder from a device."""
         return device.device_data_builder
 
-    def _device_row_slice(self, device: DeviceHeader) -> slice:
+    def _device_row_slice(self, device: DeviceHeaderPair) -> slice:
         """Gets the slice object corresponding to a device."""
         device_cols = device.device_cols
         return device_cols.create_slice()
 
-    def _iter_device_slice(self) -> Iterator[_DeviceSlice]:
+    def _iter_device_slice(
+            self) -> Iterator[Tuple[DeviceHeaderDataBuilder, slice]]:
         """Yields all pairs of data builder and row slice."""
         for device in self.devices:
             builder = self._device_builder(device)

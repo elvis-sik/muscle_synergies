@@ -21,6 +21,39 @@ from .reader_data import (CategorizedHeaders, ColOfHeader, SectionDataBuilder,
                           Failable, FailableResult, ureg, PintArray)
 
 
+class DeviceHeader:
+    def __init__(
+            self,
+            freqs,
+    ):
+        # TODO acho que assim:
+        # 1. implemento a funcionalidade de ler frequências
+        # 2. daí acho que está quase pronto aqui, falta terminar as 2 vias de
+        #    inicialização
+        pass
+
+    @classmethod
+    def from_device_header_pair(cls, device_header_pair: DeviceHeaderPair
+                                ) -> 'DeviceHeader':
+        builder = device_header_pair.device_data_builder
+        device_name = device_header_pair.device_name
+
+    @staticmethod
+    def _extract_dataframe(device_header_builder: DeviceHeaderDataBuilder
+                           ) -> pd.DataFrame:
+        def create_pint_array(data, physical_unit):
+            PintArray(data, dtype=physical_unit)
+
+        data_dict = {}
+        for time_series_builder in device_header_builder:
+            coord_name = time_series_builder.get_coordinate_name()
+            physical_unit = time_series_builder.get_physical_unit()
+            data = time_series_builder.get_data()
+            data_dict[coord_name] = create_pint_parray(data, physical_unit)
+
+        return pd.DataFrame(data_dict)
+
+
 class _ParsedDataRepresentation(collections.abc.Mapping):
     _data_frame_dict: Mapping[X, pd.DataFrame]
 
@@ -41,27 +74,16 @@ class _ParsedDataRepresentation(collections.abc.Mapping):
     #    frames e subframes.
     # 4. talvez ter um from_list_of_device_headers na ABC. Talvez nas
     #    filhas. Ou isso é responsabilidade do caller?
-    # 5. daí faltam implementar:
+    # 5. acho que um merge_force_plates em algum lugar! Assim cada force_plate
+    #    acaba sendo um único DataFrame. Vai precisar de uma classe especial
+    #    MergedForcePlate pq tem membros relativos aos nomes de cada
+    #    device_header. Esses nomes são úteis para debugging.
+    # 6. daí faltam implementar:
     #    a. 2 métodos de DataBuilder
     #    b. mudar as classes do topo desse arquivo para o reader_data
     #    c. corrigir o Reader
     #    d. finalizar os 2 ReaderState pela metade
     #    e. começar os testes
-
-    @staticmethod
-    def convert_device_header_builder(
-            device_header_builder: DeviceHeaderDataBuilder) -> pd.DataFrame:
-        def create_pint_array(data, physical_unit):
-            PintArray(data, dtype=physical_unit)
-
-        data_dict = {}
-        for time_series_builder in device_header_builder:
-            coord_name = time_series_builder.get_coordinate_name()
-            physical_unit = time_series_builder.get_physical_unit()
-            data = time_series_builder.get_data()
-            data_dict[coord_name] = create_pint_parray(data, physical_unit)
-
-        return pd.DataFrame(data_dict)
 
     def __getitem__(self, ind: X) -> pd.DataFrame:
         return self._data_frame_dict.__getitem__(ind)

@@ -127,7 +127,7 @@ class EMGData(_ParsedDataRepresentation):
 
 
 class DataBuilder:
-    _current_section_type: Otional[SectionType]
+    _current_section_type: Optional[SectionType]
 
     _forces_emg_data_builder: SectionDataBuilder
     _trajs_data_builder: SectionDataBuilder
@@ -175,7 +175,7 @@ class Reader:
 
     Initialize it
     """
-    _state: _ReaderState
+    _state: '_ReaderState'
     _data_builder: SectionDataBuilder
     _validator: Validator
     _section_type: SectionType
@@ -189,7 +189,7 @@ class Reader:
         self.validator = validator
         self._section_type = initial_section_type
 
-    def set_state(self, new_state: _ReaderState):
+    def set_state(self, new_state: '_ReaderState'):
         self._state = new_state
 
     def get_data_builder(self):
@@ -506,6 +506,8 @@ class DeviceColsCreator(Failable):
 
 
 class DeviceCategorizer(Failable):
+    # TODO Refactor - using DeviceType.section_type should make this a bit
+    #  simpler
     def categorize(self, dev_cols: List[DeviceHeaderCols]
                    ) -> FailableResult[CategorizedHeaders]:
         grouped_headers = self._group_headers(dev_cols)
@@ -567,8 +569,8 @@ class DeviceCategorizer(Failable):
 
 
 class ForcePlateGrouper(Failable):
-    def group_force_plates(self,
-                           dev_cols: List[DeviceHeaderCols]) -> ForcePlate:
+    def group_force_plates(self, dev_cols: List[DeviceHeaderCols]
+                           ) -> ForcePlateDevices:
         # TODO if the method called below is able to group force plates
         # by their names, it should also be able to understand their types
         # so the only thing remaining after it is run would be to
@@ -592,12 +594,12 @@ class ForcePlateGrouper(Failable):
     ) -> FailableResult[Mapping[str, DeviceHeaderCols]]:
         pass
 
-    def _build_grouped(self,
-                       grouped: Mapping[str, DeviceHeaderCols]) -> ForcePlate:
+    def _build_grouped(self, grouped: Mapping[str, DeviceHeaderCols]
+                       ) -> ForcePlateDevices:
         pass
 
     def _group_force_plates(self, cols_list: List['DeviceHeaderCols']
-                            ) -> _GroupingResult:
+                            ) -> '_GroupingResult':
         def empty_force_plate_dict():
             return {'force': None, 'cop': None, 'moment': None}
 
@@ -701,8 +703,8 @@ class _EntryByEntryParser(_ReaderState, Failable, Generic[T]):
         pass
 
     @abc.abstractmethod
-    def _get_build_method(self,
-                          data_builder: SectionDataBuilder) -> Callable[[T]]:
+    def _get_build_method(self, data_builder: SectionDataBuilder
+                          ) -> Callable[[T], Any]:
         pass
 
 
@@ -715,8 +717,8 @@ class UnitsLineParser(_EntryByEntryParser):
         else:
             return self._success(unit)
 
-    def _get_build_method(self,
-                          data_builder: SectionDataBuilder) -> Callable[[T]]:
+    def _get_build_method(self, data_builder: SectionDataBuilder
+                          ) -> Callable[[T], Any]:
         return data_builder.add_units
 
 
@@ -750,8 +752,8 @@ class DataLineParser(_EntryByEntryParser):
         else:
             return self._success(data)
 
-    def _get_build_method(self,
-                          data_builder: SectionDataBuilder) -> Callable[[T]]:
+    def _get_build_method(self, data_builder: SectionDataBuilder
+                          ) -> Callable[[T], Any]:
         return data_builder.add_measurements
 
 

@@ -207,7 +207,7 @@ class Validator:
 
 
 @dataclass(frozen=True, eq=True)
-class ForcePlate:
+class ForcePlateDevices:
     """The 3 device headers with the data of a single force plate.
 
     Since each force plate is represented in 3 different device headers, this
@@ -237,13 +237,14 @@ class ForcePlate:
 
 @dataclass
 class CategorizedHeaders:
-    force_plates: Union[List[DeviceHeaderRepresentation], ForcePlate]
+    force_plates: Union[List[DeviceHeaderRepresentation], ForcePlateDevices]
     emg: Optional[DeviceHeaderRepresentation]
     trajectory_markers: List[DeviceHeaderRepresentation]
 
-    def from_device_type(self, device_type: DeviceType
-                         ) -> Union[List[DeviceHeaderCols], ForcePlate,
-                                    Optional[DeviceHeaderRepresentation]]:
+    def from_device_type(
+            self, device_type: DeviceType
+    ) -> Union[List[DeviceHeaderRepresentation], ForcePlateDevices,
+               Optional[DeviceHeaderRepresentation]]:
         if device_type is DeviceType.FORCE_PLATE:
             return self.force_plates
         if device_type is DeviceType.EMG:
@@ -253,7 +254,7 @@ class CategorizedHeaders:
 
         raise ValueError(f'device type {device_type} not understood')
 
-    def all_header_cols(self) -> List[DeviceHeaderCols]:
+    def all_device_headers(self) -> List[DeviceHeaderRepresentation]:
         try:
             force_plates = self.force_plates.list_devices()
         except AttributeError:

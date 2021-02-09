@@ -120,6 +120,11 @@ class DeviceType(Enum):
     EMG = 2
     TRAJECTORY_MARKER = 3
 
+    def section_type(self):
+        if self in {DeviceType.EMG, DeviceType.FORCE_PLATE}:
+            return SectionType.FORCES_EMG
+        return SectionType.TRAJECTORIES
+
 
 @dataclass
 class ForcePlateMeasurement:

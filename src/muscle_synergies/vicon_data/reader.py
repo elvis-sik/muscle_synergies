@@ -17,7 +17,6 @@ from pint_pandas import PintArray
 from .reader_data import (
     ViconNexusData,
     ColOfHeader,
-    SectionDataBuilder,
     DataCheck,
     DeviceHeaderPair,
     DeviceHeaderCols,
@@ -33,61 +32,50 @@ from .reader_data import (
     X,
     Y,
     DeviceHeaderRepresentation,
-    Failable,
+    _FailableMixin,
     FailableResult,
     ureg,
 )
 
 # 6. daí faltam implementar:
-#    a. 2 métodos de DataBuilder
-#    b. mudar as classes do topo desse arquivo para o reader_data
-#    c. corrigir o Reader
 #    d. finalizar os 2 ReaderState pela metade
 #    e. começar os testes
 
 
 class DataBuilder:
-    _current_section_type: Optional[SectionType]
+    _force_emg_builder: ForcesEMGDataBuilder
+    _traj_builder: TrajDataBuilder
+    _current_builder: _SectionDataBuilder
 
-    _forces_emg_data_builder: SectionDataBuilder
-    _trajs_data_builder: SectionDataBuilder
-
-    def __init__(self,
-                 forces_emg_data_builder: SectionDataBuilder,
-                 trajs_data_builder: SectionDataBuilder,
-                 initial_section_type=SectionType.FORCES_EMG):
+    def __init__(self, forces_emg_data_builder: SectionDataBuilder,
+                 trajs_data_builder: SectionDataBuilder):
         self._forces_emg_data_builder = forces_emg_data_builder
         self._trajs_data_builder = trajs_data_builder
-        self._current_section_type = initial_section_type
-
-    def get_section_type(self) -> SectionType:
-        return self._current_section_type
-
-    def get_section_data_builder(self) -> Optional[SectionDataBuilder]:
-        if self.get_section_type() is SectionType.FORCES_EMG:
-            return self._forces_emg_data_builder
-        elif self.get_section_type() is SectionType.TRAJECTORIES:
-            return self._trajs_data_builder
-        return
-
-    def transition(self):
-        if self.get_section_type() is SectionType.FORCES_EMG:
-            self._current_section_type = SectionType.TRAJECTORIES
-        elif self.get_section_type() is SectionType.TRAJECTORIES:
-            self._build_data()
-        elif self.get_section_type() is None:
-            raise TypeError(
-                'tried to transition the state of a finished data builder')
 
     @property
     def finished(self):
-        return self._current_section_type is None
+        return self._current_builder.finished
 
-    def get_built_data(self):
-        pass
+    def file_ended(self) -> ViconNexusData:
+        self._current_builder.file_ended()
 
-    def _build_data(self) -> 'DataRepresentation':
-        pass
+    def get_section_type(self) -> SectionType:
+        return self._current_builder.section_type
+
+    def transition(self):
+        self._current_builder.transition()
+
+    def add_frequency(self, frequency: int):
+        self._current_builder.add_frequency(frequency)
+
+    def add_data_channeler(self, data_channeler: 'DataChanneler'):
+        self._current_builder.add_data_channeler(data_channeler)
+
+    def add_units(self, units: List[pint.Unit]):
+        self._current_builder.add_units(units)
+
+    def add_measurements(self, data: List[float]):
+        self._current_builder.add_data(data)
 
 
 class Reader:
@@ -98,16 +86,18 @@ class Reader:
     _state: '_ReaderState'
     _data_builder: SectionDataBuilder
     _validator: Validator
-    _section_type: SectionType
 
-    def __init__(self,
-                 section_data_builder: SectionDataBuilder,
-                 validator: Validator,
-                 initial_section_type=SectionType.FORCES_EMG):
-        self.state = ViconCSVLines.SECTION_TYPE_LINE
-        self.data_builder = section_data_builder
-        self.validator = validator
-        self._section_type = initial_section_type
+    def __init__(self, section_type_state: 'SectionTypeState',
+                 data_builder: DataBuilder, validator: Validator):
+        self._state = section_type_state
+        self._data_builder = section_data_builder
+        self._validator = validator
+
+    def file_ended(self) -> ViconNexusData:
+        self._state.file_ended(reader=self)
+
+    def feed_row(self, row: Row):
+        self._state.feed_row(row, reader=self)
 
     def set_state(self, new_state: '_ReaderState'):
         self._state = new_state
@@ -119,74 +109,35 @@ class Reader:
         return self._validator
 
     def get_section_type(self) -> SectionType:
-        return self._section_type
-
-    def set_section_type(self, new_section_type: SectionType):
-        self._section_type = new_section_type
-
-    def feed_row(self, row: Row):
-        self._raise_if_ended()
-
-        check_function = self._get_check_function()
-        read_function = self._get_read_function()
-        aggregation_function = self._get_build_function()
-
-        self._call_validator(check_function(row))
-        read_line = read_function(row)
-        aggregation_function(read_line)
-
-        self._transition()
-
-    def _get_check_function(self):
-        if self.state == ViconCSVLines.SECTION_TYPE_LINE:
-            return check_section_type_line
-        elif self.state == ViconCSVLines.SAMPLING_FREQUENCY_LINE:
-            return check_sampling_frequency_line
-        elif self.state == ViconCSVLines.DEVICE_NAMES_LINE:
-            return self.devices_reader.check_device_names_line
-
-    def _get_read_function(self):
-        if self.state == ViconCSVLines.SECTION_TYPE_LINE:
-            return read_section_type_line
-        elif self.state == ViconCSVLines.SAMPLING_FREQUENCY_LINE:
-            return read_sampling_frequency_line
-        elif self.state == ViconCSVLines.DEVICE_NAMES_LINE:
-            return self.devices_reader.read_device_names_line
-
-    def _get_build_function(self):
-        if self.state == ViconCSVLines.SECTION_TYPE_LINE:
-            return self.data_builder.add_section_type
-        elif self.state == ViconCSVLines.SAMPLING_FREQUENCY_LINE:
-            return self.data_builder.add_frequency
-        elif self.state == ViconCSVLines.DEVICE_NAMES_LINE:
-            # TODO Essa é a próxima linha
-            return
-
-    def _transition(self):
-        if self.state == ViconCSVLines.SECTION_TYPE_LINE:
-            self.state = ViconCSVLines.SAMPLING_FREQUENCY_LINE
-        elif self.state == ViconCSVLines.SAMPLING_FREQUENCY_LINE:
-            self.state = ViconCSVLines.DEVICE_NAMES_LINE
-        elif self.state == ViconCSVLines.DEVICE_NAMES_LINE:
-            return
-
-    def _raise_if_ended(self):
-        if self.state == ViconCSVLines.BLANK_LINE:
-            raise EOFError(
-                'tried to read another line from a section that has already been completely readd'
-            )
-
-    def _call_validator(self, data_check_result: DataCheck):
-        self.validator.validate(data_check_result)
+        return self._data_builder.get_section_type()
 
 
 class _ReaderState(abc.ABC):
     @abc.abstractmethod
-    def feed_row(self, row: Row, reader: 'Reader'):
+    def feed_row(self, row: Row, *, reader: 'Reader'):
         # TODO document:
         # this should call validator exactly once.
         # it also has exactly 4 responsibilities apart from that one
         pass
+
+    @abc.abstractproperty
+    def line(self) -> ViconCSVLines:
+        pass
+
+    def file_ended(self, reader: 'Reader') -> ViconNexusData:
+        current_section_type = self._reader_section_type(reader)
+        current_line = self.line()
+        data_check = self._create_data_check(
+            False, "file doesn't seem to have the expected structure. " +
+            "It was expected to have two sections with data " +
+            "(one for force plate and EMG data, the other for trajectory markers) "
+            +
+            "with each section having 5 lines before a variable number of lines "
+            + "containing measurements. " +
+            f"Current section type is {current_section_type} and the line "
+            f"currently expected is {current_line}.")
+        validator = self._reader_validator(reader)
+        self._validate(validator, data_check)
 
     def _preprocess_row(self, row: Row) -> Row:
         row = list(entry.strip() for entry in row)
@@ -201,7 +152,7 @@ class _ReaderState(abc.ABC):
     def _reader_validator(self, reader: 'Reader') -> Validator:
         return reader.get_validator()
 
-    def _reader_data_builder(self, reader: 'Reader') -> 'SectionDataBuilder':
+    def _reader_data_builder(self, reader: 'Reader') -> DataBuilder:
         return reader.get_data_builder()
 
     def _reader_set_new_state(self, reader: 'Reader',
@@ -263,7 +214,7 @@ class _StepByStepReaderState(_ReaderState, Generic[T]):
         pass
 
     @abc.abstractmethod
-    def _build_data(self, parsed_data: T, data_builder: 'SectionDataBuilder'):
+    def _build_data(self, parsed_data: T, data_builder: DataBuilder):
         pass
 
     @abc.abstractmethod
@@ -277,6 +228,10 @@ class SectionTypeState(_StepByStepReaderState):
     For an explanation of what are the different lines of the CSV input, see
     the docs for :py:class:ViconCSVLines.
     """
+    @property
+    def line(self) -> ViconCSVLines:
+        return ViconCSVLines.SECTION_TYPE_LINE
+
     def _check_row(self, row: Row) -> DataCheck:
         is_valid = row[0] in {'Devices', 'Trajectories'}
         message = (
@@ -306,6 +261,10 @@ class SamplingFrequencyState(_StepByStepReaderState):
     For an explanation of what are the different lines of the CSV input, see
     the docs for :py:class:ViconCSVLines.
     """
+    @property
+    def line(self) -> ViconCSVLines:
+        return ViconCSVLines.SAMPLING_FREQUENCY_LINE
+
     def _check_row(self, row: Row) -> DataCheck:
         try:
             is_valid = int(row[0])
@@ -332,7 +291,7 @@ class SamplingFrequencyState(_StepByStepReaderState):
         return DevicesState()
 
 
-class DevicesLineFinder(Failable):
+class DevicesLineFinder(_FailableMixin):
     def find_headers(self, row: Row) -> FailableResult[List[ColOfHeader]]:
         fail_res = self._check_row(row)
         return self._compute_on_failable(self._find_headers_unsafe,
@@ -370,7 +329,7 @@ class DevicesLineFinder(Failable):
         return (col_num - 2) % 3 == 0
 
 
-class DeviceColsCreator(Failable):
+class DeviceColsCreator(_FailableMixin):
     def __init__(self,
                  *,
                  cols_class=DeviceHeaderCols,
@@ -425,7 +384,7 @@ class DeviceColsCreator(Failable):
         return self._fail(error_message)
 
 
-class DeviceCategorizer(Failable):
+class DeviceCategorizer(_FailableMixin):
     # TODO Refactor - using DeviceType.section_type should make this a bit
     #  simpler
     def categorize(self, dev_cols: List[DeviceHeaderCols]
@@ -488,7 +447,7 @@ class DeviceCategorizer(Failable):
         return bool(a) != bool(b)
 
 
-class ForcePlateGrouper(Failable):
+class ForcePlateGrouper(_FailableMixin):
     def group_force_plates(self, dev_cols: List[DeviceHeaderCols]
                            ) -> ForcePlateDevices:
         # TODO if the method called below is able to group force plates
@@ -549,6 +508,10 @@ class ForcePlateGrouper(Failable):
 
 
 class DevicesState(_ReaderState):
+    @property
+    def line(self) -> ViconCSVLines:
+        return ViconCSVLines.DEVICE_NAMES_LINE
+
     # Responsibilities:
     # 1. understanding from the device headers what is their type
     # 2. initialize DeviceCols with that
@@ -575,6 +538,10 @@ class DevicesState(_ReaderState):
 
 
 class CoordinatesState(_StepByStepReaderState):
+    @property
+    def line(self) -> ViconCSVLines:
+        return ViconCSVLines.COORDINATES_LINE
+
     def _create_device_header(self, device_name: str,
                               first_col_index: int) -> 'DeviceHeader':
         device_header_cols = self._create_device_header_cols(
@@ -585,7 +552,7 @@ class CoordinatesState(_StepByStepReaderState):
         return DeviceHeaderDataBuilder()
 
 
-class _EntryByEntryParser(_ReaderState, Failable, Generic[T]):
+class _EntryByEntryParser(_ReaderState, _FailableMixin, Generic[T]):
     """A parser which parses each row entry independently."""
     def feed_row(self, row: Row, reader: Reader):
         # 1 and 2. parse and check
@@ -643,6 +610,10 @@ class UnitsLineParser(_EntryByEntryParser):
 
 
 class UnitsState(_ReaderState):
+    @property
+    def line(self) -> ViconCSVLines:
+        return ViconCSVLines.UNITS_LINE
+
     _units_line_parser: UnitsLineParser
 
     def __init__(self, units_line_parser: UnitsLineParser):
@@ -677,8 +648,18 @@ class DataLineParser(_EntryByEntryParser):
         return data_builder.add_measurements
 
 
-class GettingMeasurementsState(_ReaderState):
+class _PassUpFileEndedMixin:
+    def file_ended(self, reader: Reader) -> ViconNexusData:
+        data_builder = self._reader_data_builder(reader)
+        return data_builder.file_ended()
+
+
+class GettingMeasurementsState(_PassUpFileEndedMixin, _ReaderState):
     _data_line_parser: DataLineParser
+
+    @property
+    def line(self) -> ViconCSVLines:
+        return ViconCSVLines.DATA_LINE
 
     def __init__(self, data_line_parser: DataLineParser):
         self._data_line_parser = data_line_parser
@@ -702,9 +683,9 @@ class GettingMeasurementsState(_ReaderState):
         current_section_type = self._reader_section_type()
 
         if current_section_type is SectionType.FORCES_EMG:
-            self._new_section_state(reader)
+            self._set_new_section_state(reader)
         elif current_section_type is SectionType.TRAJECTORIES:
-            self._blank_state(reader)
+            self._set_blank_state(reader)
         else:
             raise TypeError(
                 "current section type isn't a member of SectionType")
@@ -712,18 +693,23 @@ class GettingMeasurementsState(_ReaderState):
         self._reader_transition_section(reader)
 
     def _reader_transition_section(self, reader: Reader):
-        reader.transition_section()
+        data_builder = self._reader_data_builder(reader)
+        data_builder.transition()
 
-    def _new_section_state(self, reader: Reader):
+    def _set_new_section_state(self, reader: Reader):
         new_state = SectionTypeState()
         self._reader_set_new_state(reader, new_state)
 
-    def _blank_state(self, reader: Reader):
+    def _set_blank_state(self, reader: Reader):
         new_state = BlankLinesState()
         self._reader_set_new_state(reader, new_state)
 
 
-class BlankLinesState(_StepByStepReaderState):
+class BlankLinesState(_PassUpFileEndedMixin, _StepByStepReaderState):
+    @property
+    def line(self) -> ViconCSVLines:
+        return ViconCSVLines.BLANK_LINE
+
     def _check_row(self, row: Row) -> DataCheck:
         assert not bool(row)
 

@@ -351,56 +351,89 @@ class DeviceHeaderCols:
             self.num_of_cols = 3
 
 
-class _SectionDataBuilder(abc.ABC):
+class _OnlyOnceMixin:
+    def _raise_called_twice(self, what_was_added_twice: str):
+        raise TypeError(
+            f'attempted to add {what_was_added_twice} after it had ' +
+            'been already added')
+
+
+class _SectionDataBuilder(_OnlyOnceMixin, abc.ABC):
     frequency: Optional[int]
     data_channeler: Optional['DataChanneler']
 
     def __init__(self):
+        super().__init__()
         self.frequency = None
         self.data_channeler = None
 
     @abc.abstractproperty
+    def finished(self) -> bool:
+        pass
+
+    @abc.abstractproperty
     def section_type(self) -> SectionType:
         return
+
+    @abc.abstractmethod
+    def file_ended(self) -> ViconNexusData:
+        pass
 
     @abc.method
     def transition(self, data_builder: DataBuilder):
         pass
 
     def add_frequency(self, frequency: int):
+        if self.frequency is not None:
+            self._raise_called_twice('frequency')
         self.frequency = frequency
 
     def add_data_channeler(self, data_channeler: 'DataChanneler'):
+        if self.data_channeler is not None:
+            self._raise_called_twice('DataChanneler')
         self.data_channeler = data_channeler
 
-    def add_units(self, units):
+    def add_units(self, units: List[pint.Unit]):
         self.data_channeler.add_units(units)
 
-    def add_measurements(self, data):
+    def add_measurements(self, data: List[float]):
         self.data_channeler.add_data(data)
 
 
-class ForcesEMGDataBuilder:
+class ForcesEMGDataBuilder(_SectionDataBuilder):
     section_type = SectionType.FORCES_EMG
+
+    @property
+    def finished(self) -> bool:
+        return False
+
+    def file_ended(self) -> ViconNexusData:
+        raise ValueError('file ended without a trajectory marker section.')
 
     def transition(self, data_builder: DataBuilder):
         next_section_builder = data_builder.get_trajectories_data_builder()
         data_builder.set_section_data_builder(next_section_builder)
 
 
-class TrajDataBuilder:
+class TrajDataBuilder(_SectionDataBuilder):
     section_type = SectionType.TRAJECTORIES
 
+    def __init__(self):
+        super().__init__()
+        self.finished = False
+
+    @property
+    def finished(self) -> bool:
+        pass
+
+    def file_ended(self) -> ViconNexusData:
+        pass
+
     def transition(self, data_builder: DataBuilder):
-        next_section_builder = data_builder.get_wrapper()
-        data_builder.set_section_data_builder(next_section_builder)
+        pass
 
 
-class WrapperDataBuilder:
-    pass
-
-
-class TimeSeriesDataBuilder:
+class TimeSeriesDataBuilder(_OnlyOnceMixin):
     """Builds data of an individual time series.
 
     Columns in the CSV file correspond to measurements made over time (at
@@ -415,16 +448,21 @@ class TimeSeriesDataBuilder:
     data: List[float]
 
     def __init__(self):
+        super().__init__()
         self.coordinate_name = None
         self.physical_unit = None
         self.data = []
 
     def add_coordinate(self, coord_name: str):
         """Adds the coordinate name."""
+        if self.coordinate_name is not None:
+            self._raise_called_twice('coordinate')
         self.coordinate_name = coord_name
 
     def add_unit(self, physical_unit: pint.Unit):
         """Adds the physical units."""
+        if self.physical_unit is not None:
+            self._raise_called_twice('physical unit')
         self.physical_unit = physical_unit
 
     def add_data(self, data_entry: float):
@@ -747,9 +785,8 @@ class FailableResult(Generic[T]):
                 and self.parse_result == other.parse_result)
 
 
-class Failable:
-    def __init__(self, failable_result_class=FailableResult):
-        self._failable_result_class = failable_result_class
+class _FailableMixin:
+    _failable_result_class = FailableResult
 
     def _compute_on_failable(
             self,

@@ -10,7 +10,7 @@ from typing import (List, Set, Dict, Tuple, Optional, Sequence, Callable, Any,
                     Mapping, Iterator, Generic, TypeVar, NewType, Union)
 
 import pint
-from pint_pandas import PintArray, PintType
+import pint_pandas
 
 ureg = pint.UnitRegistry()
 pint_pandas.PintType.ureg = ureg

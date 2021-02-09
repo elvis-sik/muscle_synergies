@@ -12,13 +12,32 @@ from typing import (List, Set, Dict, Tuple, Optional, Sequence, Callable, Any,
 
 import pandas as pd
 import pint
+from pint_pandas import PintArray
 
-from .reader_data import (CategorizedHeaders, ColOfHeader, SectionDataBuilder,
-                          DataCheck, DeviceHeader, DeviceHeaderCols,
-                          DeviceHeaderSectionDataBuilder, DeviceType,
-                          ForcePlate, Row, SectionType, Union, Validator,
-                          ViconCSVLines, T, X, Y, DeviceHeaderRepresentation,
-                          Failable, FailableResult, ureg, PintArray)
+from .reader_data import (
+    CategorizedHeaders,
+    ColOfHeader,
+    SectionDataBuilder,
+    DataCheck,
+    DeviceHeaderPair,
+    DeviceHeaderCols,
+    DeviceHeaderDataBuilder,
+    DeviceType,
+    ForcePlateDevices,
+    Row,
+    SectionType,
+    Union,
+    Validator,
+    ViconCSVLines,
+    T,
+    X,
+    Y,
+    DeviceHeaderRepresentation,
+    Failable,
+    FailableResult,
+    ureg,
+)
+
 
 
 class DeviceHeader:

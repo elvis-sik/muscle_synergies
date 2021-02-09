@@ -4,6 +4,17 @@ from typing import List
 import pytest as pt
 
 import muscle_synergies.vicon_data as vd
+from muscle_synergies.vicon_data.reader_data import (
+    DeviceType, )
+from muscle_synergies.vicon_data.reader import (
+    Frequencies, )
+
+
+def test_dev_type_section_type():
+    assert DeviceType.FORCE_PLATE.section_type() is SectionType.FORCES_EMG
+    assert DeviceType.EMG.section_type() is SectionType.FORCES_EMG
+    assert (DeviceType.TRAJECTORY_MARKER.section_type() is
+            SectionType.TRAJECTORIES)
 
 
 @pt.fixture
@@ -982,3 +993,45 @@ class TestState:
         # the next one (coordinates line) does after it creates
         # a DataChanneler
         # after that, it should be easy
+
+
+class TestFrequencies:
+    LAST_INDEX_FORCES_EMG = 124460 - 1
+    LAST_INDEX_TRAJ = 6223 - 1
+    LAST_FRAME = 6223
+    LAST_SUBFRAME_FORCES_EMG = 19
+    LAST_SUBFRAME_TRAJ = 0
+
+    @pt.fixture
+    def frequencies(self):
+        return Frequencies(2000, 100, 6223)
+
+    def test_frame_of_ind_first_section(self, frequencies):
+        dev_type = DeviceType.FORCE_PLATE
+        last_index = self.LAST_INDEX_FORCES_EMG
+        frame, subframe = frequencies.frame_subframe(dev_type, last_index)
+        assert frame == self.LAST_FRAME
+        assert subframe == self.LAST_SUBFRAME_FORCES_EMG
+
+    def test_frame_of_ind_second_section(self, frequencies):
+        dev_type = DeviceType.TRAJECTORY_MARKER
+        last_index = self.LAST_INDEX_TRAJ
+        frame, subframe = frequencies.frame_subframe(dev_type, last_index)
+        assert frame == self.LAST_FRAME
+        assert subframe == self.LAST_SUBFRAME_TRAJ
+
+    def test_index_of_first_section(self, frequencies):
+        dev_type = DeviceType.EMG
+        last_index = self.LAST_INDEX_FORCES_EMG
+        frame = self.LAST_FRAME
+        subframe = self.LAST_SUBFRAME_FORCES_EMG
+        index = frequencies.index(dev_type, frame, subframe)
+        assert index == last_index
+
+    def test_index_of_second_section(self, frequencies):
+        dev_type = DeviceType.TRAJECTORY_MARKER
+        last_index = self.LAST_INDEX_TRAJ
+        frame = self.LAST_FRAME
+        subframe = self.LAST_SUBFRAME_TRAJ
+        index = frequencies.index(dev_type, frame, subframe)
+        assert index == last_index

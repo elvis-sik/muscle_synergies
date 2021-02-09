@@ -1,3 +1,8 @@
+from typing import Iterator
+
+from .reader_data import Row
+
+
 def csv_lines_stream(filename) -> Iterator[Row]:
     """Yields lines from a CSV file as a stream.
 

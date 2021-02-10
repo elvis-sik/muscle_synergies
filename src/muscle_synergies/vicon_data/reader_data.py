@@ -487,22 +487,21 @@ class TrajDataBuilder(_SectionDataBuilder):
     # 5. fix bugs one by one
     # 6. start abstracting unit tests
     # 7. write an example notebook
+    def transition(self, data_builder: DataBuilder):
+        super().transition(data_builder)
 
     def file_ended(self, data_builder: DataBuilder) -> ViconNexusData:
-        frequencies_obj = self._build_frequencies_obj(
+        frequencies_obj = self._instantiate_frequencies_obj(
             forces_emg_freq=self._forces_emg_freq(data_builder),
             traj_freq=self.frequency,
             num_frames=self._get_num_frames(data_builder),
         )
 
-    def transition(self, data_builder: DataBuilder):
-        super().transition(data_builder)
-
     def _get_num_frames(self):
         pass
 
-    def _build_frequencies_obj(self, *, num_frames, forces_emg_freq,
-                               traj_freq) -> _frequencies_type:
+    def _instantiate_frequencies_obj(self, *, num_frames, forces_emg_freq,
+                                     traj_freq) -> _frequencies_type:
         return Frequencies(forces_emg_freq, traj_freq, num_frames)
 
     def _forces_emg_freq(self, data_builder: DataBuilder):

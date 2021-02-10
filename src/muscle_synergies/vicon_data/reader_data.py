@@ -526,9 +526,11 @@ class TrajDataBuilder(_SectionDataBuilder):
             traj_freq=self.frequency,
             num_frames=self._get_num_frames(data_builder),
         )
-        force_plates = self._build_force_plate_mapping(data_builder)
-        emg = self._build_emg(data_builder)
-        trajectory_markers = self._build_trajectory_markers(data_builder)
+        force_plates = self._build_force_plate_mapping(data_builder,
+                                                       frequencies)
+        emg = self._build_emg_dev_data(data_builder, frequencies)
+        trajectory_markers = self._build_trajectory_marker_mapping(
+            data_builder, frequencies)
 
         return self._instantiate_vicon_nexus_data(
             force_plates=force_plates,

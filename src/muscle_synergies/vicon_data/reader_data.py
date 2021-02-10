@@ -537,6 +537,14 @@ class TrajDataBuilder(_SectionDataBuilder):
             emg=emg,
             trajectory_markers=trajectory_markers)
 
+    def _build_emg_dev_data(self, data_builder: DataBuilder,
+                            frequencies: Frequencies
+                            ) -> Optional[DeviceHeaderData]:
+        emg_pair = self._emg_pair(data_builder)
+        if emg_pair is None:
+            return
+        return self._instantiate_device_header_data(emg_pair, frequencies)
+
     def _get_num_frames(self) -> int:
         # TODO
         # This is a somewhat fragile solution which would fail if there is no

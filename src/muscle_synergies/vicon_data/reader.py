@@ -14,6 +14,19 @@ import pandas as pd
 import pint
 from pint_pandas import PintArray
 
+from .definitions import (
+    ureg,
+    T,
+    X,
+    Y,
+    Row,
+    DeviceHeaderRepresentation,
+    ForcePlateRepresentation,
+    SectionType,
+    ViconCSVLines,
+    DeviceType,
+    ForcePlateMeasurement,
+)
 from .reader_data import (
     ViconNexusData,
     ColOfHeader,
@@ -21,61 +34,10 @@ from .reader_data import (
     DeviceHeaderPair,
     DeviceHeaderCols,
     DeviceHeaderDataBuilder,
-    DeviceType,
     ForcePlateDevices,
-    Row,
-    SectionType,
-    Union,
     Validator,
-    ViconCSVLines,
-    T,
-    X,
-    Y,
-    DeviceHeaderRepresentation,
-    _FailableMixin,
-    FailableResult,
-    ureg,
 )
-
-# 6. daí faltam implementar:
-#    d. finalizar os 2 ReaderState pela metade
-#    e. começar os testes
-
-
-class DataBuilder:
-    _force_emg_builder: ForcesEMGDataBuilder
-    _traj_builder: TrajDataBuilder
-    _current_builder: _SectionDataBuilder
-
-    def __init__(self, forces_emg_data_builder: SectionDataBuilder,
-                 trajs_data_builder: SectionDataBuilder):
-        self._forces_emg_data_builder = forces_emg_data_builder
-        self._trajs_data_builder = trajs_data_builder
-
-    @property
-    def finished(self):
-        return self._current_builder.finished
-
-    def file_ended(self) -> ViconNexusData:
-        self._current_builder.file_ended()
-
-    def get_section_type(self) -> SectionType:
-        return self._current_builder.section_type
-
-    def transition(self):
-        self._current_builder.transition()
-
-    def add_frequency(self, frequency: int):
-        self._current_builder.add_frequency(frequency)
-
-    def add_data_channeler(self, data_channeler: 'DataChanneler'):
-        self._current_builder.add_data_channeler(data_channeler)
-
-    def add_units(self, units: List[pint.Unit]):
-        self._current_builder.add_units(units)
-
-    def add_measurements(self, data: List[float]):
-        self._current_builder.add_data(data)
+from failures import (DataCheck, Validator, FailableResult, FailableMixin)
 
 
 class Reader:
@@ -291,7 +253,7 @@ class SamplingFrequencyState(_StepByStepReaderState):
         return DevicesState()
 
 
-class DevicesLineFinder(_FailableMixin):
+class DevicesLineFinder(FailableMixin):
     def find_headers(self, row: Row) -> FailableResult[List[ColOfHeader]]:
         fail_res = self._check_row(row)
         return self._compute_on_failable(self._find_headers_unsafe,
@@ -329,7 +291,7 @@ class DevicesLineFinder(_FailableMixin):
         return (col_num - 2) % 3 == 0
 
 
-class DeviceColsCreator(_FailableMixin):
+class DeviceColsCreator(FailableMixin):
     def __init__(self,
                  *,
                  cols_class=DeviceHeaderCols,
@@ -384,7 +346,7 @@ class DeviceColsCreator(_FailableMixin):
         return self._fail(error_message)
 
 
-class DeviceCategorizer(_FailableMixin):
+class DeviceCategorizer(FailableMixin):
     # TODO Refactor - using DeviceType.section_type should make this a bit
     #  simpler
     def categorize(self, dev_cols: List[DeviceHeaderCols]
@@ -447,7 +409,7 @@ class DeviceCategorizer(_FailableMixin):
         return bool(a) != bool(b)
 
 
-class ForcePlateGrouper(_FailableMixin):
+class ForcePlateGrouper(FailableMixin):
     def group_force_plates(self, dev_cols: List[DeviceHeaderCols]
                            ) -> ForcePlateDevices:
         # TODO if the method called below is able to group force plates
@@ -552,7 +514,7 @@ class CoordinatesState(_StepByStepReaderState):
         return DeviceHeaderDataBuilder()
 
 
-class _EntryByEntryParser(_ReaderState, _FailableMixin, Generic[T]):
+class _EntryByEntryParser(_ReaderState, FailableMixin, Generic[T]):
     """A parser which parses each row entry independently."""
     def feed_row(self, row: Row, reader: Reader):
         # 1 and 2. parse and check

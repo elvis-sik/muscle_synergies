@@ -1,4 +1,4 @@
-"""Data types used internally while parsing Vicon Nexus data."""
+"""Types that help the Reader build a representation of Vicon Nexus data."""
 
 import abc
 from collections import defaultdict
@@ -10,201 +10,253 @@ from typing import (List, Set, Dict, Tuple, Optional, Sequence, Callable, Any,
                     Mapping, Iterator, Generic, TypeVar, NewType, Union)
 
 import pint
-import pint_pandas
 
-ureg = pint.UnitRegistry()
-pint_pandas.PintType.ureg = ureg
-
-T = TypeVar('T')
-X = TypeVar('X')
-Y = TypeVar('Y')
-
-# a row from the CSV file is simply a list of strings,
-# corresponding to different values
-Row = NewType('Row', List[str])
-
-DeviceHeaderRepresentation = Union['ColOfHeader', 'DeviceHeaderCols',
-                                   'DeviceHeaderPair', 'DeviceHeaderData']
-ForcePlateRepresentation = Union['ForcePlateDevices', 'ForcePlateData']
+from definitions import (
+    ureg,
+    T,
+    X,
+    Y,
+    Row,
+    DeviceHeaderRepresentation,
+    ForcePlateRepresentation,
+    SectionType,
+    ViconCSVLines,
+    DeviceType,
+    ForcePlateMeasurement,
+)
 
 
-class SectionType(Enum):
-    """Type of a section of a Vicon Nexus CSV file.
+class Frequencies:
+    _freq_forces_emg_section: int
+    _freq_trajectories_section: int
+    num_frames: int
 
-    The files outputted by experiments are split into sections, each containing
-    different types of data. The sections are separated by a single blank line.
-    Each section contains a header plus several rows of measurements. The header
-    spans 5 lines including, among other things, an identification of its type
-    See the docs for py:class:ViconCSVLines for a full description of the meaning
-    of the different lines.
+    def __init__(self, frequency_forces_emg_section: int,
+                 frequency_trajectories_sequence: int, num_frames: int):
+        self._freq_forces_emg_section = frequency_forces_emg_section
+        self._freq_trajectories_section = frequency_trajectories_sequence
+        self.num_frames = num_frames
 
-    Members:
-    + FORCES_EMG refers to a section that begins with the single word "Devices"
-      and contains measurements from force plates and an EMG device.
-    + TRAJECTORIES refers to a section that begins with the single word
-      "Trajectories" and contains kinemetric measurements of joint position.
-    """
-    FORCES_EMG = 1
-    TRAJECTORIES = 2
+    @property
+    def num_subframes(self) -> int:
+        num = self._freq_forces_emg_section / self._freq_trajectories_section
+        assert num == int(num)
+        return int(num)
 
+    def index(self, device_type: DeviceType, frame: int, subframe: int) -> int:
+        self._validate_frame_arg(frame)
+        self._validate_subframe_arg(subframe)
 
-class ViconCSVLines(Enum):
-    """Lines in the CSV file with experimental data.
+        section_type = device_type.section_type()
 
-    The members refer to lines in the CSV file.
-    + SECTION_TYPE_LINE is the first line in a section, which contains either the
-      word "Devices" (for the section with force plate and EMG data) or
-      "Trajectories" (for the section with kinematic data).
+        if section_type is SectionType.TRAJECTORIES:
+            return frame - 1
+        return self._index_forces_emg(frame, subframe)
 
-    + SAMPLING_FREQUENCY_LINE is the second line in a section, which contains a
-      single integer representing the sampling frequency.
+    def frame_subframe(self, device_type: DeviceType,
+                       index: int) -> Tuple[int, int]:
+        section_type = device_type.section_type()
 
-    + DEVICE_NAMES_LINE is the third line in a section, which contains the names
-      of measuring devices (such as "Angelica:HV").
+        if section_type is SectionType.TRAJECTORIES:
+            self._validate_traj_index_arg(index)
+            return index + 1, 0
 
-    + COORDINATES_LINE is the fourth line in a section, which contains headers
-      like "X", "Y" and "Z" referring to the different coordinates of
-      vector-valued measurements made by different devices.
+        self._validate_forces_emg_index_arg(index)
+        return self._forces_emg_frame_subframe(index)
 
-    + UNITS_LINE is the fifth line in a section, which describes the physical
-      units of different measurements.
+    def frame_range(self) -> range:
+        return range(1, self.num_frames + 1)
 
-    + DATA_LINE are lines from the sixth until a blank line or EOF is found.
-      They represent measurements over time.
+    def subframe_range(self) -> range:
+        return range(self.num_subframes)
 
-    + BLANK_LINE is a line happenening between sections.
-    """
-    SECTION_TYPE_LINE = 1
-    SAMPLING_FREQUENCY_LINE = 2
-    DEVICE_NAMES_LINE = 3
-    COORDINATES_LINE = 4
-    UNITS_LINE = 5
-    DATA_LINE = 6
-    BLANK_LINE = 7
+    def frequency_of(self, device_type: DeviceType) -> int:
+        section_type = device_type.section_type()
 
+        if section_type is SectionType.TRAJECTORIES:
+            return self._freq_trajectories_section
+        return self._freq_forces_emg_section
 
-class DeviceType(Enum):
-    """Type of a measurement device.
+    def _forces_emg_frame_subframe(self, index: int) -> Tuple[int, int]:
+        # + 1 at the end because Python is 0-indexed
+        frame = (index // self.num_subframes) + 1
+        subframe = index % self.num_subframes
+        return frame, subframe
 
-    Measurement devices are named in the third line of each section of the CSV
-    file outputted by Vicon Nexus. Each name is included in a single column, but
-    the data for each device in the following lines usually span more than 1
-    column:
-    + one column per muscle in the case of EMG data.
-    + 3 columns (1 per spatial coordinate) in the case of trajectory markers.
-    + several columns per force plate (see below).
+    def _index_forces_emg(self, frame: int, subframe: int) -> int:
+        return (frame - 1) * self.num_subframes + subframe
 
-    Force plates are complicated by the fact that a single one of them is
-    represented as several "devices". For example, take a look at the following:
-    + Imported AMTI OR6 Series Force Plate #1 - Force
-    + Imported AMTI OR6 Series Force Plate #1 - Moment
-    + Imported AMTI OR6 Series Force Plate #1 - CoP
-
-    These 3 refer actually to different measurements (force, moment, origin) for
-    the same experimental device (Force Plate #1). All of the measured
-    quantities are vectors, so each of those 3 "devices" is represented in 3
-    columns.
-
-    At any rate, all 3 of the different columns (Force, Moment and CoP) for each
-    force plate is treated as if they were actually different devices when they
-    are first read by the parsing functions of :py:module:vicon_data, and then
-    later they are unified.
-
-    Members:
-    + FORCE_PLATE is a force plate. The data
-
-    + EMG is EMG measurement.
-
-    + TRAJECTORY_MARKER is a trajectory marker used with kinemetry.
-    """
-    FORCE_PLATE = 1
-    EMG = 2
-    TRAJECTORY_MARKER = 3
-
-    def section_type(self):
-        if self in {DeviceType.EMG, DeviceType.FORCE_PLATE}:
-            return SectionType.FORCES_EMG
-        return SectionType.TRAJECTORIES
-
-
-@dataclass
-class ForcePlateMeasurement:
-    FORCE = 1
-    MOMENT = 2
-    COP = 3
-
-
-class DataCheck:
-    # A data check is a dict representing the result of validating the data of a
-    # single line of the CSV data. Its keys:
-    #   'is_valid' maps to a bool that answers
-    #
-    #   'error_message' maps to a str containing an error message to be
-    #   displayed in case there are problems with the data. The str is appended to
-    #   the prefix "error parsing line {line_number} of file {filename}: "
-    def __init__(self, is_valid: bool, error_message: Optional[str] = None):
-        if not is_valid and error_message is None:
+    def _validate_frame_arg(self, frame: int):
+        if frame not in self.frame_range():
             raise ValueError(
-                'an invalid data check should contain an error message')
+                f'last frame is {self.num_frames}, frame {frame} is out of bounds'
+            )
 
-        if is_valid:
-            error_message = None
+    def _validate_subframe_arg(self, subframe: int):
+        if subframe not in self.subframe_range():
+            raise ValueError(
+                f'subframe {subframe} out of range {self.subframe_range()}')
 
-        self.is_valid = is_valid
-        self.error_message = error_message
+    def _validate_traj_index_arg(self, index: int):
+        final_index = self.num_frames - 1
+
+        if index not in range(final_index + 1):
+            raise ValueError(
+                f'final index for trajectory marker is {final_index}, '
+                'index {index} is out of bounds')
+
+    def _validate_forces_emg_index_arg(self, index: int):
+        final_index = self.num_frames * self.num_subframes - 1
+        if index not in range(final_index + 1):
+            raise ValueError(
+                f'final index for force plates and EMG data is {final_index}, '
+                f'index {index} out of bounds')
+
+
+class DeviceHeaderData:
+    device_name: str
+    device_type: DeviceType
+    _frequencies: Frequencies
+    dataframe: pd.DataFrame
+
+    def __init__(
+            self,
+            device_name: str,
+            device_type: DeviceType,
+            frequencies: Frequencies,
+            dataframe: pd.DataFrame,
+    ):
+        self.device_name = device_name
+        self.device_type = device_type
+        self._frequencies = frequencies
+        self.dataframe = dataframe
+
+    @property
+    def sampling_frequency(self) -> int:
+        return self.frequencies.frequency_of(self.device_type)
+
+    def slice_frame_subframe(self,
+                             *,
+                             stop_frame: int,
+                             stop_subframe: int,
+                             start_frame: Optional[int] = None,
+                             start_subframe: Optional[int] = None,
+                             step: Optional[int] = None) -> slice:
+        stop_index = self._frequencies_index(stop_frame, stop_subframe)
+        if start_frame is None:
+            return slice(stop_index)
+
+        start_index = self._frequencies_index(start_frame, start_subframe)
+        if step is None:
+            return slice(start_index, stop_index)
+        return slice(start_index, stop_index, step)
+
+    def _frequencies_index(self, frame: int, subframe: int) -> int:
+        return self._frequencies.index(self.device_type, frame, subframe)
 
     @classmethod
-    def valid_data(cls):
-        return cls(is_valid=True, error_message=None)
-
-    def combine(self, other: 'DataCheck') -> 'DataCheck':
-        if not self.is_valid:
-            return self
-
-        return other
+    def from_device_header_pair(cls, device_header_pair: DeviceHeaderPair,
+                                frequencies: Frequencies) -> 'DeviceHeader':
+        device_name = device_header_pair.device_name
+        device_type = device_header_pair.device_type
+        dataframe = cls._device_header_pair_dataframe(device_header_pair)
+        return cls(device_name=device_name,
+                   device_type=device_type,
+                   frequencies=frequencies,
+                   dataframe=dataframe)
 
     @classmethod
-    def combine_multiple(cls,
-                         data_checks: Sequence['DataCheck']) -> 'DataCheck':
-        if not data_checks:
-            return cls.valid_data()
+    def _device_header_pair_dataframe(cls, device_header_pair: DeviceHeaderPair
+                                      ) -> pd.Dataframe:
+        builder = device_header_pair.device_data_builder
+        return cls._extract_dataframe(builder)
 
-        head = data_checks[0]
-        tail = data_checks[1:]
+    @staticmethod
+    def _extract_dataframe(device_header_builder: DeviceHeaderDataBuilder
+                           ) -> pd.DataFrame:
+        def create_pint_array(data, physical_unit):
+            PintArray(data, dtype=physical_unit)
 
-        if not head.is_valid:
-            return head
+        data_dict = {}
+        for time_series_builder in device_header_builder:
+            coord_name = time_series_builder.get_coordinate_name()
+            physical_unit = time_series_builder.get_physical_unit()
+            data = time_series_builder.get_data()
+            data_dict[coord_name] = create_pint_parray(data, physical_unit)
 
-        return cls.combine_multiple(tail)
+        return pd.DataFrame(data_dict)
 
 
-class Validator:
-    current_line: int
-    csv_filename: str
-    should_raise: bool = True
+class ForcePlateData(DeviceHeaderData):
+    def __init__(
+            self,
+            device_name: str,
+            frequencies: Frequencies,
+            dataframe: pd.DataFrame,
+    ):
+        super().__init__(device_name=device_name,
+                         device_type=DeviceType.FORCE_PLATE,
+                         frequencies=frequencies,
+                         dataframe=dataframe)
 
-    def __init__(self, csv_filename: str, should_raise: bool = True):
-        self.current_line = 1
-        self.csv_filename = csv_filename
-        self.should_raise = should_raise
+    @classmethod
+    def from_force_plate(cls, force_plate: ForcePlateDevices,
+                         frequencies: Frequencies):
+        device_name = force_plate.name
 
-    def validate(self, data_check_result: DataCheck):
-        if self.should_raise:
-            self._raise_if_invalid(data_check_result)
+        force_device = force_plate.force
+        moment_device = force_plate.moment
+        cop_device = force_plate.cop
 
-        self.current_line += 1
+        force_dataframe = cls._device_header_pair_dataframe(force_device)
+        moment_dataframe = cls._device_header_pair_dataframe(moment_device)
+        cop_dataframe = cls._device_header_pair_dataframe(cop_device)
 
-    __call__ = validate
+        dataframe = cls._join_dataframes(force_dataframe, moment_dataframe,
+                                         cop_dataframe)
 
-    def _raise_if_invalid(self, data_check_result: DataCheck):
-        is_valid = data_check_result.is_valid
-        error_message = data_check_result.error_message
+        cls(device_name=device_name,
+            frequencies=frequencies,
+            dataframe=dataframe)
 
-        if not is_valid:
-            raise ValueError(self._build_error_message(error_message))
+    @staticmethod
+    def _join_dataframes(*args: Tuple[pd.DataFrame]) -> pd.DataFrame:
+        assert args
 
-    def _build_error_message(self, error_message: str) -> str:
-        return f'error parsing line {self.current_line} of file {self.csv_filename}: {error_message}'
+        if len(args) == 1:
+            return args[0]
+        return args[0].join(args[1:])
+
+
+class DeviceMapping(collections.abc.Mapping):
+    device_list: List[Union[DeviceHeaderData, ForcePlateData]]
+    devices_dict: Mapping[str, Union[DeviceHeaderData, ForcePlateData]]
+
+    def __init__(
+            self,
+            device_list: List[Union[DeviceHeaderData, ForcePlateData]],
+    ):
+        self.device_list = list(device_list)
+        self.devices_dict = self._build_devices_dict()
+
+    def ith(self, i: int) -> Union[DeviceHeaderData, ForcePlateData]:
+        return self.device_list[i]
+
+    def _build_devices_dict(self):
+        devices_dict = {}
+        for device in device_list:
+            device_name = device.device_name
+            devices_dict[device_name] = device
+        return devices_dict
+
+    def __getitem__(self, ind: X) -> pd.DataFrame:
+        return self._devices_dict.__getitem__(ind)
+
+    def __len__(self) -> int:
+        return len(self._devices_dict)
+
+    def __iter__(self) -> Iterable[X]:
+        yield from iter(self._devices_dict)
 
 
 @dataclass(frozen=True, eq=True)
@@ -444,6 +496,59 @@ class TrajDataBuilder(_SectionDataBuilder):
 
     def _get_frequencies(self):
         pass
+
+
+class DataBuilder:
+    _force_emg_builder: ForcesEMGDataBuilder
+    _traj_builder: TrajDataBuilder
+    _current_builder: _SectionDataBuilder
+
+    def __init__(self, forces_emg_data_builder: SectionDataBuilder,
+                 trajs_data_builder: SectionDataBuilder):
+        self._force_emg_builder = forces_emg_data_builder
+        self._traj_builder = trajs_data_builder
+
+    @property
+    def finished(self):
+        force_emg_finished = self.get_section_builder(
+            SectionType.FORCES_EMG).finished
+        traj_finished = self.get_section_builder(
+            SectionType.TRAJECTORIES).finished
+        return force_emg_finished and traj_finished
+
+    def get_section_builder(self, section_type: Optional[SectionType] = None
+                            ) -> _SectionDataBuilder:
+        if section_type is None:
+            return self._current_builder
+        if section_type is SectionType.FORCES_EMG:
+            return self._force_emg_builder
+        if section_type is SectionType.TRAJECTORIES:
+            return self._traj_builder
+
+    def set_current_section(self, section_type: SectionType):
+        assert section_type in SectionType
+        self._current_builder = self.get_section_builder(section_type)
+
+    def file_ended(self) -> ViconNexusData:
+        self.get_section_builder().file_ended()
+
+    def get_section_type(self) -> SectionType:
+        return self.get_section_builder().section_type
+
+    def transition(self):
+        self.get_section_builder().transition()
+
+    def add_frequency(self, frequency: int):
+        self.get_section_builder().add_frequency(frequency)
+
+    def add_data_channeler(self, data_channeler: 'DataChanneler'):
+        self.get_section_builder().add_data_channeler(data_channeler)
+
+    def add_units(self, units: List[pint.Unit]):
+        self.get_section_builder().add_units(units)
+
+    def add_measurements(self, data: List[float]):
+        self.get_section_builder().add_data(data)
 
 
 class TimeSeriesDataBuilder(_OnlyOnceMixin):
@@ -712,367 +817,3 @@ class DataChanneler:
             parsed_row: a data line of the input, already parsed.
         """
         self._call_method_of_each_device(parsed_row, 'add_data')
-
-
-class FailableResult(Generic[T]):
-    """Data class holding the result of a parsing process that can fail.
-
-    FailableResult holds the data parsed from a process. If the process failed,
-    it holds the :py:class:DataCheck with details on the failure instead.
-
-    In case the process didn't fail, the data_check member of an instance will
-    hold a valid :py:class:DataCheck.
-
-    Args:
-        parse_result: the data parsed.
-
-        data_check: a check on the validity of the data.
-
-    Raises:
-        ValueError: if `data_check` is provided and its `is_valid` member is
-            `False` but a `parse_result` was also provided. Also if a
-            `data_check` with a `True` `is_valid` member is provided but no
-            `parse_result` is provided. Also if none of the 2 arguments was
-            provided.
-    """
-
-    parse_result: Optional[T]
-    data_check: DataCheck
-
-    def __init__(self,
-                 *,
-                 parse_result: Optional[T] = None,
-                 data_check: Optional[DataCheck] = None):
-        if parse_result is not None:
-            self.data_check = self._process_data_check_result_provided(
-                data_check)
-            self.parse_result = parse_result
-        else:
-            self.parse_result = None
-            self.data_check = self._process_data_check_without_result(
-                data_check)
-
-    def _process_data_check_result_provided(self,
-                                            data_check: Optional[DataCheck]
-                                            ) -> DataCheck:
-        if data_check is None:
-            return self._valid_data_check()
-
-        if not data_check.is_valid:
-            raise ValueError(
-                'invalid data check and a parse result were provided')
-
-        return data_check
-
-    def _process_data_check_without_result(self,
-                                           data_check: Optional[DataCheck]
-                                           ) -> DataCheck:
-        if data_check is None:
-            # parse_result is assumed to be None
-            return self._valid_data_check()
-
-        if data_check.is_valid:
-            raise ValueError('valid data check provided without parse result')
-
-        return data_check
-
-    @staticmethod
-    def _valid_data_check():
-        return DataCheck.valid_data()
-
-    @classmethod
-    def create_failed(cls, error_message: str) -> 'FailableResult':
-        data_check = DataCheck(is_valid=False, error_message=error_message)
-        return cls(data_check=data_check)
-
-    @classmethod
-    def create_successful(cls, parse_result: T) -> 'FailableResult[T]':
-        return cls(parse_result=parse_result)
-
-    @property
-    def failed(self):
-        return not self.data_check.is_valid
-
-    def __eq__(self, other: 'FailableResult[T]') -> bool:
-        return (self.failed == other.failed
-                and self.parse_result == other.parse_result)
-
-
-class _FailableMixin:
-    _failable_result_class = FailableResult
-
-    def _compute_on_failable(
-            self,
-            func: Union[Callable[[X], FailableResult[Y]], Callable[[X], Y]],
-            arg: FailableResult[X],
-            compose: bool = False) -> Union[FailableResult[Y], Y]:
-        if self._fail_res_failed(arg):
-            return arg
-
-        res = func(arg)
-        if not compose:
-            return res
-
-        return self._success(res)
-
-    def _sequence_fail(self, failable_results: Sequence[FailableResult[T]]
-                       ) -> FailableResult[List[T]]:
-        if len(failable_results) == 0:
-            return self._fail('called _sequence_fail on empty list')
-
-        parsed_values = []
-
-        for fail_res in failable_results:
-            self._compute_on_failable(parsed_values.append,
-                                      fail_res,
-                                      compose=False)
-
-        return self._success(parsed_values)
-
-    def _fail(self, error_message: str) -> FailableResult[ColOfHeader]:
-        return self._failable_result_class.create_failed(error_message)
-
-    def _success(self, result: T) -> FailableResult[T]:
-        return self._failable_result_class.create_successful(result)
-
-    def _fail_res_failed(self, fail_res: FailableResult) -> bool:
-        return fail_res.failed
-
-    def _fail_res_parse_result(self, fail_res: FailableResult[T]) -> T:
-        return fail_res.parse_result
-
-    def _fail_res_data_check(self, fail_res: FailableResult) -> DataCheck:
-        return DataCheck
-
-
-class Frequencies:
-    _freq_forces_emg_section: int
-    _freq_trajectories_section: int
-    num_frames: int
-
-    def __init__(self, frequency_forces_emg_section: int,
-                 frequency_trajectories_sequence: int, num_frames: int):
-        self._freq_forces_emg_section = frequency_forces_emg_section
-        self._freq_trajectories_section = frequency_trajectories_sequence
-        self.num_frames = num_frames
-
-    @property
-    def num_subframes(self) -> int:
-        num = self._freq_forces_emg_section / self._freq_trajectories_section
-        assert num == int(num)
-        return int(num)
-
-    def index(self, device_type: DeviceType, frame: int, subframe: int) -> int:
-        self._validate_frame_arg(frame)
-        self._validate_subframe_arg(subframe)
-
-        section_type = device_type.section_type()
-
-        if section_type is SectionType.TRAJECTORIES:
-            return frame - 1
-        return self._index_forces_emg(frame, subframe)
-
-    def frame_subframe(self, device_type: DeviceType,
-                       index: int) -> Tuple[int, int]:
-        section_type = device_type.section_type()
-
-        if section_type is SectionType.TRAJECTORIES:
-            self._validate_traj_index_arg(index)
-            return index + 1, 0
-
-        self._validate_forces_emg_index_arg(index)
-        return self._forces_emg_frame_subframe(index)
-
-    def frame_range(self) -> range:
-        return range(1, self.num_frames + 1)
-
-    def subframe_range(self) -> range:
-        return range(self.num_subframes)
-
-    def frequency_of(self, device_type: DeviceType) -> int:
-        section_type = device_type.section_type()
-
-        if section_type is SectionType.TRAJECTORIES:
-            return self._freq_trajectories_section
-        return self._freq_forces_emg_section
-
-    def _forces_emg_frame_subframe(self, index: int) -> Tuple[int, int]:
-        # + 1 at the end because Python is 0-indexed
-        frame = (index // self.num_subframes) + 1
-        subframe = index % self.num_subframes
-        return frame, subframe
-
-    def _index_forces_emg(self, frame: int, subframe: int) -> int:
-        return (frame - 1) * self.num_subframes + subframe
-
-    def _validate_frame_arg(self, frame: int):
-        if frame not in self.frame_range():
-            raise ValueError(
-                f'last frame is {self.num_frames}, frame {frame} is out of bounds'
-            )
-
-    def _validate_subframe_arg(self, subframe: int):
-        if subframe not in self.subframe_range():
-            raise ValueError(
-                f'subframe {subframe} out of range {self.subframe_range()}')
-
-    def _validate_traj_index_arg(self, index: int):
-        final_index = self.num_frames - 1
-
-        if index not in range(final_index + 1):
-            raise ValueError(
-                f'final index for trajectory marker is {final_index}, '
-                'index {index} is out of bounds')
-
-    def _validate_forces_emg_index_arg(self, index: int):
-        final_index = self.num_frames * self.num_subframes - 1
-        if index not in range(final_index + 1):
-            raise ValueError(
-                f'final index for force plates and EMG data is {final_index}, '
-                f'index {index} out of bounds')
-
-
-class DeviceHeaderData:
-    device_name: str
-    device_type: DeviceType
-    _frequencies: Frequencies
-    dataframe: pd.DataFrame
-
-    def __init__(
-            self,
-            device_name: str,
-            device_type: DeviceType,
-            frequencies: Frequencies,
-            dataframe: pd.DataFrame,
-    ):
-        self.device_name = device_name
-        self.device_type = device_type
-        self._frequencies = frequencies
-        self.dataframe = dataframe
-
-    @property
-    def sampling_frequency(self) -> int:
-        return self.frequencies.frequency_of(self.device_type)
-
-    def slice_frame_subframe(self,
-                             *,
-                             stop_frame: int,
-                             stop_subframe: int,
-                             start_frame: Optional[int] = None,
-                             start_subframe: Optional[int] = None,
-                             step: Optional[int] = None) -> slice:
-        stop_index = self._frequencies_index(stop_frame, stop_subframe)
-        if start_frame is None:
-            return slice(stop_index)
-
-        start_index = self._frequencies_index(start_frame, start_subframe)
-        if step is None:
-            return slice(start_index, stop_index)
-        return slice(start_index, stop_index, step)
-
-    def _frequencies_index(self, frame: int, subframe: int) -> int:
-        return self._frequencies.index(self.device_type, frame, subframe)
-
-    @classmethod
-    def from_device_header_pair(cls, device_header_pair: DeviceHeaderPair,
-                                frequencies: Frequencies) -> 'DeviceHeader':
-        device_name = device_header_pair.device_name
-        device_type = device_header_pair.device_type
-        dataframe = cls._device_header_pair_dataframe(device_header_pair)
-        return cls(device_name=device_name,
-                   device_type=device_type,
-                   frequencies=frequencies,
-                   dataframe=dataframe)
-
-    @classmethod
-    def _device_header_pair_dataframe(cls, device_header_pair: DeviceHeaderPair
-                                      ) -> pd.Dataframe:
-        builder = device_header_pair.device_data_builder
-        return cls._extract_dataframe(builder)
-
-    @staticmethod
-    def _extract_dataframe(device_header_builder: DeviceHeaderDataBuilder
-                           ) -> pd.DataFrame:
-        def create_pint_array(data, physical_unit):
-            PintArray(data, dtype=physical_unit)
-
-        data_dict = {}
-        for time_series_builder in device_header_builder:
-            coord_name = time_series_builder.get_coordinate_name()
-            physical_unit = time_series_builder.get_physical_unit()
-            data = time_series_builder.get_data()
-            data_dict[coord_name] = create_pint_parray(data, physical_unit)
-
-        return pd.DataFrame(data_dict)
-
-
-class ForcePlateData(DeviceHeaderData):
-    def __init__(
-            self,
-            device_name: str,
-            frequencies: Frequencies,
-            dataframe: pd.DataFrame,
-    ):
-        super().__init__(device_name=device_name,
-                         device_type=DeviceType.FORCE_PLATE,
-                         frequencies=frequencies,
-                         dataframe=dataframe)
-
-    @classmethod
-    def from_force_plate(cls, force_plate: ForcePlateDevices,
-                         frequencies: Frequencies):
-        device_name = force_plate.name
-
-        force_device = force_plate.force
-        moment_device = force_plate.moment
-        cop_device = force_plate.cop
-
-        force_dataframe = cls._device_header_pair_dataframe(force_device)
-        moment_dataframe = cls._device_header_pair_dataframe(moment_device)
-        cop_dataframe = cls._device_header_pair_dataframe(cop_device)
-
-        dataframe = cls._join_dataframes(force_dataframe, moment_dataframe,
-                                         cop_dataframe)
-
-        cls(device_name=device_name,
-            frequencies=frequencies,
-            dataframe=dataframe)
-
-    @staticmethod
-    def _join_dataframes(*args: Tuple[pd.DataFrame]) -> pd.DataFrame:
-        assert args
-
-        if len(args) == 1:
-            return args[0]
-        return args[0].join(args[1:])
-
-
-class DeviceMapping(collections.abc.Mapping):
-    device_list: List[Union[DeviceHeaderData, ForcePlateData]]
-    devices_dict: Mapping[str, Union[DeviceHeaderData, ForcePlateData]]
-
-    def __init__(
-            self,
-            device_list: List[Union[DeviceHeaderData, ForcePlateData]],
-    ):
-        self.device_list = list(device_list)
-        self.devices_dict = self._build_devices_dict()
-
-    def ith(self, i: int) -> Union[DeviceHeaderData, ForcePlateData]:
-        return self.device_list[i]
-
-    def _build_devices_dict(self):
-        devices_dict = {}
-        for device in device_list:
-            device_name = device.device_name
-            devices_dict[device_name] = device
-        return devices_dict
-
-    def __getitem__(self, ind: X) -> pd.DataFrame:
-        return self._devices_dict.__getitem__(ind)
-
-    def __len__(self) -> int:
-        return len(self._devices_dict)
-
-    def __iter__(self) -> Iterable[X]:
-        yield from iter(self._devices_dict)

@@ -488,6 +488,7 @@ class DevicesState(_ReaderState):
     # 7. pass along to the next state an EMG device if there is one
     #    TODO decide if I split in 2 the next state
     #    leaning towards yes
+    #    (though if this will be added to data builder, it doesn't need to)
     def feed_row(self, row: Row, reader: 'Reader'):
         row = self._preprocess_row(row)
 

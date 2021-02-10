@@ -494,12 +494,6 @@ class DevicesState(_ReaderState):
             parse_result.force_plate_device_cols)
         self._validate(reader, grouping_result.data_check)
 
-
-class CoordinatesState(_StepByStepReaderState):
-    @property
-    def line(self) -> ViconCSVLines:
-        return ViconCSVLines.COORDINATES_LINE
-
     def _create_device_header(self, device_name: str,
                               first_col_index: int) -> 'DeviceHeader':
         device_header_cols = self._create_device_header_cols(
@@ -508,6 +502,12 @@ class CoordinatesState(_StepByStepReaderState):
 
     def _create_data_builder(self):
         return DeviceHeaderDataBuilder()
+
+
+class CoordinatesState(_StepByStepReaderState):
+    @property
+    def line(self) -> ViconCSVLines:
+        return ViconCSVLines.COORDINATES_LINE
 
 
 class _EntryByEntryParser(_ReaderState, FailableMixin, Generic[T]):

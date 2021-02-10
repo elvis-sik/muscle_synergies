@@ -249,13 +249,13 @@ class DeviceMapping(collections.abc.Mapping, Generic[T]):
             devices_dict[device_name] = device
         return devices_dict
 
-    def __getitem__(self, ind: X) -> pd.DataFrame:
+    def __getitem__(self, device_name: str) -> pd.DataFrame:
         return self._devices_dict.__getitem__(ind)
 
     def __len__(self) -> int:
         return len(self._devices_dict)
 
-    def __iter__(self) -> Iterable[X]:
+    def __iter__(self) -> Iterable[str]:
         yield from iter(self._devices_dict)
 
 

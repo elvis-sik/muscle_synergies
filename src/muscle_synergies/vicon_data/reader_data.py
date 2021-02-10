@@ -359,17 +359,19 @@ class _OnlyOnceMixin:
 
 
 class _SectionDataBuilder(_OnlyOnceMixin, abc.ABC):
+    finished: bool
     frequency: Optional[int]
     data_channeler: Optional['DataChanneler']
 
     def __init__(self):
         super().__init__()
+        self._finished = False
         self.frequency = None
         self.data_channeler = None
 
-    @abc.abstractproperty
+    @property
     def finished(self) -> bool:
-        pass
+        return self._finished
 
     @abc.abstractproperty
     def section_type(self) -> SectionType:
@@ -379,57 +381,68 @@ class _SectionDataBuilder(_OnlyOnceMixin, abc.ABC):
     def file_ended(self) -> ViconNexusData:
         pass
 
-    @abc.method
+    @abc.abstractmethod
     def transition(self, data_builder: DataBuilder):
-        pass
+        self._finished = True
 
     def add_frequency(self, frequency: int):
+        self._raise_if_finished('frequency')
         if self.frequency is not None:
             self._raise_called_twice('frequency')
         self.frequency = frequency
 
     def add_data_channeler(self, data_channeler: 'DataChanneler'):
+        self._raise_if_finished('DataChanneler')
         if self.data_channeler is not None:
             self._raise_called_twice('DataChanneler')
         self.data_channeler = data_channeler
 
     def add_units(self, units: List[pint.Unit]):
+        self._raise_if_finished('units')
         self.data_channeler.add_units(units)
 
     def add_measurements(self, data: List[float]):
+        self._raise_if_finished('data')
         self.data_channeler.add_data(data)
+
+    def _raise_if_finished(self, tried_to_add_what: str):
+        if self.finished:
+            raise TypeError(
+                f'tried to add {tried_to_add_what} to a finished _SectionDataBuilder'
+            )
 
 
 class ForcesEMGDataBuilder(_SectionDataBuilder):
     section_type = SectionType.FORCES_EMG
 
-    @property
-    def finished(self) -> bool:
-        return False
-
     def file_ended(self) -> ViconNexusData:
         raise ValueError('file ended without a trajectory marker section.')
 
     def transition(self, data_builder: DataBuilder):
-        next_section_builder = data_builder.get_trajectories_data_builder()
-        data_builder.set_section_data_builder(next_section_builder)
+        super().transition(data_builder)
+        data_builder.set_current_section(next_section_builder)
 
 
 class TrajDataBuilder(_SectionDataBuilder):
     section_type = SectionType.TRAJECTORIES
+    _frequencies_type = Frequencies
 
-    def __init__(self):
-        super().__init__()
-        self.finished = False
-
-    @property
-    def finished(self) -> bool:
-        pass
+    # TODO
+    # 1. finish these 3
+    # 2. finish the devices line guys
+    # 3. finish the routine that loads everything up from a CSV
+    # 4. implement a simple integration test
+    # 5. fix bugs one by one
+    # 6. start abstracting unit tests
+    # 7. write an example notebook
 
     def file_ended(self) -> ViconNexusData:
-        pass
+        self._build_frequencies(self._get_frequencies())
 
     def transition(self, data_builder: DataBuilder):
+        super().transition(data_builder)
+
+    def _get_frequencies(self):
         pass
 
 

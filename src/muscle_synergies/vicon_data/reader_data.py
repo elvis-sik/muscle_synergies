@@ -259,35 +259,6 @@ class DeviceMapping(collections.abc.Mapping):
         yield from iter(self._devices_dict)
 
 
-@dataclass(frozen=True, eq=True)
-class ForcePlateDevices:
-    """The 3 device headers with the data of a single force plate.
-
-    Since each force plate is represented in 3 different device headers, this
-    class provides a standard way to represent those.
-
-    Args:
-        name: the name of a force plate, that is, everything happening in its
-            column in the devices line before the dash (excluding the space).
-            For example, the header
-            'Imported AMTI OR6 Series Force Plate #1 - Force' should have name
-            'Imported AMTI OR6 Series Force Plate #1'.
-
-        force: the device referring to the force time series.
-
-        moment: the device referring to the moment time series.
-
-        cop: the device referring to the cop time series.
-    """
-    name: str
-    force: DeviceHeaderRepresentation
-    moment: DeviceHeaderRepresentation
-    cop: DeviceHeaderRepresentation
-
-    def list_devices(self) -> List[DeviceHeaderRepresentation]:
-        return [self.force, self.moment, self.cop]
-
-
 @dataclass
 class ViconNexusData:
     force_plates: Union[List[DeviceHeaderRepresentation],
@@ -401,6 +372,35 @@ class DeviceHeaderCols:
             self.num_of_cols = None
         else:
             self.num_of_cols = 3
+
+
+@dataclass(frozen=True, eq=True)
+class ForcePlateDevices:
+    """The 3 device headers with the data of a single force plate.
+
+    Since each force plate is represented in 3 different device headers, this
+    class provides a standard way to represent those.
+
+    Args:
+        name: the name of a force plate, that is, everything happening in its
+            column in the devices line before the dash (excluding the space).
+            For example, the header
+            'Imported AMTI OR6 Series Force Plate #1 - Force' should have name
+            'Imported AMTI OR6 Series Force Plate #1'.
+
+        force: the device referring to the force time series.
+
+        moment: the device referring to the moment time series.
+
+        cop: the device referring to the cop time series.
+    """
+    name: str
+    force: DeviceHeaderRepresentation
+    moment: DeviceHeaderRepresentation
+    cop: DeviceHeaderRepresentation
+
+    def list_devices(self) -> List[DeviceHeaderRepresentation]:
+        return [self.force, self.moment, self.cop]
 
 
 class _OnlyOnceMixin:

@@ -565,6 +565,29 @@ class TrajDataBuilder(_SectionDataBuilder):
                                      traj_freq) -> Frequencies:
         return Frequencies(forces_emg_freq, traj_freq, num_frames)
 
+    def _instantiate_force_plate_data(self, force_plate_dev: ForcePlateDevices,
+                                      frequencies: Frequencies
+                                      ) -> ForcePlateData:
+        return ForcePlateData.from_force_plate(force_plate_dev, frequencies)
+
+    def _instantiate_device_header_data(self, dev_pair: DeviceHeaderPair,
+                                        frequencies: Frequencies
+                                        ) -> DeviceHeaderData:
+        return DeviceHeaderData(dev_pair, frequencies)
+
+    def _instantiate_device_mapping(
+            self, device_list: List[Union[DeviceHeaderData, ForcePlateData]]
+    ) -> DeviceMapping[Union[DeviceHeaderData, ForcePlateData]]:
+        return DeviceMapping(device_list)
+
+    def _instantiate_vicon_nexus_data(
+            self, *, force_plates: DeviceMapping[ForcePlateDevices],
+            emg: DeviceHeaderData,
+            trajectory_markers: DeviceMapping) -> ViconNexusData:
+        return ViconNexusData(force_plates=force_plates,
+                              emg=emg,
+                              trajectory_markers=trajectory_markers)
+
 
 class DataBuilder:
     _force_emg_builder: ForcesEMGDataBuilder

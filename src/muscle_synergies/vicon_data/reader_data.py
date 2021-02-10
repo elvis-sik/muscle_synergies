@@ -551,6 +551,14 @@ class TrajDataBuilder(_SectionDataBuilder):
     def _forces_emg_freq(self, data_builder: DataBuilder) -> int:
         return self._get_forces_emg_builder(data_builder).frequency
 
+    def _force_plate_pairs(self, data_builder: DataBuilder
+                           ) -> List[ForcePlateDevices]:
+        return self._get_forces_emg_builder(data_builder).force_plates
+
+    def _emg_pair(self,
+                  data_builder: DataBuilder) -> Optional[ForcePlateDevices]:
+        return self._get_forces_emg_builder(data_builder).emg_device
+
     def _get_forces_emg_builder(self, data_builder: DataBuilder
                                 ) -> ForcesEMGDataBuilder:
         return data_builder.get_section_builder(SectionType.FORCES_EMG)

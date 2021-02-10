@@ -722,7 +722,7 @@ class DeviceHeaderDataBuilder:
         """
         self._call_method_on_each(parsed_data, 'add_data')
 
-    def get_time_series(self, ind: int) -> TimeSeriesDataBuilder:
+    def get_time_series(self, ind: Union[int, slice]) -> TimeSeriesDataBuilder:
         return self.time_series_tuple[ind]
 
     __getitem__ = get_time_series

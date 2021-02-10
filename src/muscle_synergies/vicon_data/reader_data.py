@@ -497,17 +497,18 @@ class TrajDataBuilder(_SectionDataBuilder):
             num_frames=self._get_num_frames(data_builder),
         )
 
-    def _get_num_frames(self):
+    def _get_num_frames(self) -> int:
         pass
 
     def _instantiate_frequencies_obj(self, *, num_frames, forces_emg_freq,
                                      traj_freq) -> _frequencies_type:
         return Frequencies(forces_emg_freq, traj_freq, num_frames)
 
-    def _forces_emg_freq(self, data_builder: DataBuilder):
+    def _forces_emg_freq(self, data_builder: DataBuilder) -> int:
         return self._get_forces_emg_builder(data_builder).frequency
 
-    def _get_forces_emg_builder(self, data_builder: DataBuilder):
+    def _get_forces_emg_builder(self, data_builder: DataBuilder
+                                ) -> ForcesEMGDataBuilder:
         return data_builder.get_section_builder(SectionType.FORCES_EMG)
 
 

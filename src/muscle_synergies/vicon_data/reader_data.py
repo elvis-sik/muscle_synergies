@@ -489,13 +489,21 @@ class TrajDataBuilder(_SectionDataBuilder):
     # 7. write an example notebook
 
     def file_ended(self) -> ViconNexusData:
-        self._build_frequencies(self._get_frequencies())
+        self._build_frequencies_obj(num_frames=self._get_num_frames(),
+                                    **self._get_frequencies())
 
     def transition(self, data_builder: DataBuilder):
         super().transition(data_builder)
 
     def _get_frequencies(self):
         pass
+
+    def _get_num_frames(self):
+        pass
+
+    def _build_frequencies_obj(self, *, num_frames, forces_emg_freq,
+                               traj_freq) -> _frequencies_type:
+        return Frequencies(forces_emg_freq, traj_freq, num_frames)
 
 
 class DataBuilder:

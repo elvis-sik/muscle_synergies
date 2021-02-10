@@ -537,6 +537,16 @@ class TrajDataBuilder(_SectionDataBuilder):
             emg=emg,
             trajectory_markers=trajectory_markers)
 
+    def _build_force_plate_mapping(self, data_builder: DataBuilder,
+                                   frequencies: Frequencies
+                                   ) -> DeviceMapping[ForcePlateData]:
+        converted = []
+        devices = self._force_plate_devices(data_builder)
+        for device in devices:
+            converted.append(
+                self._instantiate_force_plate_data(device, frequencies))
+        return self._instantiate_device_mapping(devices)
+
     def _build_emg_dev_data(self, data_builder: DataBuilder,
                             frequencies: Frequencies
                             ) -> Optional[DeviceHeaderData]:
@@ -544,6 +554,16 @@ class TrajDataBuilder(_SectionDataBuilder):
         if emg_pair is None:
             return
         return self._instantiate_device_header_data(emg_pair, frequencies)
+
+    def _build_trajectory_marker_mapping(self, data_builder: DataBuilder,
+                                         frequencies: Frequencies
+                                         ) -> DeviceMapping[DeviceHeaderData]:
+        converted = []
+        devices = self.trajectory_devices
+        for device in devices:
+            converted.append(
+                self._instantiate_device_header_data(device, frequencies))
+        return self._instantiate_device_mapping(devices)
 
     def _get_num_frames(self) -> int:
         # TODO
@@ -567,12 +587,12 @@ class TrajDataBuilder(_SectionDataBuilder):
     def _forces_emg_freq(self, data_builder: DataBuilder) -> int:
         return self._get_forces_emg_builder(data_builder).frequency
 
-    def _force_plate_pairs(self, data_builder: DataBuilder
-                           ) -> List[ForcePlateDevices]:
+    def _force_plate_devices(self, data_builder: DataBuilder
+                             ) -> List[ForcePlateDevices]:
         return self._get_forces_emg_builder(data_builder).force_plates
 
     def _emg_pair(self,
-                  data_builder: DataBuilder) -> Optional[ForcePlateDevices]:
+                  data_builder: DataBuilder) -> Optional[DeviceHeaderPair]:
         return self._get_forces_emg_builder(data_builder).emg_device
 
     def _get_forces_emg_builder(self, data_builder: DataBuilder

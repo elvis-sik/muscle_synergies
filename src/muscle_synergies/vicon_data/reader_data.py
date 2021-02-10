@@ -494,8 +494,6 @@ class ForcesEMGDataBuilder(_SectionDataBuilder):
 
 class TrajDataBuilder(_SectionDataBuilder):
     section_type = SectionType.TRAJECTORIES
-    _frequencies_type = Frequencies
-
     trajectory_devices: List['DeviceHeaderPair']
 
     def __init__(self):
@@ -564,7 +562,7 @@ class TrajDataBuilder(_SectionDataBuilder):
         return data_builder.get_section_builder(SectionType.FORCES_EMG)
 
     def _instantiate_frequencies_obj(self, *, num_frames, forces_emg_freq,
-                                     traj_freq) -> _frequencies_type:
+                                     traj_freq) -> Frequencies:
         return Frequencies(forces_emg_freq, traj_freq, num_frames)
 
 

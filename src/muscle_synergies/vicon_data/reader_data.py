@@ -506,17 +506,6 @@ class TrajDataBuilder(_SectionDataBuilder):
             self._raise_called_twice('list of trajectory markers')
         self.trajectory_devices.extend(trajectory_devices)
 
-    # TODO
-    # 1. somehow have a way for databuilder sections to know
-    #    devices by their type and that forceplates must go together
-    #    (I'm thinking specialized add_ methods)
-    # 2. finish building data here
-    # 3. finish the devices line guys
-    # 4. finish the routine that loads everything up from a CSV
-    # 5. implement a simple integration test
-    # 6. fix bugs one by one
-    # 7. start abstracting unit tests
-    # 8. write an example notebook
     def transition(self, data_builder: DataBuilder):
         super().transition(data_builder)
 

@@ -291,6 +291,28 @@ class DevicesLineFinder(FailableMixin):
         return (col_num - 2) % 3 == 0
 
 
+# TODO Plan
+# 1. finish the devices line guys
+#    - merge categorizer and creator, use DeviceType.section_type
+#    - finder and grouper still seem useful
+#    - DevicesState has then to do all of this:
+#      * use its 3 helpers to get a bunch of correcly categorized
+#        DeviceHeaderCols
+#      * if they fail or if there isn't an EMG device, call the Validator
+#      * create a bunch of correctly categorized DeviceHeaderPair
+#      * add those correctly to the DataBuilder - careful not to add empty
+#        lists or None
+#      * create DataChanneler
+#      * add it to the DataBuilder
+#      * pass along to the Coordinates state the EMG guy
+#    - CoordinatesState *looks* very easy. It just has to ask for the EMG guy
+#      what is its first column and then add_num_cols. Other than that it just
+#      passes along the Row to add_coordinates.
+# 2. finish the routine that loads everything up from a CSV
+# 3. implement a simple integration test
+# 4. fix bugs one by one
+# 5. start abstracting unit tests
+# 6. write an example notebook
 class DeviceColsCreator(FailableMixin):
     _cols_class = DeviceHeaderCols
 

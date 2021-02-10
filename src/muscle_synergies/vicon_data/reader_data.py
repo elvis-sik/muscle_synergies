@@ -466,6 +466,23 @@ class _SectionDataBuilder(_OnlyOnceMixin, abc.ABC):
 
 class ForcesEMGDataBuilder(_SectionDataBuilder):
     section_type = SectionType.FORCES_EMG
+    emg_device: Optional[DeviceHeaderPair]
+    force_plates: List['ForcePlateDevices']
+
+    def __init__(self):
+        super().__init__()
+        self.emg_device = None
+        self.force_plates = []
+
+    def add_emg_device(self, emg_device: DeviceHeaderPair):
+        if self.emg_device is not None:
+            self._raise_called_twice('EMG device')
+        self.emg_device = emg_device
+
+    def add_force_plates(self, force_plates: List['ForcePlateDevices']):
+        if self.force_plates:
+            self._raise_called_twice('list of force plates')
+        self.force_plates.extend(force_plates)
 
     def file_ended(self, data_builder: DataBuilder) -> ViconNexusData:
         raise ValueError('file ended without a trajectory marker section.')
@@ -478,6 +495,18 @@ class ForcesEMGDataBuilder(_SectionDataBuilder):
 class TrajDataBuilder(_SectionDataBuilder):
     section_type = SectionType.TRAJECTORIES
     _frequencies_type = Frequencies
+
+    trajectory_devices: List['DeviceHeaderPair']
+
+    def __init__(self):
+        super().__init__()
+        self.trajectory_devices = []
+
+    def add_trajectory_devices(self,
+                               trajectory_devices: List['DeviceHeaderPair']):
+        if self.trajectory_devices:
+            self._raise_called_twice('list of trajectory markers')
+        self.trajectory_devices.extend(trajectory_devices)
 
     # TODO
     # 1. somehow have a way for databuilder sections to know
@@ -501,7 +530,23 @@ class TrajDataBuilder(_SectionDataBuilder):
         )
 
     def _get_num_frames(self) -> int:
-        pass
+        # TODO
+        # This is a somewhat fragile solution which would fail if there is no
+        # trajectory marker. There also is currently no check on the code
+        # anywhere for consistency in the data: do all TimeSeriesDataBuilder
+        # hold the same number of data entries? One consequence of it not being
+        # the case would be the possibility that the number of frames here is
+        # wrong.
+
+        # I think the best way to do that would be to create a FrameCounter
+        # object to be passed to both the DataBuilders which then passes it
+        # along to the DataChanneler and also has access to it. It could be
+        # created when the DeviceHeaderCols are created, i.e., the DevicesLine.
+        dev_pair = self.trajectory_devices[0]
+        dev_builder = dev_pair.device_data_builder
+        time_series_builder = dev_builder[0]
+        data = time_series_builder.get_data()
+        return len(data)
 
     def _instantiate_frequencies_obj(self, *, num_frames, forces_emg_freq,
                                      traj_freq) -> _frequencies_type:
@@ -566,6 +611,16 @@ class DataBuilder:
 
     def add_measurements(self, data: List[float]):
         self.get_section_builder().add_data(data)
+
+    def add_emg_device(self, emg_device: DeviceHeaderPair):
+        self.get_section_builder().add_emg_device(emg_device)
+
+    def add_force_plates(self, force_plates: List['ForcePlateDevices']):
+        self.get_section_builder().add_force_plates(force_plates)
+
+    def add_trajectory_devices(self,
+                               trajectory_devices: List['DeviceHeaderPair']):
+        self.get_section_builder().add_trajectory_devices(trajectory_devices)
 
 
 class TimeSeriesDataBuilder(_OnlyOnceMixin):

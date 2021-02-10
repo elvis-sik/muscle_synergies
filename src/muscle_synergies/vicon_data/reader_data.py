@@ -228,18 +228,18 @@ class ForcePlateData(DeviceHeaderData):
         return args[0].join(args[1:])
 
 
-class DeviceMapping(collections.abc.Mapping):
+class DeviceMapping(collections.abc.Mapping, Generic[T]):
     device_list: List[Union[DeviceHeaderData, ForcePlateData]]
     devices_dict: Mapping[str, Union[DeviceHeaderData, ForcePlateData]]
 
     def __init__(
             self,
-            device_list: List[Union[DeviceHeaderData, ForcePlateData]],
+            device_list: List[T],
     ):
         self.device_list = list(device_list)
         self.devices_dict = self._build_devices_dict()
 
-    def ith(self, i: int) -> Union[DeviceHeaderData, ForcePlateData]:
+    def ith(self, i: int) -> T:
         return self.device_list[i]
 
     def _build_devices_dict(self):

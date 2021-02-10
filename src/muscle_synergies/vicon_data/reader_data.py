@@ -430,7 +430,7 @@ class _SectionDataBuilder(_OnlyOnceMixin, abc.ABC):
         return
 
     @abc.abstractmethod
-    def file_ended(self) -> ViconNexusData:
+    def file_ended(self, data_builder: DataBuilder) -> ViconNexusData:
         pass
 
     @abc.abstractmethod
@@ -467,7 +467,7 @@ class _SectionDataBuilder(_OnlyOnceMixin, abc.ABC):
 class ForcesEMGDataBuilder(_SectionDataBuilder):
     section_type = SectionType.FORCES_EMG
 
-    def file_ended(self) -> ViconNexusData:
+    def file_ended(self, data_builder: DataBuilder) -> ViconNexusData:
         raise ValueError('file ended without a trajectory marker section.')
 
     def transition(self, data_builder: DataBuilder):
@@ -488,15 +488,15 @@ class TrajDataBuilder(_SectionDataBuilder):
     # 6. start abstracting unit tests
     # 7. write an example notebook
 
-    def file_ended(self) -> ViconNexusData:
-        self._build_frequencies_obj(num_frames=self._get_num_frames(),
-                                    **self._get_frequencies())
+    def file_ended(self, data_builder: DataBuilder) -> ViconNexusData:
+        frequencies_obj = self._build_frequencies_obj(
+            forces_emg_freq=self._forces_emg_freq(data_builder),
+            traj_freq=self.frequency,
+            num_frames=self._get_num_frames(data_builder),
+        )
 
     def transition(self, data_builder: DataBuilder):
         super().transition(data_builder)
-
-    def _get_frequencies(self):
-        pass
 
     def _get_num_frames(self):
         pass
@@ -504,6 +504,12 @@ class TrajDataBuilder(_SectionDataBuilder):
     def _build_frequencies_obj(self, *, num_frames, forces_emg_freq,
                                traj_freq) -> _frequencies_type:
         return Frequencies(forces_emg_freq, traj_freq, num_frames)
+
+    def _forces_emg_freq(self, data_builder: DataBuilder):
+        return self._get_forces_emg_builder(data_builder).frequency
+
+    def _get_forces_emg_builder(self, data_builder: DataBuilder):
+        return data_builder.get_section_builder(SectionType.FORCES_EMG)
 
 
 class DataBuilder:
@@ -538,7 +544,7 @@ class DataBuilder:
         self._current_builder = self.get_section_builder(section_type)
 
     def file_ended(self) -> ViconNexusData:
-        self.get_section_builder().file_ended()
+        self.get_section_builder().file_ended(data_builder=self)
 
     def get_section_type(self) -> SectionType:
         return self.get_section_builder().section_type

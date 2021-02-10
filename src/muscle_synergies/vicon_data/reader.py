@@ -292,12 +292,7 @@ class DevicesLineFinder(FailableMixin):
 
 
 class DeviceColsCreator(FailableMixin):
-    def __init__(self,
-                 *,
-                 cols_class=DeviceHeaderCols,
-                 failable_result_class=FailableResult):
-        super().__init__(failable_result_class)
-        self._cols_class = cols_class
+    _cols_class = DeviceHeaderCols
 
     def create_cols(self, headers: List[ColOfHeader]
                     ) -> FailableResult[List[DeviceHeaderCols]]:

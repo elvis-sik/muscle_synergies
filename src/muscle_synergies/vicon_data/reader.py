@@ -28,12 +28,12 @@ from .definitions import (
 from .reader_data import (
     ViconNexusData,
     ColOfHeader,
-    DataCheck,
     DeviceHeaderPair,
     DeviceHeaderCols,
     DeviceHeaderDataBuilder,
     ForcePlateDevices,
-    Validator,
+    DataBuilder,
+    DataChanneler,
 )
 from .failures import (DataCheck, Validator, FailableResult, FailableMixin)
 

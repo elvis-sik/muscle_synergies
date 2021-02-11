@@ -5,7 +5,7 @@ import pytest as pt
 import muscle_synergies.vicon_data as vd
 
 this_file = pathlib.Path(__file__)
-project_root = this_file.parent.parent
+project_root = this_file.parent.parent.parent
 sample_data_dir = project_root / 'sample_data'
 abridged_csv = sample_data_dir / 'abridged_data.csv'
 

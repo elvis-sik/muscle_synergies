@@ -158,7 +158,7 @@ class DeviceHeaderData:
         return self._frequencies.index(self.device_type, frame, subframe)
 
     @classmethod
-    def from_device_header_pair(cls, device_header_pair: DeviceHeaderPair,
+    def from_device_header_pair(cls, device_header_pair: 'DeviceHeaderPair',
                                 frequencies: Frequencies) -> 'DeviceHeader':
         device_name = device_header_pair.device_name
         device_type = device_header_pair.device_type
@@ -169,13 +169,14 @@ class DeviceHeaderData:
                    dataframe=dataframe)
 
     @classmethod
-    def _device_header_pair_dataframe(cls, device_header_pair: DeviceHeaderPair
-                                      ) -> pd.Dataframe:
+    def _device_header_pair_dataframe(cls,
+                                      device_header_pair: 'DeviceHeaderPair'
+                                      ) -> pd.DataFrame:
         builder = device_header_pair.device_data_builder
         return cls._extract_dataframe(builder)
 
     @staticmethod
-    def _extract_dataframe(device_header_builder: DeviceHeaderDataBuilder
+    def _extract_dataframe(device_header_builder: 'DeviceHeaderDataBuilder'
                            ) -> pd.DataFrame:
         def create_pint_array(data, physical_unit):
             PintArray(data, dtype=physical_unit)
@@ -203,7 +204,7 @@ class ForcePlateData(DeviceHeaderData):
                          dataframe=dataframe)
 
     @classmethod
-    def from_force_plate(cls, force_plate: ForcePlateDevices,
+    def from_force_plate(cls, force_plate: 'ForcePlateDevices',
                          frequencies: Frequencies):
         device_name = force_plate.name
 
@@ -267,7 +268,8 @@ class ViconNexusData:
     force_plates: Union[List[DeviceHeaderRepresentation],
                         ForcePlateRepresentation, 'DeviceMapping']
     emg: DeviceHeaderRepresentation
-    trajectory_markers: List[DeviceHeaderRepresentation, 'DeviceMapping']
+    trajectory_markers: List[
+        Union[DeviceHeaderRepresentation, 'DeviceMapping']]
 
     def from_device_type(
             self, device_type: DeviceType
@@ -433,11 +435,11 @@ class _SectionDataBuilder(_OnlyOnceMixin, abc.ABC):
         return
 
     @abc.abstractmethod
-    def file_ended(self, data_builder: DataBuilder) -> ViconNexusData:
+    def file_ended(self, data_builder: 'DataBuilder') -> ViconNexusData:
         pass
 
     @abc.abstractmethod
-    def transition(self, data_builder: DataBuilder):
+    def transition(self, data_builder: 'DataBuilder'):
         self._finished = True
 
     def add_frequency(self, frequency: int):
@@ -469,7 +471,7 @@ class _SectionDataBuilder(_OnlyOnceMixin, abc.ABC):
 
 class ForcesEMGDataBuilder(_SectionDataBuilder):
     section_type = SectionType.FORCES_EMG
-    emg_device: Optional[DeviceHeaderPair]
+    emg_device: Optional['DeviceHeaderPair']
     force_plates: List['ForcePlateDevices']
 
     def __init__(self):
@@ -477,7 +479,7 @@ class ForcesEMGDataBuilder(_SectionDataBuilder):
         self.emg_device = None
         self.force_plates = []
 
-    def add_emg_device(self, emg_device: DeviceHeaderPair):
+    def add_emg_device(self, emg_device: 'DeviceHeaderPair'):
         if self.emg_device is not None:
             self._raise_called_twice('EMG device')
         self.emg_device = emg_device
@@ -487,10 +489,10 @@ class ForcesEMGDataBuilder(_SectionDataBuilder):
             self._raise_called_twice('list of force plates')
         self.force_plates.extend(force_plates)
 
-    def file_ended(self, data_builder: DataBuilder) -> ViconNexusData:
+    def file_ended(self, data_builder: 'DataBuilder') -> ViconNexusData:
         raise ValueError('file ended without a trajectory marker section.')
 
-    def transition(self, data_builder: DataBuilder):
+    def transition(self, data_builder: 'DataBuilder'):
         super().transition(data_builder)
         data_builder.set_current_section(next_section_builder)
 
@@ -509,10 +511,10 @@ class TrajDataBuilder(_SectionDataBuilder):
             self._raise_called_twice('list of trajectory markers')
         self.trajectory_devices.extend(trajectory_devices)
 
-    def transition(self, data_builder: DataBuilder):
+    def transition(self, data_builder: 'DataBuilder'):
         super().transition(data_builder)
 
-    def file_ended(self, data_builder: DataBuilder) -> ViconNexusData:
+    def file_ended(self, data_builder: 'DataBuilder') -> ViconNexusData:
         frequencies_obj = self._instantiate_frequencies_obj(
             forces_emg_freq=self._forces_emg_freq(data_builder),
             traj_freq=self.frequency,
@@ -529,7 +531,7 @@ class TrajDataBuilder(_SectionDataBuilder):
             emg=emg,
             trajectory_markers=trajectory_markers)
 
-    def _build_force_plate_mapping(self, data_builder: DataBuilder,
+    def _build_force_plate_mapping(self, data_builder: 'DataBuilder',
                                    frequencies: Frequencies
                                    ) -> DeviceMapping[ForcePlateData]:
         converted = []
@@ -539,7 +541,7 @@ class TrajDataBuilder(_SectionDataBuilder):
                 self._instantiate_force_plate_data(device, frequencies))
         return self._instantiate_device_mapping(devices)
 
-    def _build_emg_dev_data(self, data_builder: DataBuilder,
+    def _build_emg_dev_data(self, data_builder: 'DataBuilder',
                             frequencies: Frequencies
                             ) -> Optional[DeviceHeaderData]:
         emg_pair = self._emg_pair(data_builder)
@@ -547,7 +549,7 @@ class TrajDataBuilder(_SectionDataBuilder):
             return
         return self._instantiate_device_header_data(emg_pair, frequencies)
 
-    def _build_trajectory_marker_mapping(self, data_builder: DataBuilder,
+    def _build_trajectory_marker_mapping(self, data_builder: 'DataBuilder',
                                          frequencies: Frequencies
                                          ) -> DeviceMapping[DeviceHeaderData]:
         converted = []
@@ -576,18 +578,18 @@ class TrajDataBuilder(_SectionDataBuilder):
         data = time_series_builder.get_data()
         return len(data)
 
-    def _forces_emg_freq(self, data_builder: DataBuilder) -> int:
+    def _forces_emg_freq(self, data_builder: 'DataBuilder') -> int:
         return self._get_forces_emg_builder(data_builder).frequency
 
-    def _force_plate_devices(self, data_builder: DataBuilder
+    def _force_plate_devices(self, data_builder: 'DataBuilder'
                              ) -> List[ForcePlateDevices]:
         return self._get_forces_emg_builder(data_builder).force_plates
 
     def _emg_pair(self,
-                  data_builder: DataBuilder) -> Optional[DeviceHeaderPair]:
+                  data_builder: 'DataBuilder') -> Optional['DeviceHeaderPair']:
         return self._get_forces_emg_builder(data_builder).emg_device
 
-    def _get_forces_emg_builder(self, data_builder: DataBuilder
+    def _get_forces_emg_builder(self, data_builder: 'DataBuilder'
                                 ) -> ForcesEMGDataBuilder:
         return data_builder.get_section_builder(SectionType.FORCES_EMG)
 
@@ -600,7 +602,7 @@ class TrajDataBuilder(_SectionDataBuilder):
                                       ) -> ForcePlateData:
         return ForcePlateData.from_force_plate(force_plate_dev, frequencies)
 
-    def _instantiate_device_header_data(self, dev_pair: DeviceHeaderPair,
+    def _instantiate_device_header_data(self, dev_pair: 'DeviceHeaderPair',
                                         frequencies: Frequencies
                                         ) -> DeviceHeaderData:
         return DeviceHeaderData(dev_pair, frequencies)
@@ -671,7 +673,7 @@ class DataBuilder:
     def add_measurements(self, data: List[float]):
         self.get_section_builder().add_data(data)
 
-    def add_emg_device(self, emg_device: DeviceHeaderPair):
+    def add_emg_device(self, emg_device: 'DeviceHeaderPair'):
         self.get_section_builder().add_emg_device(emg_device)
 
     def add_force_plates(self, force_plates: List['ForcePlateDevices']):

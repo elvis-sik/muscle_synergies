@@ -52,7 +52,7 @@ def create_reader(csv_filename: str, should_raise: bool = True):
         initial_state=_initialize_reader_section_type_state(),
         validator=_initialize_validator(csv_filename=csv_filename,
                                         should_raise=should_raise),
-        data_builde=_initialize_data_builder(),
+        data_builder=_initialize_data_builder(),
     )
 
 

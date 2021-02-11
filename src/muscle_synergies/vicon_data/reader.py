@@ -642,6 +642,7 @@ class GettingMeasurementsState(_PassUpFileEndedMixin, _ReaderState):
         return ViconCSVLines.DATA_LINE
 
     def __init__(self, data_line_parser: DataLineParser):
+        super().__init__()
         self._data_line_parser = data_line_parser
 
     def feed_row(self, row: Row, reader: Reader):

@@ -208,7 +208,9 @@ class SectionTypeState(_StepByStepReaderState):
             return SectionType.TRAJECTORIES
 
     def _build_data(self, parsed_data: SectionType, data_builder: DataBuilder):
-        data_builder.add_section_type(parsed_data)
+        # this does nothing because DataBuilder already knows what
+        # SectionType it should be in.
+        pass
 
     def _new_state(self):
         return SamplingFrequencyState()

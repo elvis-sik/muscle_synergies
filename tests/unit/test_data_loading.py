@@ -4,10 +4,7 @@ from typing import List
 import pytest as pt
 
 import muscle_synergies.vicon_data as vd
-from muscle_synergies.vicon_data.reader_data import (
-    DeviceType, )
-from muscle_synergies.vicon_data.reader import (
-    Frequencies, )
+from muscle_synergies.vicon_data.reader_data import (DeviceType, Frequencies)
 
 
 def test_dev_type_section_type():

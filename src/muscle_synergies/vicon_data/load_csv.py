@@ -4,7 +4,7 @@ from .failures import Validator
 from .reader_data import (
     Row,
     DataBuilder,
-    ForcesEMGBuilder,
+    ForcesEMGDataBuilder,
     TrajDataBuilder,
     ViconNexusData,
 )
@@ -25,7 +25,7 @@ def csv_lines_stream(filename) -> Iterator[Row]:
 
 
 def _initialize_data_builder() -> DataBuilder:
-    forces_emg_builder = ForcesEMGBuilder()
+    forces_emg_builder = ForcesEMGDataBuilder()
     traj_builder = TrajDataBuilder()
     return DataBuilder(forces_emg_data_builder=forces_emg_builder,
                        trajs_data_builder=traj_builder)

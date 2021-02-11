@@ -191,7 +191,7 @@ class FailableMixin:
 
         return self._success(parsed_values)
 
-    def _fail(self, error_message: str) -> FailableResult[ColOfHeader]:
+    def _fail(self, error_message: str) -> FailableResult[T]:
         return self._failable_result_class.create_failed(error_message)
 
     def _success(self, result: T) -> FailableResult[T]:

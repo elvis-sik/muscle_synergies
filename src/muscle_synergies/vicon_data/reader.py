@@ -402,7 +402,7 @@ class DeviceCategorizer(FailableMixin):
 
     def _build_categorized_headers(
             self, grouped_headers: Mapping[DeviceType, DeviceHeaderCols]
-    ) -> CategorizedHeaders:
+    ) -> ViconNexusData:
         emg_list = grouped_headers[DeviceType.EMG]
         try:
             emg = emg_list[0]

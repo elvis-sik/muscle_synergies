@@ -34,7 +34,7 @@ def _initialize_data_builder() -> DataBuilder:
 
 def _initialize_validator(csv_filename: str,
                           should_raise: bool = True) -> Validator:
-    validator = Validator(csv_filename=csv_filename, should_raise=should_raise)
+    return Validator(csv_filename=csv_filename, should_raise=should_raise)
 
 
 def _initialize_reader_section_type_state() -> SectionTypeState:

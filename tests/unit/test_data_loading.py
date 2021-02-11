@@ -329,13 +329,14 @@ class TestDataChanneler:
 
     @pt.fixture
     def mock_device_0_1(self, mock_data_builder, mock_cols_0_1):
-        return vd.DeviceHeader(device_cols=mock_cols_0_1,
-                               device_data_builder=mock_data_builder)
+        return vd.DeviceHeaderPair(device_cols=mock_cols_0_1,
+                                   device_data_builder=mock_data_builder)
 
     @pt.fixture
     def mock_device_2_3(self, mock_another_data_builder, mock_cols_2_3):
-        return vd.DeviceHeader(device_cols=mock_cols_2_3,
-                               device_data_builder=mock_another_data_builder)
+        return vd.DeviceHeaderPair(
+            device_cols=mock_cols_2_3,
+            device_data_builder=mock_another_data_builder)
 
     @pt.fixture
     def data_channeler(self, mock_device_0_1, mock_device_2_3):

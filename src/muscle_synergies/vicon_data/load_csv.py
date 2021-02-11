@@ -60,6 +60,6 @@ def load_vicon_file(csv_filename: str,
                     should_raise: bool = True) -> ViconNexusData:
     reader = create_reader(csv_filename=csv_filename,
                            should_raise=should_raise)
-    for row in csv_lines_stream():
+    for row in csv_lines_stream(csv_filename):
         reader.feed_row(row)
     return reader.file_ended()

@@ -624,8 +624,8 @@ class DataBuilder:
     _traj_builder: TrajDataBuilder
     _current_builder: _SectionDataBuilder
 
-    def __init__(self, forces_emg_data_builder: SectionDataBuilder,
-                 trajs_data_builder: SectionDataBuilder):
+    def __init__(self, forces_emg_data_builder: _SectionDataBuilder,
+                 trajs_data_builder: _SectionDataBuilder):
         self._force_emg_builder = forces_emg_data_builder
         self._traj_builder = trajs_data_builder
 

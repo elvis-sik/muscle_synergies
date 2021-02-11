@@ -4,7 +4,6 @@ from typing import List
 import pytest as pt
 
 import muscle_synergies.vicon_data as vd
-from muscle_synergies.vicon_data.reader_data import (DeviceType, Frequencies)
 
 
 def test_dev_type_section_type():
@@ -979,24 +978,24 @@ class TestFrequencies:
 
     @pt.fixture
     def frequencies(self):
-        return Frequencies(2000, 100, 6223)
+        return vd.Frequencies(2000, 100, 6223)
 
     def test_frame_of_ind_first_section(self, frequencies):
-        dev_type = DeviceType.FORCE_PLATE
+        dev_type = vd.DeviceType.FORCE_PLATE
         last_index = self.LAST_INDEX_FORCES_EMG
         frame, subframe = frequencies.frame_subframe(dev_type, last_index)
         assert frame == self.LAST_FRAME
         assert subframe == self.LAST_SUBFRAME_FORCES_EMG
 
     def test_frame_of_ind_second_section(self, frequencies):
-        dev_type = DeviceType.TRAJECTORY_MARKER
+        dev_type = vd.DeviceType.TRAJECTORY_MARKER
         last_index = self.LAST_INDEX_TRAJ
         frame, subframe = frequencies.frame_subframe(dev_type, last_index)
         assert frame == self.LAST_FRAME
         assert subframe == self.LAST_SUBFRAME_TRAJ
 
     def test_index_of_first_section(self, frequencies):
-        dev_type = DeviceType.EMG
+        dev_type = vd.DeviceType.EMG
         last_index = self.LAST_INDEX_FORCES_EMG
         frame = self.LAST_FRAME
         subframe = self.LAST_SUBFRAME_FORCES_EMG
@@ -1004,7 +1003,7 @@ class TestFrequencies:
         assert index == last_index
 
     def test_index_of_second_section(self, frequencies):
-        dev_type = DeviceType.TRAJECTORY_MARKER
+        dev_type = vd.DeviceType.TRAJECTORY_MARKER
         last_index = self.LAST_INDEX_TRAJ
         frame = self.LAST_FRAME
         subframe = self.LAST_SUBFRAME_TRAJ

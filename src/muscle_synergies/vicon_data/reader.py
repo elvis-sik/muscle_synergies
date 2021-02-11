@@ -37,7 +37,7 @@ from .reader_data import (
     ForcePlateDevices,
     Validator,
 )
-from failures import (DataCheck, Validator, FailableResult, FailableMixin)
+from .failures import (DataCheck, Validator, FailableResult, FailableMixin)
 
 
 class Reader:

@@ -12,7 +12,7 @@ from typing import (List, Set, Dict, Tuple, Optional, Sequence, Callable, Any,
 
 import pint
 
-from definitions import (
+from .definitions import (
     ureg,
     T,
     X,

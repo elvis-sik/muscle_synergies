@@ -1,6 +1,6 @@
 from typing import Optional, Sequence, Generic, Union, Callable, List
 
-from definitions import T
+from .definitions import T, X, Y
 
 
 class DataCheck:

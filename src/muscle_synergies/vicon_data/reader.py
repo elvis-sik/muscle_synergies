@@ -305,9 +305,6 @@ class DevicesLineFinder(FailableMixin):
 #      * create DataChanneler
 #      * add it to the DataBuilder
 #      * pass along to the Coordinates state the EMG guy
-#    - CoordinatesState *looks* very easy. It just has to ask for the EMG guy
-#      what is its first column and then add_num_cols. Other than that it just
-#      passes along the Row to add_coordinates.
 # 2. finish the routine that loads everything up from a CSV
 # 3. implement a simple integration test
 # 4. fix bugs one by one
@@ -527,9 +524,58 @@ class DevicesState(_ReaderState):
 
 
 class CoordinatesState(_StepByStepReaderState):
+    emg_cols: Optional[DeviceHeaderCols]
+
+    @dataclass
+    class _RowCols:
+        row: Row
+        emg_num_cols: Optional[int]
+
+    def __init__(self, emg_cols: Optional[DeviceHeaderCols]):
+        super().__init__()
+        self.emg_cols = emg_cols
+
     @property
     def line(self) -> ViconCSVLines:
+        # TODO all of the line methods could be refactored as class vars
+        # in concrete classes
         return ViconCSVLines.COORDINATES_LINE
+
+    def _check_row(self, row: Row) -> DataCheck:
+        if self.emg_cols is not None and len(row) < self._emg_first_col():
+            return self._create_data_check(
+                False, 'row ends before the first EMG column')
+        return self._create_valid_data_check()
+
+    def _parse_row(self, row: Row) -> _RowCols:
+        if self.emg_cols is not None:
+            num_cols = len(row) - self._emg_first_col()
+        else:
+            num_cols = None
+
+        return self._RowCols(row=row, emg_num_cols=num_cols)
+
+    def _build_data(self, parsed_data: _RowCols, data_builder: DataBuilder):
+        self._emg_add_num_cols_if_needed(parsed_data.emg_num_cols)
+        self._data_builder_add_coordinates(data_builder, parsed_data.row)
+
+    def _new_state(self) -> UnitsState:
+        return UnitsState(
+            units_line_parser=self._instantiate_units_line_parser())
+
+    def _emg_first_col(self) -> int:
+        return self.emg_cols.first_col_index
+
+    def _emg_add_num_cols_if_needed(self, num_cols: Optional[int]):
+        if self.emg_cols is not None:
+            self.emg_cols.add_num_cols(num_cols)
+
+    def _data_builder_add_coordinates(self, data_builder: DataBuilder,
+                                      coords_line: List[str]):
+        data_builder.add_coordinates(coords)
+
+    def _instantiate_units_line_parser(self) -> 'UnitsLineParser':
+        return UnitsLineParser()
 
 
 class _EntryByEntryParser(_ReaderState, FailableMixin, Generic[T]):

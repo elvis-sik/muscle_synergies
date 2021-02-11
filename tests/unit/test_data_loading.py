@@ -602,6 +602,7 @@ class TestState:
             mock_data_builder.add_frequency.assert_called_once_with(
                 expected_output)
 
+    @pt.mark.skip
     class TestDeviceColsCreator:
         @pt.fixture
         def force_plate_header_str(self):
@@ -695,6 +696,7 @@ class TestState:
             assert failable_result.parse_result is None
             assert not failable_result.data_check.is_valid
 
+    @pt.mark.skip
     class TestDeviceHeaderFinder:
         # yapf: disable
         WRONG_ROWS = (
@@ -746,6 +748,7 @@ class TestState:
             parse_result = fail_res.parse_result
             assert parse_result == expected_output
 
+    @pt.mark.skip
     class TestColsCategorizer:
         @pt.fixture
         def categorizer(self):
@@ -812,6 +815,7 @@ class TestState:
             # TODO fails if section doesn't make sense
             raise NotImplementedError()
 
+    @pt.mark.skip
     class TestForcePlateGrouper:
         @pt.fixture
         def first_force_plate_name(self):

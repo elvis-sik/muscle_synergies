@@ -1,3 +1,4 @@
+import csv
 from typing import Iterator
 
 from .failures import Validator

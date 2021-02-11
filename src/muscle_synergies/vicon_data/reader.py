@@ -305,11 +305,10 @@ class DevicesLineFinder(FailableMixin):
 #      * create DataChanneler
 #      * add it to the DataBuilder
 #      * pass along to the Coordinates state the EMG guy
-# 2. finish the routine that loads everything up from a CSV
-# 3. implement a simple integration test
-# 4. fix bugs one by one
-# 5. start abstracting unit tests
-# 6. write an example notebook
+# 2. implement a simple integration test
+# 3. fix bugs one by one
+# 4. start abstracting unit tests
+# 5. write an example notebook
 class DeviceColsCreator(FailableMixin):
     _cols_class = DeviceHeaderCols
 

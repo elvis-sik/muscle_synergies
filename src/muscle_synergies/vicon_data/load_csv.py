@@ -1,6 +1,14 @@
 from typing import Iterator
 
-from .reader_data import Row
+from .failures import Validator
+from .reader_data import (
+    Row,
+    DataBuilder,
+    ForcesEMGBuilder,
+    TrajDataBuilder,
+    ViconNexusData,
+)
+from .reader import (Reader, SectionTypeState)
 
 
 def csv_lines_stream(filename) -> Iterator[Row]:
@@ -13,12 +21,45 @@ def csv_lines_stream(filename) -> Iterator[Row]:
     """
     with open(filename) as csvfile:
         data_reader = csv.reader(csvfile)
-        yield from data_reader
+        yield from map(Row, data_reader)
 
 
-def initialize_vicon_nexus_reader():
-    pass
+def _initialize_data_builder() -> DataBuilder:
+    forces_emg_builder = ForcesEMGBuilder()
+    traj_builder = TrajDataBuilder()
+    return DataBuilder(forces_emg_data_builder=forces_emg_builder,
+                       trajs_data_builder=traj_builder)
 
 
-def load_vicon_file():
-    pass
+def _initialize_validator(csv_filename: str,
+                          should_raise: bool = True) -> Validator:
+    validator = Validator(csv_filename=csv_filename, should_raise=should_raise)
+
+
+def _initialize_reader_section_type_state() -> SectionTypeState:
+    return SectionTypeState()
+
+
+def _initialize_reader(initial_state: SectionTypeState, validator: Validator,
+                       data_builder: DataBuilder) -> Reader:
+    return Reader(section_type_state=initial_state,
+                  data_builder=data_builder,
+                  validator=validator)
+
+
+def create_reader(csv_filename: str, should_raise: bool = True):
+    return _initialize_reader(
+        initial_state=_initialize_reader_section_type_state(),
+        validator=_initialize_validator(csv_filename=csv_filename,
+                                        should_raise=should_raise),
+        data_builde=_initialize_data_builder(),
+    )
+
+
+def load_vicon_file(csv_filename: str,
+                    should_raise: bool = True) -> ViconNexusData:
+    reader = create_reader(csv_filename=csv_filename,
+                           should_raise=should_raise)
+    for row in csv_lines_stream():
+        reader.feed_row(row)
+    return reader.file_ended()

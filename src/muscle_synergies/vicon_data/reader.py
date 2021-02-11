@@ -1,11 +1,9 @@
 import abc
-import collections.abc
 from collections import defaultdict
 import csv
 from dataclasses import dataclass
 from enum import Enum
 from functools import partial
-import re
 from typing import (List, Set, Dict, Tuple, Optional, Sequence, Callable, Any,
                     Mapping, Iterator, Generic, TypeVar, NewType, Union,
                     Iterable)

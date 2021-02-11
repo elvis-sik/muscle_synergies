@@ -630,6 +630,7 @@ class DataBuilder:
                  trajs_data_builder: _SectionDataBuilder):
         self._force_emg_builder = forces_emg_data_builder
         self._traj_builder = trajs_data_builder
+        self._current_builder = self._force_emg_builder
 
     @property
     def finished(self):

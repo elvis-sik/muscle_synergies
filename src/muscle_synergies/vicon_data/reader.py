@@ -193,6 +193,7 @@ class SectionTypeState(_StepByStepReaderState):
         return ViconCSVLines.SECTION_TYPE_LINE
 
     def _check_row(self, row: Row) -> DataCheck:
+        # TODO add missing check - does SectionType here match DataBuilder's
         is_valid = row[0] in {'Devices', 'Trajectories'}
         message = (
             'this line should contain either "Devices" or "Trajectories"'

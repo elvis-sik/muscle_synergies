@@ -129,29 +129,6 @@ class TestFailableResult:
     def result_2(self):
         return vd.FailableResult(parse_result=2)
 
-    @pt.mark.parametrize(
-        'arg1,arg2,exp',
-        [
-            # combining 2 successful parses
-            (pt.lazy_fixture('result_1'), pt.lazy_fixture('result_2'),
-             vd.FailableResult(parse_result=[1, 2])),
-
-            # combining a failure with a sucessful one
-            pt.lazy_fixture(['failed', 'result_2', 'failed']),
-
-            # combining a succesful one with a failure
-            pt.lazy_fixture(['result_1', 'failed', 'failed'])
-        ])
-    def test_sequence_fail(self, arg1, arg2, exp):
-        inp = [arg1, arg2]
-        out = vd.FailableResult.sequence_fail(inp)
-        assert out == exp
-
-    def test_sequence_fail_with_empty_list_returns_failed(self):
-        inp = []
-        out = vd.FailableResult.sequence_fail(inp)
-        assert out.failed
-
 
 class TestValidator:
     @pt.fixture

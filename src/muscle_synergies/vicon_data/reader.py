@@ -554,7 +554,7 @@ class CoordinatesState(_StepByStepReaderState):
         self._emg_add_num_cols_if_needed(parsed_data.emg_num_cols)
         self._data_builder_add_coordinates(data_builder, parsed_data.row)
 
-    def _new_state(self) -> UnitsState:
+    def _new_state(self) -> 'UnitsState':
         return UnitsState(
             units_line_parser=self._instantiate_units_line_parser())
 

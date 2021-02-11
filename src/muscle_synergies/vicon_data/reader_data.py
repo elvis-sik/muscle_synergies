@@ -1,6 +1,7 @@
 """Types that help the Reader build a representation of Vicon Nexus data."""
 
 import abc
+import collections.abc
 from collections import defaultdict
 import csv
 from dataclasses import dataclass
@@ -10,6 +11,7 @@ from typing import (List, Set, Dict, Tuple, Optional, Sequence, Callable, Any,
                     Mapping, Iterator, Generic, TypeVar, NewType, Union,
                     Iterable)
 
+import pandas as pd
 import pint
 
 from .definitions import (

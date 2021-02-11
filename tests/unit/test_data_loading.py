@@ -910,8 +910,9 @@ class TestState:
             fail_res = grouper.group([])
             assert fail_res.failed
 
+    @pt.mark.skip
     class TestDevicesState:
-        def successful_fail_res(self, parse_res):
+        def successful_fail_res(self, parse_res, mocker):
             fail_res = mocker.Mock()
             fail_res.failed = False
             fail_res.parse_result = parse_res

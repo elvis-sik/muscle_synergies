@@ -44,7 +44,7 @@ class Reader:
     Initialize it
     """
     _state: '_ReaderState'
-    _data_builder: SectionDataBuilder
+    _data_builder: DataBuilder
     _validator: Validator
 
     def __init__(self, section_type_state: 'SectionTypeState',
@@ -207,8 +207,7 @@ class SectionTypeState(_StepByStepReaderState):
         elif section_type_str == 'Trajectories':
             return SectionType.TRAJECTORIES
 
-    def _build_data(self, parsed_data: SectionType,
-                    data_builder: 'SectionDataBuilder'):
+    def _build_data(self, parsed_data: SectionType, data_builder: DataBuilder):
         data_builder.add_section_type(parsed_data)
 
     def _new_state(self):
@@ -243,8 +242,7 @@ class SamplingFrequencyState(_StepByStepReaderState):
         except ValueError:
             return None
 
-    def _build_data(self, parsed_data: int,
-                    data_builder: 'SectionDataBuilder'):
+    def _build_data(self, parsed_data: int, data_builder: DataBuilder):
         data_builder.add_frequency(parsed_data)
 
     def _new_state(self) -> '_ReaderState':
@@ -613,8 +611,8 @@ class _EntryByEntryParser(_ReaderState, FailableMixin, Generic[T]):
         pass
 
     @abc.abstractmethod
-    def _get_build_method(self, data_builder: SectionDataBuilder
-                          ) -> Callable[[T], Any]:
+    def _get_build_method(self,
+                          data_builder: DataBuilder) -> Callable[[T], Any]:
         pass
 
 
@@ -627,8 +625,8 @@ class UnitsLineParser(_EntryByEntryParser):
         else:
             return self._success(unit)
 
-    def _get_build_method(self, data_builder: SectionDataBuilder
-                          ) -> Callable[[T], Any]:
+    def _get_build_method(self,
+                          data_builder: DataBuilder) -> Callable[[T], Any]:
         return data_builder.add_units
 
 
@@ -669,8 +667,8 @@ class DataLineParser(_EntryByEntryParser):
         else:
             return self._success(data)
 
-    def _get_build_method(self, data_builder: SectionDataBuilder
-                          ) -> Callable[[T], Any]:
+    def _get_build_method(self,
+                          data_builder: DataBuilder) -> Callable[[T], Any]:
         return data_builder.add_measurements
 
 

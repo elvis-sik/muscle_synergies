@@ -7,7 +7,8 @@ from dataclasses import dataclass
 from enum import Enum
 import re
 from typing import (List, Set, Dict, Tuple, Optional, Sequence, Callable, Any,
-                    Mapping, Iterator, Generic, TypeVar, NewType, Union)
+                    Mapping, Iterator, Generic, TypeVar, NewType, Union,
+                    Iterable)
 
 import pint
 

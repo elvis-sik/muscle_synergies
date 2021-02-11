@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
+from typing import TypeVar, Union, List, NewType
 
 import pint
 import pint_pandas

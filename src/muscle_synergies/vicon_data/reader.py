@@ -610,7 +610,10 @@ class UnitsState(_ReaderState):
 
     def _new_state(self) -> _ReaderState:
         return GettingMeasurementsState(
-            failable_result_class=self._failable_result_class)
+            data_line_parser=self._instantiate_data_line_parser())
+
+    def _instantiate_data_line_parser(self) -> 'DataLineParser':
+        return DataLineParser()
 
 
 class DataLineParser(_EntryByEntryParser):

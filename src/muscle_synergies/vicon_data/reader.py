@@ -50,7 +50,7 @@ class Reader:
     def __init__(self, section_type_state: 'SectionTypeState',
                  data_builder: DataBuilder, validator: Validator):
         self._state = section_type_state
-        self._data_builder = section_data_builder
+        self._data_builder = data_builder
         self._validator = validator
 
     def file_ended(self) -> ViconNexusData:

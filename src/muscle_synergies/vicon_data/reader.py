@@ -86,7 +86,7 @@ class _ReaderState(abc.ABC):
 
     def file_ended(self, reader: 'Reader') -> ViconNexusData:
         current_section_type = self._reader_section_type(reader)
-        current_line = self.line()
+        current_line = self.line
         data_check = self._create_data_check(
             False, "file doesn't seem to have the expected structure. " +
             "It was expected to have two sections with data " +

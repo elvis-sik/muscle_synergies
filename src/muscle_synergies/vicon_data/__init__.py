@@ -5,9 +5,10 @@ from .reader_data import *
 from .reader import *
 
 __all__ = (
+    load_vicon_file,
+    ViconNexusData,
     DeviceHeader,
     TrajectoriesData,
     ForcePlateData,
     EMGData,
-    load_vicon_file,
 )

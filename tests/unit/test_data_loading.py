@@ -8,10 +8,11 @@ from muscle_synergies.vicon_data.reader_data import (DeviceType, Frequencies)
 
 
 def test_dev_type_section_type():
-    assert DeviceType.FORCE_PLATE.section_type() is SectionType.FORCES_EMG
-    assert DeviceType.EMG.section_type() is SectionType.FORCES_EMG
-    assert (DeviceType.TRAJECTORY_MARKER.section_type() is
-            SectionType.TRAJECTORIES)
+    assert vd.DeviceType.FORCE_PLATE.section_type(
+    ) is vd.SectionType.FORCES_EMG
+    assert vd.DeviceType.EMG.section_type() is vd.SectionType.FORCES_EMG
+    assert (vd.DeviceType.TRAJECTORY_MARKER.section_type() is
+            vd.SectionType.TRAJECTORIES)
 
 
 @pt.fixture

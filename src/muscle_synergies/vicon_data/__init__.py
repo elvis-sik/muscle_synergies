@@ -7,8 +7,7 @@ from .reader import *
 __all__ = (
     load_vicon_file,
     ViconNexusData,
-    DeviceHeader,
-    TrajectoriesData,
+    DeviceMapping,
+    DeviceHeaderData,
     ForcePlateData,
-    EMGData,
 )

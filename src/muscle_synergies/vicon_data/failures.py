@@ -19,36 +19,6 @@ class DataCheck:
         return cls(is_valid=True, error_message=None)
 
 
-
-class Validator:
-    current_line: int
-    csv_filename: str
-    should_raise: bool = True
-
-    def __init__(self, csv_filename: str, should_raise: bool = True):
-        self.current_line = 1
-        self.csv_filename = csv_filename
-        self.should_raise = should_raise
-
-    def validate(self, data_check_result: DataCheck):
-        if self.should_raise:
-            self._raise_if_invalid(data_check_result)
-
-        self.current_line += 1
-
-    __call__ = validate
-
-    def _raise_if_invalid(self, data_check_result: DataCheck):
-        is_valid = data_check_result.is_valid
-        error_message = data_check_result.error_message
-
-        if not is_valid:
-            raise ValueError(self._build_error_message(error_message))
-
-    def _build_error_message(self, error_message: str) -> str:
-        return f'error parsing line {self.current_line} of file {self.csv_filename}: {error_message}'
-
-
 class FailableResult(Generic[T]):
     """Data class holding the result of a parsing process that can fail.
 
@@ -131,6 +101,35 @@ class FailableResult(Generic[T]):
     def __eq__(self, other: 'FailableResult[T]') -> bool:
         return (self.failed == other.failed
                 and self.parse_result == other.parse_result)
+
+
+class Validator:
+    current_line: int
+    csv_filename: str
+    should_raise: bool = True
+
+    def __init__(self, csv_filename: str, should_raise: bool = True):
+        self.current_line = 1
+        self.csv_filename = csv_filename
+        self.should_raise = should_raise
+
+    def validate(self, data_check_result: DataCheck):
+        if self.should_raise:
+            self._raise_if_invalid(data_check_result)
+
+        self.current_line += 1
+
+    __call__ = validate
+
+    def _raise_if_invalid(self, data_check_result: DataCheck):
+        is_valid = data_check_result.is_valid
+        error_message = data_check_result.error_message
+
+        if not is_valid:
+            raise ValueError(self._build_error_message(error_message))
+
+    def _build_error_message(self, error_message: str) -> str:
+        return f'error parsing line {self.current_line} of file {self.csv_filename}: {error_message}'
 
 
 class FailableMixin:

@@ -11,40 +11,13 @@ class DataCheck:
     #   'error_message' maps to a str containing an error message to be
     #   displayed in case there are problems with the data. The str is appended to
     #   the prefix "error parsing line {line_number} of file {filename}: "
-    def __init__(self, is_valid: bool, error_message: Optional[str] = None):
-        if not is_valid and error_message is None:
-            raise ValueError(
-                'an invalid data check should contain an error message')
-
-        if is_valid:
-            error_message = None
-
-        self.is_valid = is_valid
-        self.error_message = error_message
+    is_valid: bool
+    error_message: Optional[str]
 
     @classmethod
     def valid_data(cls):
         return cls(is_valid=True, error_message=None)
 
-    def combine(self, other: 'DataCheck') -> 'DataCheck':
-        if not self.is_valid:
-            return self
-
-        return other
-
-    @classmethod
-    def combine_multiple(cls,
-                         data_checks: Sequence['DataCheck']) -> 'DataCheck':
-        if not data_checks:
-            return cls.valid_data()
-
-        head = data_checks[0]
-        tail = data_checks[1:]
-
-        if not head.is_valid:
-            return head
-
-        return cls.combine_multiple(tail)
 
 
 class Validator:

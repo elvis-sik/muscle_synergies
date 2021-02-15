@@ -5,8 +5,7 @@ from dataclasses import dataclass
 from enum import Enum
 from functools import partial
 from typing import (List, Set, Dict, Tuple, Optional, Sequence, Callable, Any,
-                    Mapping, Iterator, Generic, TypeVar, NewType, Union,
-                    Iterable)
+                    Mapping, Iterator, TypeVar, NewType, Union, Iterable)
 
 import pandas as pd
 import pint
@@ -143,7 +142,7 @@ class _BuildDataMixin:
         method(data)
 
 
-class _EntryByEntryMixin(Generic[T], abc.ABC):
+class _EntryByEntryMixin(abc.ABC):
     def _parse_row(self, row: Row) -> List[T]:
         return [self._parse_entry(row_entry) for row_entry in row]
 

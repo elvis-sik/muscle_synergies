@@ -179,6 +179,17 @@ class _HasSingleColMixin:
             )
 
 
+class _BuildDataMixin:
+    @abc.abstractmethod
+    def _get_data_build_method(self, data_builder: DataBuilder
+                               ) -> Callable[[Any], None]:
+        pass
+
+    def _build_data(self, data: Any, reader: Reader):
+        method = self._get_data_build_method(self._reader_data_builder(reader))
+        method(data)
+
+
 class SectionTypeState(_UpdateStateMixin, _HasSingleEntryMixin, _ReaderState):
     """The state of a reader that is expecting the section type line.
 
@@ -221,17 +232,6 @@ class SectionTypeState(_UpdateStateMixin, _HasSingleEntryMixin, _ReaderState):
             raise ValueError(
                 f'row implies current section is {parsed_type} but expected {current_type}'
             )
-
-
-class _BuildDataMixin:
-    @abc.abstractmethod
-    def _get_data_build_method(self, data_builder: DataBuilder
-                               ) -> Callable[[Any], None]:
-        pass
-
-    def _build_data(self, data: Any, reader: Reader):
-        method = self._get_data_build_method(self._reader_data_builder(reader))
-        method(data)
 
 
 class SamplingFrequencyState(_BuildDataMixin, _UpdateStateMixin,

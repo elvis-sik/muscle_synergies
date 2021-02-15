@@ -128,3 +128,17 @@ class ForcePlateMeasurement:
     FORCE = 1
     MOMENT = 2
     COP = 3
+
+
+@dataclass
+class ColOfHeader:
+    """The string describing a device and the column in which it occurs.
+
+    Args:
+        col_index: the index of the column in the CSV file in which the
+            device header is described.
+
+        header_str: the exact string occurring in that column.
+    """
+    col_index: int
+    header_str: str

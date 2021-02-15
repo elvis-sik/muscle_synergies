@@ -175,94 +175,94 @@ class TestValidator:
         assert validator(data_check) is None
 
 
-class TestTimeSeriesDataBuilder:
+class TestTimeSeriesAggregator:
     @pt.fixture
-    def data_builder(self):
-        return vd.TimeSeriesDataBuilder()
+    def aggregator(self):
+        return vd.TimeSeriesAggregator()
 
-    def test_add_coordinate_name(self, data_builder):
+    def test_add_coordinate_name(self, aggregator):
         coord_name = 'foo'
-        data_builder.add_coordinate(coord_name=coord_name)
-        assert coord_name == data_builder.coordinate_name
+        aggregator.add_coordinate(coord_name=coord_name)
+        assert coord_name == aggregator.coordinate_name
 
-    def test_add_unit(self, data_builder):
+    def test_add_unit(self, aggregator):
         unit = 'foo'
-        data_builder.add_unit(physical_unit=unit)
-        assert unit == data_builder.physical_unit
+        aggregator.add_unit(physical_unit=unit)
+        assert unit == aggregator.physical_unit
 
-    def test_add_data(self, data_builder):
+    def test_add_data(self, aggregator):
         first_entry = 1.
-        data_builder.add_data(data_entry=first_entry)
-        assert [first_entry] == data_builder.data
+        aggregator.add_data(data_entry=first_entry)
+        assert [first_entry] == aggregator.data
 
         second_entry = 2.
-        data_builder.add_data(data_entry=second_entry)
-        assert [first_entry, second_entry] == data_builder.data
+        aggregator.add_data(data_entry=second_entry)
+        assert [first_entry, second_entry] == aggregator.data
 
 
-class TestDeviceHeaderDataBuilder:
+class TestDeviceHeaderAggregator:
     @pt.fixture
     def mock_time_series(self, mocker):
-        return mocker.Mock(autospec=vd.TimeSeriesDataBuilder)
+        return mocker.Mock(autospec=vd.TimeSeriesAggregator)
 
     mock_another_time_series = mock_time_series
 
     @pt.fixture
-    def data_builder(self, mock_time_series, mock_another_time_series):
-        return vd.DeviceHeaderDataBuilder(
+    def aggregator(self, mock_time_series, mock_another_time_series):
+        return vd.DeviceHeaderAggregator(
             time_series_list=[mock_time_series, mock_another_time_series])
 
-    def test_add_coordinates(self, data_builder, mock_time_series,
+    def test_add_coordinates(self, aggregator, mock_time_series,
                              mock_another_time_series):
         first_data = 'first'
         second_data = 'second'
 
         parsed_data = [first_data, second_data]
-        data_builder.add_coordinates(parsed_data)
+        aggregator.add_coordinates(parsed_data)
 
         mock_time_series.add_coordinate.assert_called_once_with(first_data)
         mock_another_time_series.add_coordinate.assert_called_once_with(
             second_data)
 
-    def test_add_coordinates_wrong_number(self, data_builder):
+    def test_add_coordinates_wrong_number(self, aggregator):
         parsed_data = ['one', 'two', 'three']
 
         with pt.raises(ValueError):
-            data_builder.add_coordinates(parsed_data)
+            aggregator.add_coordinates(parsed_data)
 
-    def test_add_units(self, data_builder, mock_time_series,
+    def test_add_units(self, aggregator, mock_time_series,
                        mock_another_time_series):
         first_data = 'first'
         second_data = 'second'
 
         parsed_data = [first_data, second_data]
-        data_builder.add_units(parsed_data)
+        aggregator.add_units(parsed_data)
 
         mock_time_series.add_unit.assert_called_once_with(first_data)
         mock_another_time_series.add_unit.assert_called_once_with(second_data)
 
-    def test_add_units_wrong_number(self, data_builder):
+    def test_add_units_wrong_number(self, aggregator):
         parsed_data = ['one', 'two', 'three']
 
         with pt.raises(ValueError):
-            data_builder.add_units(parsed_data)
+            aggregator.add_units(parsed_data)
 
-    def test_add_data(self, data_builder, mock_time_series,
+    def test_add_data(self, aggregator, mock_time_series,
                       mock_another_time_series):
         first_data = 'first'
         second_data = 'second'
 
         parsed_data = [first_data, second_data]
-        data_builder.add_data(parsed_data)
+        aggregator.add_data(parsed_data)
 
         mock_time_series.add_data.assert_called_once_with(first_data)
         mock_another_time_series.add_data.assert_called_once_with(second_data)
 
-    def test_add_data_wrong_number(self, data_builder):
+    def test_add_data_wrong_number(self, aggregator):
         parsed_data = ['one', 'two', 'three']
 
         with pt.raises(ValueError):
-            data_builder.add_data(parsed_data)
+            aggregator.add_data(parsed_data)
 
 
 class TestDeviceHeaderCols:
@@ -310,10 +310,10 @@ class TestDeviceHeaderCols:
 
 class TestDataChanneler:
     @pt.fixture
-    def mock_data_builder(self, mocker):
-        return mocker.Mock(autospec=vd.DeviceHeaderDataBuilder)
+    def mock_aggregator(self, mocker):
+        return mocker.Mock(autospec=vd.DeviceHeaderAggregator)
 
-    mock_another_data_builder = mock_data_builder
+    mock_another_aggregator = mock_aggregator
 
     @pt.fixture
     def mock_cols_0_1(self, mocker):
@@ -328,15 +328,14 @@ class TestDataChanneler:
         return device_cols
 
     @pt.fixture
-    def mock_device_0_1(self, mock_data_builder, mock_cols_0_1):
+    def mock_device_0_1(self, mock_aggregator, mock_cols_0_1):
         return vd.DeviceHeaderPair(device_cols=mock_cols_0_1,
-                                   device_data_builder=mock_data_builder)
+                                   device_aggregator=mock_aggregator)
 
     @pt.fixture
-    def mock_device_2_3(self, mock_another_data_builder, mock_cols_2_3):
-        return vd.DeviceHeaderPair(
-            device_cols=mock_cols_2_3,
-            device_data_builder=mock_another_data_builder)
+    def mock_device_2_3(self, mock_another_aggregator, mock_cols_2_3):
+        return vd.DeviceHeaderPair(device_cols=mock_cols_2_3,
+                                   device_aggregator=mock_another_aggregator)
 
     @pt.fixture
     def data_channeler(self, mock_device_0_1, mock_device_2_3):
@@ -347,31 +346,30 @@ class TestDataChanneler:
     def row(self):
         return ['first', 'second', 'third', 'fourth']
 
-    def test_add_coordinates(self, data_channeler, row, mock_data_builder,
-                             mock_another_data_builder):
+    def test_add_coordinates(self, data_channeler, row, mock_aggregator,
+                             mock_another_aggregator):
         data_channeler.add_coordinates(row)
-        mock_data_builder.add_coordinates.assert_called_once_with(
+        mock_aggregator.add_coordinates.assert_called_once_with(
             ['first', 'second'])
-        mock_another_data_builder.add_coordinates.assert_called_once_with(
+        mock_another_aggregator.add_coordinates.assert_called_once_with(
             ['third', 'fourth'])
 
-    def test_add_units(self, data_channeler, row, mock_data_builder,
-                       mock_another_data_builder):
+    def test_add_units(self, data_channeler, row, mock_aggregator,
+                       mock_another_aggregator):
         data_channeler.add_units(row)
-        mock_data_builder.add_units.assert_called_once_with(
-            ['first', 'second'])
-        mock_another_data_builder.add_units.assert_called_once_with(
+        mock_aggregator.add_units.assert_called_once_with(['first', 'second'])
+        mock_another_aggregator.add_units.assert_called_once_with(
             ['third', 'fourth'])
 
-    def test_add_data(self, data_channeler, row, mock_data_builder,
-                      mock_another_data_builder):
+    def test_add_data(self, data_channeler, row, mock_aggregator,
+                      mock_another_aggregator):
         data_channeler.add_data(row)
-        mock_data_builder.add_data.assert_called_once_with(['first', 'second'])
-        mock_another_data_builder.add_data.assert_called_once_with(
+        mock_aggregator.add_data.assert_called_once_with(['first', 'second'])
+        mock_another_aggregator.add_data.assert_called_once_with(
             ['third', 'fourth'])
 
 
-class TestSectionDataBuilder:
+class TestSectionAggregator:
     pass
 
 
@@ -384,12 +382,12 @@ class TestReader:
     # 1. when it is fed a row, it simply calls .feed_row(row, itself) on its
     #    current state (which then becomes responsible for all of the following:
     #    1. checking and calling Validator
-    #    2. passing parsed data to data builder (which it gets from the Reader)
+    #    2. passing parsed data to aggregator (which it gets from the Reader)
     #    3. deciding whether the state should change and telling the Reader if it
     #       should
-    #    4. the blank state will basically notify builder to change its own
+    #    4. the blank state will basically notify aggregator to change its own
     #       state
-    #    5. when Builder's first state creates the second one, it passes itself
+    #    5. when Aggregator's first state creates the second one, it passes itself
     #       as an argument.
     #    6. when the second "change state" message comes,
     pass
@@ -423,7 +421,7 @@ class TestSectionReader:
                                             patch_get_read_function,
                                             patch_get_build_function):
         return vd.SectionReader(
-            section_data_builder=mocker.Mock(name='builder'),
+            section_aggregator=mocker.Mock(name='aggregator'),
             validator=mocker.Mock(name='validator'))
 
     @pt.fixture
@@ -492,16 +490,16 @@ class TestState:
         return validator
 
     @pt.fixture
-    def mock_data_builder(self, mocker):
-        return mocker.Mock(autospec=vd.DataBuilder)
+    def mock_aggregator(self, mocker):
+        return mocker.Mock(autospec=vd.Aggregator)
 
     @pt.fixture
-    def mock_reader(self, mocker, mock_validator, mock_data_builder):
+    def mock_reader(self, mocker, mock_validator, mock_aggregator):
         reader = mocker.Mock(name='reader')
         reader.get_validator = mocker.Mock(name='get_validator',
                                            return_value=mock_validator)
-        reader.get_data_builder = mocker.Mock(name='get_data_builder',
-                                              return_value=mock_data_builder)
+        reader.get_aggregator = mocker.Mock(name='get_aggregator',
+                                            return_value=mock_aggregator)
         reader.set_state = mocker.Mock(name='set_state')
         return reader
 
@@ -547,10 +545,10 @@ class TestState:
             patch_next_state_init.assert_called_once_with()
 
         def test_builds_data_line(self, state, row_and_expected_output,
-                                  mock_reader, mock_data_builder):
+                                  mock_reader, mock_aggregator):
             row, expected_output = row_and_expected_output
             state.feed_row(row, mock_reader)
-            mock_data_builder.add_section_type.assert_called_once_with(
+            mock_aggregator.add_section_type.assert_called_once_with(
                 expected_output)
 
     class TestSamplingFrequencyState:
@@ -597,10 +595,10 @@ class TestState:
             patch_next_state_init.assert_called_once_with()
 
         def test_builds_data_line(self, state, row_and_expected_output,
-                                  mock_reader, mock_data_builder):
+                                  mock_reader, mock_aggregator):
             row, expected_output = row_and_expected_output
             state.feed_row(row, mock_reader)
-            mock_data_builder.add_frequency.assert_called_once_with(
+            mock_aggregator.add_frequency.assert_called_once_with(
                 expected_output)
 
     @pt.mark.skip
@@ -969,7 +967,7 @@ class TestState:
         # TODO unscessful states can likely be all done in a single
         # parametrized test
 
-        # this state does not call any DataBuilder method
+        # this state does not call any Aggregator method
         # the next one (coordinates line) does after it creates
         # a DataChanneler
         # after that, it should be easy

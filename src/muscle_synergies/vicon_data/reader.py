@@ -24,14 +24,14 @@ from .definitions import (
     DeviceType,
     ForcePlateMeasurement,
 )
-from .reader_data import (
+from .aggregator import (
     ViconNexusData,
     ColOfHeader,
     DeviceHeaderPair,
     DeviceHeaderCols,
-    DeviceHeaderDataBuilder,
+    DeviceHeaderAggregator,
     ForcePlateDevices,
-    DataBuilder,
+    Aggregator,
     DataChanneler,
 )
 
@@ -42,12 +42,12 @@ class Reader:
     Initialize it
     """
     _state: '_ReaderState'
-    _data_builder: DataBuilder
+    _aggregator: Aggregator
 
     def __init__(self, section_type_state: 'SectionTypeState',
-                 data_builder: DataBuilder):
+                 aggregator: Aggregator):
         self._state = section_type_state
-        self._data_builder = data_builder
+        self._aggregator = aggregator
 
     def file_ended(self) -> ViconNexusData:
         self._state.file_ended(reader=self)
@@ -58,11 +58,11 @@ class Reader:
     def set_state(self, new_state: '_ReaderState'):
         self._state = new_state
 
-    def get_data_builder(self):
-        return self._data_builder
+    def get_aggregator(self):
+        return self._aggregator
 
     def get_section_type(self) -> SectionType:
-        return self._data_builder.get_section_type()
+        return self._aggregator.get_section_type()
 
 
 class _ReaderState(abc.ABC):
@@ -96,8 +96,8 @@ class _ReaderState(abc.ABC):
             row.pop()
         return Row(row)
 
-    def _reader_data_builder(self, reader: 'Reader') -> DataBuilder:
-        return reader.get_data_builder()
+    def _reader_aggregator(self, reader: 'Reader') -> Aggregator:
+        return reader.get_aggregator()
 
     def _reader_set_state(self, reader: 'Reader', new_state: '_ReaderState'):
         reader.set_state(new_state)
@@ -133,12 +133,12 @@ class _HasSingleColMixin:
 
 class _BuildDataMixin:
     @abc.abstractmethod
-    def _get_data_build_method(self, data_builder: DataBuilder
+    def _get_data_build_method(self, aggregator: Aggregator
                                ) -> Callable[[Any], None]:
         pass
 
     def _build_data(self, data: Any, reader: Reader):
-        method = self._get_data_build_method(self._reader_data_builder(reader))
+        method = self._get_data_build_method(self._reader_aggregator(reader))
         method(data)
 
 
@@ -153,8 +153,8 @@ class _EntryByEntryMixin(abc.ABC):
 
 class _PassUpFileEndedMixin:
     def file_ended(self, reader: Reader) -> ViconNexusData:
-        data_builder = self._reader_data_builder(reader)
-        return data_builder.file_ended()
+        aggregator = self._reader_aggregator(reader)
+        return aggregator.file_ended()
 
 
 class SectionTypeState(_UpdateStateMixin, _HasSingleEntryMixin, _ReaderState):
@@ -216,9 +216,9 @@ class SamplingFrequencyState(_BuildDataMixin, _UpdateStateMixin,
     def _next_state_type(self):
         return DevicesState
 
-    def _get_data_build_method(self, data_builder: DataBuilder
+    def _get_data_build_method(self, aggregator: Aggregator
                                ) -> Callable[[int], None]:
-        return data_builder.add_frequency
+        return aggregator.add_frequency
 
     def feed_row(self, row: Row, reader: Reader):
         row = self._preprocess_row(row)
@@ -451,7 +451,7 @@ class DevicesState(_ReaderState):
     # Responsibilities:
     # 1. understanding from the device headers what is their type
     # 2. initialize DeviceCols with that
-    # 3. initialize DeviceSectionDataBuilders (trivial)
+    # 3. initialize DeviceSectionAggregators (trivial)
     # 4. create the DeviceHeaders (trivial)
     #    TODO figure out if there is a design pattern for that
     #    it honestly seems to me that abstracting all of that crap out of
@@ -462,7 +462,7 @@ class DevicesState(_ReaderState):
     # 7. pass along to the next state an EMG device if there is one
     #    TODO decide if I split in 2 the next state
     #    leaning towards yes
-    #    (though if this will be added to data builder, it doesn't need to)
+    #    (though if this will be added to data aggregator, it doesn't need to)
     def feed_row(self, row: Row, reader: 'Reader'):
         row = self._preprocess_row(row)
 
@@ -477,10 +477,10 @@ class DevicesState(_ReaderState):
                               first_col_index: int) -> 'DeviceHeader':
         device_header_cols = self._create_device_header_cols(
             device_name, first_col_index)
-        device_header_data_builder = self._create_data_builder()
+        device_header_aggregator = self._create_aggregator()
 
-    def _create_data_builder(self):
-        return DeviceHeaderDataBuilder()
+    def _create_aggregator(self):
+        return DeviceHeaderAggregator()
 
 
 class CoordinatesState(_StepByStepReaderState):
@@ -515,9 +515,9 @@ class CoordinatesState(_StepByStepReaderState):
 
         return self._RowCols(row=row, emg_num_cols=num_cols)
 
-    def _build_data(self, parsed_data: _RowCols, data_builder: DataBuilder):
+    def _build_data(self, parsed_data: _RowCols, aggregator: Aggregator):
         self._emg_add_num_cols_if_needed(parsed_data.emg_num_cols)
-        self._data_builder_add_coordinates(data_builder, parsed_data.row)
+        self._aggregator_add_coordinates(aggregator, parsed_data.row)
 
     def _new_state(self) -> 'UnitsState':
         return UnitsState(
@@ -530,9 +530,9 @@ class CoordinatesState(_StepByStepReaderState):
         if self.emg_cols is not None:
             self.emg_cols.add_num_cols(num_cols)
 
-    def _data_builder_add_coordinates(self, data_builder: DataBuilder,
-                                      coords_line: List[str]):
-        data_builder.add_coordinates(coords)
+    def _aggregator_add_coordinates(self, aggregator: Aggregator,
+                                    coords_line: List[str]):
+        aggregator.add_coordinates(coords)
 
     def _instantiate_units_line_parser(self) -> 'UnitsLineParser':
         return UnitsLineParser()
@@ -559,9 +559,9 @@ class UnitsState(_UpdateStateMixin, _BuildDataMixin, _EntryByEntryMixin,
     def _parse_entry(self, entry: str) -> pint.Unit:
         return self.ureg(entry)
 
-    def _get_data_build_method(self, data_builder: DataBuilder
+    def _get_data_build_method(self, aggregator: Aggregator
                                ) -> Callable[[List[unit]], None]:
-        return data_builder.add_units
+        return aggregator.add_units
 
     def _next_state_type(self):
         return GettingMeasurementsState
@@ -589,9 +589,9 @@ class GettingMeasurementsState(_BuildDataMixin, _EntryByEntryMixin,
     def _parse_entry(row_entry: str) -> float:
         return float(row_entry)
 
-    def _get_data_build_method(self, data_builder: DataBuilder
+    def _get_data_build_method(self, aggregator: Aggregator
                                ) -> Callable[[List[float]], None]:
-        return data_builder.add_measurements
+        return aggregator.add_measurements
 
     def _transition(self, reader: Reader):
         # TODO maybe transitioning should be abstracted into a single class
@@ -608,8 +608,8 @@ class GettingMeasurementsState(_BuildDataMixin, _EntryByEntryMixin,
         self._reader_transition_section(reader)
 
     def _reader_transition_section(self, reader: Reader):
-        data_builder = self._reader_data_builder(reader)
-        data_builder.transition()
+        aggregator = self._reader_aggregator(reader)
+        aggregator.transition()
 
     def _set_new_section_state(self, reader: Reader):
         new_state = SectionTypeState()

@@ -232,12 +232,6 @@ class SamplingFrequencyState(_BuildDataMixin, _UpdateStateMixin,
         return int(row[0])
 
 
-class DevicesLineFinder(FailableMixin):
-    def find_headers(self, row: Row) -> FailableResult[List[ColOfHeader]]:
-        fail_res = self._check_row(row)
-        return self._compute_on_failable(self._find_headers_unsafe,
-                                         fail_res,
-                                         compose=True)
 @dataclass
 class ColOfHeader:
     """The string describing a device and the column in which it occurs.
@@ -256,6 +250,12 @@ class ColOfHeader:
     col_index: int
     header_str: str
 
+
+class DevicesHeaderFinder:
+    def find_headers(self, row: Row) -> List[ColOfHeader]:
+        self._validate_row_values_in_correct_cols(row)
+        return self._find_headers_unsafe(row)
+
     __call__ = find_headers
 
     def _find_headers_unsafe(self, row: Row) -> List[ColOfHeader]:
@@ -264,12 +264,13 @@ class ColOfHeader:
     def _col_of_header(self, name, col) -> ColOfHeader:
         return ColOfHeader(col_index=col, header_str=name)
 
-    def _check_row(self, row: Row) -> FailableResult[None]:
-        error_message = ('this line should contain two blank columns '
-                         'then one device name every 3 columns')
+    def _validate_row_values_in_correct_cols(self, row: Row):
+        def error():
+            raise ValueError('this line should contain two blank columns ' +
+                             'then one device name every 3 columns')
 
         if row[0] or row[1]:
-            return self._fail(error_message)
+            error()
 
         for col_num, col_val in enumerate(row[2:], start=2):
             if self._col_should_contain_name(col_num):
@@ -278,9 +279,7 @@ class ColOfHeader:
                 current_is_correct = not col_val
 
             if not current_is_correct:
-                return self._fail(error_message)
-
-        return self._success(None)
+                error()
 
     @staticmethod
     def _col_should_contain_name(col_num):

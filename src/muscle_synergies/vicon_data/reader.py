@@ -351,7 +351,35 @@ class _DevicesState(_UpdateStateMixin, _ReaderState):
 
 class ForcePlateGrouper:
     def group(self, headers: List[ColOfHeader]) -> List[ColOfHeader]:
-        pass
+        grouped_headers = []
+        for header in self._filter_individual_force_plates(headers):
+            grouped_headers.append(self._rename_force_plate(header))
+        return grouped_headers
+
+    def _filter_individual_force_plates(self, headers: List[ColOfHeader]
+                                        ) -> Iterator[ColOfHeader]:
+        for i, head in enumerate(headers):
+            if i % 3 == 0:
+                yield head
+
+    def _rename_force_plate(self, header: ColOfHeader) -> ColOfHeader:
+        header_str = self._header_str(header)
+        new_name = self._get_force_plate_name(header_str)
+        first_col = self._col_of_header_first_col(header)
+        return self._col_of_header(new_name, first_col)
+
+    def _get_force_plate_name(self, header_str: str):
+        force_plate_name, measurement_name = header_str.split('-')
+        return force_plate_name[:-1]
+
+    def _col_of_header_header_str(self, header: ColOfHeader) -> str:
+        return header.header_str
+
+    def _col_of_header_first_col(self, header: ColOfHeader) -> int:
+        return header.col_index
+
+    def _col_of_header(self, header_str: str, first_col: int) -> ColOfHeader:
+        return ColOfHeader(header_str, first_col)
 
 
 class ForcesEMGDevicesState(_DevicesState):

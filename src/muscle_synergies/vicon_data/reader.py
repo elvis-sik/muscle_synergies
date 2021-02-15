@@ -317,6 +317,11 @@ class _DevicesState(_UpdateStateMixin, _ReaderState):
         return DevicesHeaderFinder()
 
 
+class ForcePlateGrouper:
+    def group(self, headers: List[ColOfHeader]) -> List[ColOfHeader]:
+        pass
+
+
 class ForcesEMGDevicesState(_DevicesState):
     def _process_headers(self, headers: List[ColOfHeader], reader: Reader):
         force_plates_headers, emg = self._separate_headers(headers)

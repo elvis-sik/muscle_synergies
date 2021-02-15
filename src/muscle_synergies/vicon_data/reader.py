@@ -567,16 +567,11 @@ class UnitsState(_UpdateStateMixin, _BuildDataMixin, _EntryByEntryMixin,
         return GettingMeasurementsState
 
 
-class GettingMeasurementsState(_PassUpFileEndedMixin, _ReaderState):
-    _data_line_parser: DataLineParser
-
+class GettingMeasurementsState(_BuildDataMixin, _EntryByEntryMixin,
+                               _PassUpFileEndedMixin, _ReaderState):
     @property
     def line(self) -> ViconCSVLines:
         return ViconCSVLines.DATA_LINE
-
-    def __init__(self, data_line_parser: DataLineParser):
-        super().__init__()
-        self._data_line_parser = data_line_parser
 
     def feed_row(self, row: Row, reader: Reader):
         row = self._preprocess_row(row)
@@ -584,14 +579,19 @@ class GettingMeasurementsState(_PassUpFileEndedMixin, _ReaderState):
         if self._is_blank_line(row):
             self._transition(reader)
         else:
-            self._feed_forward(row, reader)
+            floats = self._parse_row(row)
+            self._build_data(floats, reader)
 
     @staticmethod
     def _is_blank_line(row: Row) -> bool:
         return bool(row)
 
-    def _feed_forward(self, row: Row, reader: Reader):
-        self._data_line_parser.feed_row(row, reader)
+    def _parse_entry(row_entry: str) -> float:
+        return float(row_entry)
+
+    def _get_data_build_method(self, data_builder: DataBuilder
+                               ) -> Callable[[List[float]], None]:
+        return data_builder.add_measurements
 
     def _transition(self, reader: Reader):
         current_section_type = self._reader_section_type()

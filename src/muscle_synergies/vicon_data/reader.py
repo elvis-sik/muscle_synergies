@@ -100,12 +100,6 @@ class _ReaderState(abc.ABC):
             row.pop()
         return Row(row)
 
-    def _validate(self, validator: Validator, check_result: DataCheck):
-        validator.validate(check_result)
-
-    def _reader_validator(self, reader: 'Reader') -> Validator:
-        return reader.get_validator()
-
     def _reader_data_builder(self, reader: 'Reader') -> DataBuilder:
         return reader.get_data_builder()
 
@@ -119,14 +113,6 @@ class _ReaderState(abc.ABC):
     def _reader_set_new_section_type(self, reader: Reader,
                                      new_section_type: SectionType):
         reader.set_section_type(new_section_type)
-
-    def _create_data_check(self,
-                           is_valid: bool,
-                           error_message: Optional[str] = None):
-        return DataCheck(is_valid=is_valid, error_message=error_message)
-
-    def _create_valid_data_check(self):
-        return DataCheck.valid_data()
 
 
 class _StepByStepReaderState(_ReaderState, Generic[T]):

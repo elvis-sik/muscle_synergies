@@ -29,59 +29,354 @@ from .definitions import (
 )
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    Args:
-
-
-
-    """
-
-
-
+# TODO leave this exclusively for TimeSeriesAggregator
 class _OnlyOnceMixin:
     def _raise_called_twice(self, what_was_added_twice: str):
         raise TypeError(
             f'attempted to add {what_was_added_twice} after it had ' +
             'been already added')
+
+
+class TimeSeriesAggregator(_OnlyOnceMixin):
+    """Builds data of an individual time series.
+
+    Columns in the CSV file correspond to measurements made over time (at
+    least in parts of it, see :py:class:ViconCSVLines for more details on the
+    structure of the CSV file).
+
+    This class keeps track of the information for one such time series as that
+    information is read line by line from the input.
+    """
+    coordinate_name: Optional[str]
+    physical_unit: Optional[pint.Unit]
+    data: List[float]
+
+    def __init__(self):
+        super().__init__()
+        self.coordinate_name = None
+        self.physical_unit = None
+        self.data = []
+
+    def add_coordinate(self, coord_name: str):
+        """Adds the coordinate name."""
+        if self.coordinate_name is not None:
+            self._raise_called_twice('coordinate')
+        self.coordinate_name = coord_name
+
+    def add_unit(self, physical_unit: pint.Unit):
+        """Adds the physical units."""
+        if self.physical_unit is not None:
+            self._raise_called_twice('physical unit')
+        self.physical_unit = physical_unit
+
+    def add_data(self, data_entry: float):
+        """Adds a data entry."""
+        self.data.append(data_entry)
+
+    def get_coordinate_name(self) -> Optional[str]:
+        return self.coordinate_name
+
+    def get_physical_unit(self) -> Optional[pint.Unit]:
+        return self.physical_unit
+
+    def get_data(self) -> List[float]:
+        """Gets the data added so far.
+
+        The list returned is the same one used internally by this class, so
+        mutating it will mutate it as well.
+        """
+        return self.data
+
+
+class ComponentsAggregator:
+    """The aggregator of a single device header.
+
+    Most device headers have exactly 3 columns, like the ones for trajectory
+    markers. EMG device headers can have an arbitrary number of columns, each
+    referring to a different muscle. What they all have in common is that they
+    all have components.
+
+    This class passes along data from each line following the device header
+    line to each component. The exact pipeline is this:
+    1. the caller finds the columns of the CSV file which refer to the device
+       header asssociated with a :py:class:DeviceHeaderAggregator instance.
+    2. the caller then passes exactly those columns to that instance using the
+       appropriate method
+       (e.g., :py:func:DeviceHeaderAggregator.add_coordinates)
+    3. this class channels the data forward for different TimeSeriesAggregator
+       objects, which are taken during initialization.
+
+    Args:
+        time_series_list: the list of :py:class:TimeSeriesAggregator objects
+            to which the data has to be passed.
+    """
+    time_series_tuple: Tuple[TimeSeriesAggregator]
+
+    def __init__(self, time_series_list: List[TimeSeriesAggregator]):
+        self.time_series_tuple = tuple(time_series_list)
+
+    def _call_method_on_each(self, parsed_data: List, method_name: str):
+        """Calls a method on each time series with the data as argument.
+
+        Args:
+            parsed_data: the data, parsed from a line from the CSV input, to be
+                passed along to the different :py:class:TimeSeriesAggregator
+                instances.
+
+            method_name: the name of the method to be called from each
+                :py:class:TimeSeriesAggregator.
+
+        Raises:
+            ValueError: if the length of `parsed_data` doesn't match that of
+               the `time_series_list` provided during initialization.
+        """
+        self._validate_data(parsed_data)
+
+        for data_entry, time_series in zip(parsed_data,
+                                           self.time_series_tuple):
+            method = getattr(time_series, method_name)
+            method(data_entry)
+
+    def _validate_data(self, parsed_data: List):
+        """Raises an exception if the data doesn't have the correct length.
+
+        Args:
+            parsed_data: the data the length of which is to be compared with
+                that of the `time_series_list` provided during initialization.
+
+        Raises:
+            ValueError: if the length of `parsed_data` doesn't match that of
+               the `time_series_list` provided during initialization.
+        """
+        if len(parsed_data) != len(self.time_series_tuple):
+            raise ValueError(f'provided parsed_data argument with length'
+                             f' {len(parsed_data)}'
+                             f' but was expecting length'
+                             f' {len(self.time_series_tuple)}')
+
+    def add_coordinates(self, parsed_data: List[str]):
+        """Add coordinates to each individual time series.
+
+        Args:
+            parsed_data: the strings from the CSV file describing the
+                coordinate or muscle.
+
+        Raises:
+            ValueError: the data doesn't have the same length as the
+                `time_series_list` provided during initialization.
+        """
+        self._call_method_on_each(parsed_data, 'add_coordinate')
+
+    def add_units(self, parsed_data: List[pint.Unit]):
+        """Add units to each individual time series.
+
+        Args:
+            parsed_data: the physical units parsed from the CSV file.
+
+        Raises:
+            ValueError: the data doesn't have the same length as the
+                `time_series_list` provided during initialization.
+        """
+        self._call_method_on_each(parsed_data, 'add_unit')
+
+    def add_data(self, parsed_data: List[float]):
+        """Add a data entry to each individual time series.
+
+        Args:
+            parsed_data: data parsed from one line of the CSV file.
+
+        Raises:
+            ValueError: the data doesn't have the same length as the
+                `time_series_list` provided during initialization.
+        """
+        self._call_method_on_each(parsed_data, 'add_data')
+
+    def get_time_series(self, ind: Union[int, slice]) -> TimeSeriesAggregator:
+        return self.time_series_tuple[ind]
+
+    __getitem__ = get_time_series
+
+    def __len__(self):
+        return len(self.time_series_tuple)
+
+
+# TODO thinking this should actually be obsoleted
+# all this logic goes into DevicesState
+# DeviceAggregator gets first_col (mandatory), last_col (optional, def None)
+# then has a add_num_cols method
+# then ReaderState will have to know about number of cols of device types
+# and it'll be responsible for identifying device types
+# it'll only call:
+# - Aggregator.add_force_plate(name, first_col, last_col)
+#   plus the 2 equivalents for other types
+# then CoordinatesState will call:
+# - Aggregator.add_emg_num_cols(num_cols)
+# - Aggregator.add_coordinates(coords)
+
+# this also obsoletes ColOfHeader since the relevant information will be
+# passed as method arguments
+
+# finally, to get the name of a force plate only get its first device header
+# split at '-' and get the first part
+
+
+class DeviceCols:
+    """Intermediate representation of the data read in the device names line.
+
+    This class is used as a way of communicating data from the :py:class:Reader
+    to the :py:class:Aggregator. For more information on where the data that
+    is held by this class, see the docs for :py:class:ViconCSVLines.
+
+    Args:
+        device_name: the name of the device, as read from the CSV file
+
+        device_type: the type of the device
+
+        first_col_index: the index in a Row in which the data for the device
+            begins
+    """
+    _col_of_header: ColOfHeader
+    device_type: DeviceType
+    num_of_cols: Optional[int]
+
+    def __init__(self, col_of_header: ColOfHeader, device_type: DeviceType):
+        self._col_of_header = col_of_header
+        self.device_type = device_type
+        self.num_of_cols = None
+        self._initialize_num_of_cols()
+
+    @property
+    def device_name(self):
+        return self._col_of_header.header_str
+
+    @property
+    def first_col_index(self):
+        return self._col_of_header.col_index
+
+    def create_slice(self):
+        """Creates a slice object corresponding to the device header columns.
+
+        Raises:
+            TypeError: if num_of_cols is None. This will happen for an EMG
+                device header if :py:func:DeviceCols.add_num_cols isn't
+                called explicitly.
+        """
+        if self.num_of_cols is None:
+            raise TypeError('add_num_of_cols should be called before slice')
+
+        return slice(self.first_col_index,
+                     self.first_col_index + self.num_of_cols)
+
+    def add_num_cols(self, num_of_cols: int):
+        """Add number of columns.
+
+        This should only be used for EMG devices, and only once.
+
+        Raises:
+            TypeError: if either the device isn't a EMG one or the method is
+                called more than once.
+        """
+        if self.num_of_cols is not None:
+            raise TypeError(
+                'tried to set num_of_cols with the variable already set')
+
+        if self.device_type is not DeviceType.EMG:
+            raise TypeError(
+                "tried to set num_of_cols for a device the type of which isn't EMG"
+            )
+
+        self.num_of_cols = num_of_cols
+
+    def _initialize_num_of_cols(self):
+        """Determines if possible the number of columns of the device"""
+        if self.device_type is DeviceType.EMG:
+            self.num_of_cols = None
+        elif self._device_type is DeviceType.FORCE_PLATE:
+            self.num_cols = 9
+        self.num_of_cols = 3
+
+
+class DeviceAggregator:
+    """A device header.
+
+    This class keeps track of 2 components referring to individual device
+    headers (see :py:class:ViconCSVLines for an explanation of what is a device
+    header):
+    * :py:class:DeviceCols
+    * :py:class:DeviceHeaderAggregator
+
+    The first of those (:py:class:DeviceCols) keeps track of which
+    columns from the CSV file refer to that device. The second
+    (:py:class:DeviceHeaderAggregator) is accumulates data of different vector
+    time series, each of which coming from an individual column of the CSV
+    file.
+
+    Args:
+        device_cols: the DeviceCols object, which must refer to the
+            same device header as `device_aggregator`.
+
+        device_aggregator: the DeviceHeaderAggregator object, which must
+            refer to the same device header as `device_cols`
+    """
+    device_cols: DeviceCols
+    components_aggregator: ComponentsAggregator
+
+    def __init__(self, device_cols: DeviceCols,
+                 components_aggregator: ComponentsAggregator):
+        self.device_cols = device_cols
+        self.components_aggregator = components_aggregator
+
+    @classmethod
+    def from_col_of_header():
+        pass
+
+    @property
+    def device_name(self):
+        return self.device_cols.device_name
+
+    @property
+    def device_type(self):
+
+        return self.device_cols.device_type
+
+    def add_coordinates(self, parsed_row: List[str]):
+        """Adds coordinates to device.
+
+        Args:
+            parsed_row: the coordinates line of the input.
+        """
+        self._components_add_coordinates(self._get_my_cols(parsed_row))
+
+    def add_units(self, parsed_row: List[pint.Unit]):
+        """Adds physical units to device.
+
+        Args:
+            parsed_row: the units line of the input, already parsed.
+        """
+        self._components_add_units(self._get_my_cols(parsed_row))
+
+    def add_data(self, parsed_row: List[float]):
+        """Adds measurements to device.
+
+        Args:
+            parsed_row: a data line of the input, already parsed.
+        """
+        self._components_add_data(self._get_my_cols(parsed_row))
+
+    def _get_my_cols(self, parsed_cols: List[Any]):
+        return parsed_cols[self._create_slice()]
+
+    def _create_slice(self):
+        return self.device_cols.create_slice()
+
+    def _components_add_coordinates(self, coords: List[str]):
+        self.components_aggregator.add_coordinates(coords)
+
+    def _components_add_units(self, units: List[pint.Unit]):
+        self.components_aggregator.add_units(units)
+
+    def _components_add_data(self, data: List[float]):
+        self.components_aggregator.add_data(data)
 
 
 class _SectionAggregator(_OnlyOnceMixin, abc.ABC):
@@ -239,7 +534,7 @@ class TrajAggregator(_SectionAggregator):
         # I think the best way to do that would be to create a FrameCounter
         # object to be passed to both the Aggregators which then passes it
         # along to the DataChanneler and also has access to it. It could be
-        # created when the DeviceHeaderCols are created, i.e., the DevicesLine.
+        # created when the DeviceCols are created, i.e., the DevicesLine.
         dev_pair = self.trajectory_devices[0]
         dev_aggregator = dev_pair.device_aggregator
         time_series_aggregator = dev_aggregator[0]
@@ -353,346 +648,3 @@ class Aggregator:
                                trajectory_devices: List['DeviceHeaderPair']):
         self.get_section_aggregator().add_trajectory_devices(
             trajectory_devices)
-
-
-class TimeSeriesAggregator(_OnlyOnceMixin):
-    """Builds data of an individual time series.
-
-    Columns in the CSV file correspond to measurements made over time (at
-    least in parts of it, see :py:class:ViconCSVLines for more details on the
-    structure of the CSV file).
-
-    This class keeps track of the information for one such time series as that
-    information is read line by line from the input.
-    """
-    coordinate_name: Optional[str]
-    physical_unit: Optional[pint.Unit]
-    data: List[float]
-
-    def __init__(self):
-        super().__init__()
-        self.coordinate_name = None
-        self.physical_unit = None
-        self.data = []
-
-    def add_coordinate(self, coord_name: str):
-        """Adds the coordinate name."""
-        if self.coordinate_name is not None:
-            self._raise_called_twice('coordinate')
-        self.coordinate_name = coord_name
-
-    def add_unit(self, physical_unit: pint.Unit):
-        """Adds the physical units."""
-        if self.physical_unit is not None:
-            self._raise_called_twice('physical unit')
-        self.physical_unit = physical_unit
-
-    def add_data(self, data_entry: float):
-        """Adds a data entry."""
-        self.data.append(data_entry)
-
-    def get_coordinate_name(self) -> Optional[str]:
-        return self.coordinate_name
-
-    def get_physical_unit(self) -> Optional[pint.Unit]:
-        return self.physical_unit
-
-    def get_data(self) -> List[float]:
-        """Gets the data added so far.
-
-        The list returned is the same one used internally by this class, so
-        mutating it will mutate it as well.
-        """
-        return self.data
-
-
-class DeviceHeaderAggregator:
-    """The aggregator of a single device header.
-
-    Most device headers have exactly 3 columns, like the ones for trajectory
-    markers. EMG device headers can have an arbitrary number of columns, each
-    referring to a different muscle. What they all have in common is that they
-    all have components.
-
-    This class passes along data from each line following the device header
-    line to each component. The exact pipeline is this:
-    1. the caller finds the columns of the CSV file which refer to the device
-       header asssociated with a :py:class:DeviceHeaderAggregator instance.
-    2. the caller then passes exactly those columns to that instance using the
-       appropriate method
-       (e.g., :py:func:DeviceHeaderAggregator.add_coordinates)
-    3. this class channels the data forward for different TimeSeriesAggregator
-       objects, which are taken during initialization.
-
-    Args:
-        time_series_list: the list of :py:class:TimeSeriesAggregator objects
-            to which the data has to be passed.
-    """
-    time_series_tuple: Tuple[TimeSeriesAggregator]
-
-    def __init__(self, time_series_list: List[TimeSeriesAggregator]):
-        self.time_series_tuple = tuple(time_series_list)
-
-    def _call_method_on_each(self, parsed_data: List, method_name: str):
-        """Calls a method on each time series with the data as argument.
-
-        Args:
-            parsed_data: the data, parsed from a line from the CSV input, to be
-                passed along to the different :py:class:TimeSeriesAggregator
-                instances.
-
-            method_name: the name of the method to be called from each
-                :py:class:TimeSeriesAggregator.
-
-        Raises:
-            ValueError: if the length of `parsed_data` doesn't match that of
-               the `time_series_list` provided during initialization.
-        """
-        self._validate_data(parsed_data)
-
-        for data_entry, time_series in zip(parsed_data,
-                                           self.time_series_tuple):
-            method = getattr(time_series, method_name)
-            method(data_entry)
-
-    def _validate_data(self, parsed_data: List):
-        """Raises an exception if the data doesn't have the correct length.
-
-        Args:
-            parsed_data: the data the length of which is to be compared with
-                that of the `time_series_list` provided during initialization.
-
-        Raises:
-            ValueError: if the length of `parsed_data` doesn't match that of
-               the `time_series_list` provided during initialization.
-        """
-        if len(parsed_data) != len(self.time_series_tuple):
-            raise ValueError(f'provided parsed_data argument with length'
-                             f' {len(parsed_data)}'
-                             f' but was expecting length'
-                             f' {len(self.time_series_tuple)}')
-
-    def add_coordinates(self, parsed_data: List[str]):
-        """Add coordinates to each individual time series.
-
-        Args:
-            parsed_data: the strings from the CSV file describing the
-                coordinate or muscle.
-
-        Raises:
-            ValueError: the data doesn't have the same length as the
-                `time_series_list` provided during initialization.
-        """
-        self._call_method_on_each(parsed_data, 'add_coordinate')
-
-    def add_units(self, parsed_data: List[pint.Unit]):
-        """Add units to each individual time series.
-
-        Args:
-            parsed_data: the physical units parsed from the CSV file.
-
-        Raises:
-            ValueError: the data doesn't have the same length as the
-                `time_series_list` provided during initialization.
-        """
-        self._call_method_on_each(parsed_data, 'add_unit')
-
-    def add_data(self, parsed_data: List[float]):
-        """Add a data entry to each individual time series.
-
-        Args:
-            parsed_data: data parsed from one line of the CSV file.
-
-        Raises:
-            ValueError: the data doesn't have the same length as the
-                `time_series_list` provided during initialization.
-        """
-        self._call_method_on_each(parsed_data, 'add_data')
-
-    def get_time_series(self, ind: Union[int, slice]) -> TimeSeriesAggregator:
-        return self.time_series_tuple[ind]
-
-    __getitem__ = get_time_series
-
-    def __len__(self):
-        return len(self.time_series_tuple)
-
-
-class DeviceHeaderCols:
-    """Intermediate representation of the data read in the device names line.
-
-    This class is used as a way of communicating data from the :py:class:Reader
-    to the :py:class:Aggregator. For more information on where the data that
-    is held by this class, see the docs for :py:class:ViconCSVLines.
-
-    Args:
-        device_name: the name of the device, as read from the CSV file
-
-        device_type: the type of the device
-
-        first_col_index: the index in a Row in which the data for the device
-            begins
-    """
-    _col_of_header: ColOfHeader
-    device_type: DeviceType
-    num_of_cols: Optional[int]
-
-    def __init__(self, col_of_header: ColOfHeader, device_type: DeviceType):
-        self._col_of_header = col_of_header
-        self.device_type = device_type
-        self.num_of_cols = None
-        self._initialize_num_of_cols()
-
-    @property
-    def device_name(self):
-        return self._col_of_header.header_str
-
-    @property
-    def first_col_index(self):
-        return self._col_of_header.col_index
-
-    def create_slice(self):
-        """Creates a slice object corresponding to the device header columns.
-
-        Raises:
-            TypeError: if num_of_cols is None. This will happen for an EMG
-                device header if :py:func:DeviceHeaderCols.add_num_cols isn't
-                called explicitly.
-        """
-        if self.num_of_cols is None:
-            raise TypeError('add_num_of_cols should be called before slice')
-
-        return slice(self.first_col_index,
-                     self.first_col_index + self.num_of_cols)
-
-    def add_num_cols(self, num_of_cols: int):
-        """Add number of columns.
-
-        This should only be used for EMG devices, and only once.
-
-        Raises:
-            TypeError: if either the device isn't a EMG one or the method is
-                called more than once.
-        """
-        if self.num_of_cols is not None:
-            raise TypeError(
-                'tried to set num_of_cols with the variable already set')
-
-        if self.device_type is not DeviceType.EMG:
-            raise TypeError(
-                "tried to set num_of_cols for a device the type of which isn't EMG"
-            )
-
-        self.num_of_cols = num_of_cols
-
-    def _initialize_num_of_cols(self):
-        """Determines if possible the number of columns of the device"""
-        if self.device_type is DeviceType.EMG:
-            self.num_of_cols = None
-        else:
-            self.num_of_cols = 3
-
-
-@dataclass
-class DeviceHeaderPair:
-    """A device header.
-
-    This class keeps track of 2 components referring to individual device
-    headers (see :py:class:ViconCSVLines for an explanation of what is a device
-    header):
-    * :py:class:DeviceHeaderCols
-    * :py:class:DeviceHeaderAggregator
-
-    The first of those (:py:class:DeviceHeaderCols) keeps track of which
-    columns from the CSV file refer to that device. The second
-    (:py:class:DeviceHeaderAggregator) is accumulates data of different vector
-    time series, each of which coming from an individual column of the CSV
-    file.
-
-    Args:
-        device_cols: the DeviceHeaderCols object, which must refer to the
-            same device header as `device_aggregator`.
-
-        device_aggregator: the DeviceHeaderAggregator object, which must
-            refer to the same device header as `device_cols`
-    """
-    device_cols: DeviceHeaderCols
-    device_aggregator: DeviceHeaderAggregator
-
-    @property
-    def device_name(self):
-        return self.device_cols.device_name
-
-    @property
-    def device_type(self):
-        return self.device_cols.device_type
-
-
-class DataChanneler:
-    """Channels rows of data from the CSV input to the its aggregator.
-
-    Args:
-        devices: the list of Device objects to which to channel the data.
-    """
-
-    devices: Tuple[DeviceHeaderPair]
-
-    def __init__(self, devices: List[DeviceHeaderPair]):
-        self.devices = tuple(devices)
-
-    def _device_aggregator(self,
-                           device: DeviceHeaderPair) -> DeviceHeaderAggregator:
-        """Gets aggregator from a device."""
-        return device.device_aggregator
-
-    def _device_row_slice(self, device: DeviceHeaderPair) -> slice:
-        """Gets the slice object corresponding to a device."""
-        device_cols = device.device_cols
-        return device_cols.create_slice()
-
-    def _iter_device_slice(self
-                           ) -> Iterator[Tuple[DeviceHeaderAggregator, slice]]:
-        """Yields all pairs of aggregator and row slice."""
-        for device in self.devices:
-            aggregator = self._device_aggregator(device)
-            row_slice = self._device_row_slice(device)
-            yield (aggregator, row_slice)
-
-    def _call_method_of_each_device(self, parsed_row: List, method_name: str):
-        """Calls method on each device with the parsed row as an argument.
-
-        Args:
-            parsed_row: the entire parsed row which is sliced and passed along
-                to aggregators.
-
-            method_name: the name of the method which is to be called on each
-                aggregator.
-        """
-        for device, row_slice in self._iter_device_slice():
-            data = parsed_row[row_slice]
-            method = getattr(device, method_name)
-            method(data)
-
-    def add_coordinates(self, parsed_row: List[str]):
-        """Adds coordinates to devices.
-
-        Args:
-            parsed_row: the coordinates line of the input.
-        """
-        self._call_method_of_each_device(parsed_row, 'add_coordinates')
-
-    def add_units(self, parsed_row: List[pint.Unit]):
-        """Adds physical units to devices.
-
-        Args:
-            parsed_row: the units line of the input, already parsed.
-        """
-        self._call_method_of_each_device(parsed_row, 'add_units')
-
-    def add_data(self, parsed_row: List[float]):
-        """Adds physical units to devices.
-
-        Args:
-            parsed_row: a data line of the input, already parsed.
-        """
-        self._call_method_of_each_device(parsed_row, 'add_data')

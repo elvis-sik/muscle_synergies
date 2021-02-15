@@ -198,6 +198,12 @@ class _EntryByEntryMixin(Generic[T], abc.ABC):
         pass
 
 
+class _PassUpFileEndedMixin:
+    def file_ended(self, reader: Reader) -> ViconNexusData:
+        data_builder = self._reader_data_builder(reader)
+        return data_builder.file_ended()
+
+
 class SectionTypeState(_UpdateStateMixin, _HasSingleEntryMixin, _ReaderState):
     """The state of a reader that is expecting the section type line.
 
@@ -606,12 +612,6 @@ class UnitsState(_UpdateStateMixin, _BuildDataMixin, _EntryByEntryMixin,
 
     def _next_state_type(self):
         return GettingMeasurementsState
-
-
-class _PassUpFileEndedMixin:
-    def file_ended(self, reader: Reader) -> ViconNexusData:
-        data_builder = self._reader_data_builder(reader)
-        return data_builder.file_ended()
 
 
 class GettingMeasurementsState(_PassUpFileEndedMixin, _ReaderState):

@@ -171,7 +171,15 @@ class _UpdateStateMixin:
         pass
 
 
-class SectionTypeState(_UpdateStateMixin, _ReaderState):
+class _HasSingleColMixin:
+    def _validate_row_has_single_col(self, row: Row):
+        if row[1:]:
+            raise ValueError(
+                f'first row of a section should contain nothing outside its first column'
+            )
+
+
+class SectionTypeState(_UpdateStateMixin, _HasSingleEntryMixin, _ReaderState):
     """The state of a reader that is expecting the section type line.
 
     For an explanation of what are the different lines of the CSV input, see
@@ -188,7 +196,7 @@ class SectionTypeState(_UpdateStateMixin, _ReaderState):
     def feed_row(self, row: Row, reader: Reader):
         row = self._preprocess_row(row)
         self._validate_row_valid_values(row)
-        self._validate_row_has_single_value(row)
+        self._validate_row_has_single_col(row)
         section_type = self._parse_section_type(row)
         self._validate(section_type)
         self._update_state(reader)
@@ -197,12 +205,6 @@ class SectionTypeState(_UpdateStateMixin, _ReaderState):
         if row[0] not in {'Devices', 'Trajectories'}:
             raise ValueError(
                 f'first row in a section should contain "Devices" or "Trajectories" in its first column'
-            )
-
-    def _validate_row_has_single_value(self, row: Row):
-        if row[1:]:
-            raise ValueError(
-                f'first row of a section should contain nothing outside its first column'
             )
 
     def _parse_section_type(self, row: Row) -> SectionType:

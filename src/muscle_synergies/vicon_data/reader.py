@@ -131,14 +131,15 @@ class _HasSingleColMixin:
             )
 
 
-class _BuildDataMixin:
+class _AggregateDataMixin:
     @abc.abstractmethod
-    def _get_data_build_method(self, aggregator: Aggregator
-                               ) -> Callable[[Any], None]:
+    def _get_data_aggregate_method(self, aggregator: Aggregator
+                                   ) -> Callable[[Any], None]:
         pass
 
-    def _build_data(self, data: Any, reader: Reader):
-        method = self._get_data_build_method(self._reader_aggregator(reader))
+    def _aggregate_data(self, data: Any, reader: Reader):
+        method = self._get_data_aggregate_method(
+            self._reader_aggregator(reader))
         method(data)
 
 
@@ -201,7 +202,7 @@ class SectionTypeState(_UpdateStateMixin, _HasSingleEntryMixin, _ReaderState):
             )
 
 
-class SamplingFrequencyState(_BuildDataMixin, _UpdateStateMixin,
+class SamplingFrequencyState(_AggregateDataMixin, _UpdateStateMixin,
                              _HasSingleColMixin, _ReaderState):
     """The state of a reader that is expecting the sampling frequency line.
 
@@ -216,15 +217,15 @@ class SamplingFrequencyState(_BuildDataMixin, _UpdateStateMixin,
     def _next_state_type(self):
         return DevicesState
 
-    def _get_data_build_method(self, aggregator: Aggregator
-                               ) -> Callable[[int], None]:
+    def _get_data_aggregate_method(self, aggregator: Aggregator
+                                   ) -> Callable[[int], None]:
         return aggregator.add_frequency
 
     def feed_row(self, row: Row, reader: Reader):
         row = self._preprocess_row(row)
         self._validate_has_single_col(row)
         freq = self._parse_freq(row)
-        self._build_data(freq, reader)
+        self._aggregate_data(freq, reader)
         self._update_state(reader)
 
     @staticmethod
@@ -393,7 +394,7 @@ class DeviceCategorizer(FailableMixin):
                    ) -> FailableResult[ViconNexusData]:
         grouped_headers = self._group_headers(dev_cols)
         fail_res = self._fail_if_section_is_inconsistent(grouped_headers)
-        self._compute_on_failable(self._build_categorized_headers,
+        self._compute_on_failable(self._aggregate_categorized_headers,
                                   fail_res,
                                   compose=True)
 
@@ -431,7 +432,7 @@ class DeviceCategorizer(FailableMixin):
 
         return self._success(grouped_headers)
 
-    def _build_categorized_headers(
+    def _aggregate_categorized_headers(
             self, grouped_headers: Mapping[DeviceType, DeviceHeaderCols]
     ) -> ViconNexusData:
         emg_list = grouped_headers[DeviceType.EMG]
@@ -456,12 +457,12 @@ class ForcePlateGrouper(FailableMixin):
         # by their names, it should also be able to understand their types
         # so the only thing remaining after it is run would be to
         # 1. check that the 3 exact necessary headers are there
-        # 2. build the grouped representation
+        # 2. aggregate the grouped representation
         grouped_force_plate_headers = self._group_force_plates_headers(
             dev_cols)
 
         fail_res = self._grouped_force_plates(grouped_force_plate_headers)
-        return self._compute_on_failable(self._build_grouped, fail_res)
+        return self._compute_on_failable(self._aggregate_grouped, fail_res)
 
     __call__ = group_force_plates
 
@@ -475,8 +476,8 @@ class ForcePlateGrouper(FailableMixin):
     ) -> FailableResult[Mapping[str, DeviceHeaderCols]]:
         pass
 
-    def _build_grouped(self, grouped: Mapping[str, DeviceHeaderCols]
-                       ) -> ForcePlateDevices:
+    def _aggregate_grouped(self, grouped: Mapping[str, DeviceHeaderCols]
+                           ) -> ForcePlateDevices:
         pass
 
     def _group_force_plates(self, cols_list: List['DeviceHeaderCols']
@@ -484,7 +485,7 @@ class ForcePlateGrouper(FailableMixin):
         def empty_force_plate_dict():
             return {'force': None, 'cop': None, 'moment': None}
 
-        def build_dict_up():
+        def aggregate_dict_up():
             pass
 
         plates_by_name = defaultdict(empty_force_plate_dict)
@@ -581,7 +582,7 @@ class CoordinatesState(_StepByStepReaderState):
 
         return self._RowCols(row=row, emg_num_cols=num_cols)
 
-    def _build_data(self, parsed_data: _RowCols, aggregator: Aggregator):
+    def _aggregate_data(self, parsed_data: _RowCols, aggregator: Aggregator):
         self._emg_add_num_cols_if_needed(parsed_data.emg_num_cols)
         self._aggregator_add_coordinates(aggregator, parsed_data.row)
 
@@ -604,7 +605,7 @@ class CoordinatesState(_StepByStepReaderState):
         return UnitsLineParser()
 
 
-class UnitsState(_UpdateStateMixin, _BuildDataMixin, _EntryByEntryMixin,
+class UnitsState(_UpdateStateMixin, _AggregateDataMixin, _EntryByEntryMixin,
                  _ReaderState):
     @property
     def line(self) -> ViconCSVLines:
@@ -619,21 +620,21 @@ class UnitsState(_UpdateStateMixin, _BuildDataMixin, _EntryByEntryMixin,
     def feed_row(self, row: Row, reader: Reader):
         row = self._preprocess_row(row)
         units = self._parse_row(row)
-        self._build_data(units, reader)
+        self._aggregate_data(units, reader)
         self._update_state(reader)
 
     def _parse_entry(self, entry: str) -> pint.Unit:
         return self.ureg(entry)
 
-    def _get_data_build_method(self, aggregator: Aggregator
-                               ) -> Callable[[List[unit]], None]:
+    def _get_data_aggregate_method(self, aggregator: Aggregator
+                                   ) -> Callable[[List[unit]], None]:
         return aggregator.add_units
 
     def _next_state_type(self):
         return GettingMeasurementsState
 
 
-class GettingMeasurementsState(_BuildDataMixin, _EntryByEntryMixin,
+class GettingMeasurementsState(_AggregateDataMixin, _EntryByEntryMixin,
                                _PassUpFileEndedMixin, _ReaderState):
     @property
     def line(self) -> ViconCSVLines:
@@ -646,7 +647,7 @@ class GettingMeasurementsState(_BuildDataMixin, _EntryByEntryMixin,
             self._transition(reader)
         else:
             floats = self._parse_row(row)
-            self._build_data(floats, reader)
+            self._aggregate_data(floats, reader)
 
     @staticmethod
     def _is_blank_line(row: Row) -> bool:
@@ -655,8 +656,8 @@ class GettingMeasurementsState(_BuildDataMixin, _EntryByEntryMixin,
     def _parse_entry(row_entry: str) -> float:
         return float(row_entry)
 
-    def _get_data_build_method(self, aggregator: Aggregator
-                               ) -> Callable[[List[float]], None]:
+    def _get_data_aggregate_method(self, aggregator: Aggregator
+                                   ) -> Callable[[List[float]], None]:
         return aggregator.add_measurements
 
     def _transition(self, reader: Reader):

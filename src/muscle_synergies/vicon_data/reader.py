@@ -290,6 +290,10 @@ class DevicesHeaderFinder:
 class _DevicesState(_UpdateStateMixin, _ReaderState):
     finder: DevicesHeaderFinder
 
+    @property
+    def line(self) -> ViconCSVLines:
+        return ViconCSVLines.DEVICE_NAMES_LINE
+
     def __init__(self, finder: Optional[DevicesHeaderFinder] = None):
         super().__init__()
         if finder is None:

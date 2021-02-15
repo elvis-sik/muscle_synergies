@@ -620,19 +620,14 @@ class GettingMeasurementsState(_PassUpFileEndedMixin, _ReaderState):
         self._reader_set_state(reader, new_state)
 
 
-class BlankLinesState(_PassUpFileEndedMixin, _StepByStepReaderState):
+class BlankLinesState(_PassUpFileEndedMixin, _ReaderState):
     @property
     def line(self) -> ViconCSVLines:
         return ViconCSVLines.BLANK_LINE
 
-    def _check_row(self, row: Row) -> DataCheck:
-        assert not bool(row)
-
-    def _new_state(self) -> _ReaderState:
-        return self
-
-    def _do_nothing(self, *args, **kwargs) -> None:
-        return
-
-    _parse_row = _do_nothing
-    _build_data = _do_nothing
+    def feed_row(self, row: Row, reader: Reader):
+        row = self._preprocess_row(row)
+        if row:
+            raise ValueError(
+                f'BlankLinesState expects to only be fed empty rows but got this: {row}'
+            )

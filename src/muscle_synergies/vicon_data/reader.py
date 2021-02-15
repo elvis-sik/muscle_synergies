@@ -223,7 +223,6 @@ class SectionTypeState(_UpdateStateMixin, _HasSingleEntryMixin, _ReaderState):
             )
 
 
-class SamplingFrequencyState(_StepByStepReaderState):
 class _BuildDataMixin:
     @abc.abstractmethod
     def _get_data_build_method(self, data_builder: DataBuilder
@@ -233,6 +232,10 @@ class _BuildDataMixin:
     def _build_data(self, data: Any, reader: Reader):
         method = self._get_data_build_method(self._reader_data_builder(reader))
         method(data)
+
+
+class SamplingFrequencyState(_BuildDataMixin, _UpdateStateMixin,
+                             _HasSingleColMixin, _ReaderState):
     """The state of a reader that is expecting the sampling frequency line.
 
     For an explanation of what are the different lines of the CSV input, see
@@ -242,29 +245,24 @@ class _BuildDataMixin:
     def line(self) -> ViconCSVLines:
         return ViconCSVLines.SAMPLING_FREQUENCY_LINE
 
-    def _check_row(self, row: Row) -> DataCheck:
-        try:
-            is_valid = int(row[0])
-        except ValueError:
-            is_valid = False
+    @property
+    def _next_state_type(self):
+        return DevicesState
 
-        message = (
-            'this line should contain an integer representing'
-            f' sampling frequency in its first column and not {row[0]}.')
+    def _get_data_build_method(self, data_builder: DataBuilder
+                               ) -> Callable[[int], None]:
+        return data_builder.add_frequency
 
-        return self._create_data_check(is_valid, message)
+    def feed_row(self, row: Row, reader: Reader):
+        row = self._preprocess_row(row)
+        self._validate_has_single_col(row)
+        freq = self._parse_freq(row)
+        self._build_data(freq, reader)
+        self._update_state(reader)
 
-    def _parse_row(self, row: Row) -> int:
-        try:
-            return int(row[0])
-        except ValueError:
-            return None
-
-    def _build_data(self, parsed_data: int, data_builder: DataBuilder):
-        data_builder.add_frequency(parsed_data)
-
-    def _new_state(self) -> '_ReaderState':
-        return DevicesState()
+    @staticmethod
+    def _parse_freq(row: Row):
+        return int(row[0])
 
 
 class DevicesLineFinder(FailableMixin):

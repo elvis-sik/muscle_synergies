@@ -160,6 +160,16 @@ class _StepByStepReaderState(_ReaderState, Generic[T]):
 
 
 class SectionTypeState(_StepByStepReaderState):
+class _UpdateStateMixin:
+    def _update_state(self, reader: Reader):
+        pass
+
+    def _new_state(self):
+        pass
+
+    @abc.abstractproperty
+    def _next_state_type(self):
+        pass
     """The state of a reader that is expecting the section type line.
 
     For an explanation of what are the different lines of the CSV input, see

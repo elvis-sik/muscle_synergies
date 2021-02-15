@@ -286,6 +286,34 @@ class DevicesHeaderFinder:
         return (col_num - 2) % 3 == 0
 
 
+class _DevicesState(_UpdateStateMixin, _ReaderState):
+    finder: DevicesHeaderFinder
+
+    def __init__(self, finder: Optional[DevicesHeaderFinder] = None):
+        super().__init__()
+        if finder is None:
+            self._finder = self._instantiate_finder()
+        self._finder = finder
+
+    def feed_row(self, row: Row, reader: Reader):
+        row = self._preprocess_row(row)
+        headers = self._find_headers(row)
+        self._process_headers(headers, reader)
+        self._update_state(reader)
+
+    @abc.abstractmethod
+    def _process_headers(self, headers: List[ColOfHeader], reader: Reader):
+        pass
+
+    @property
+    def _next_state_type(self):
+        return CoordinatesState
+
+    def _find_headers(self, row: Row):
+        return self.finder(row)
+
+    def _instantiate_finder(self):
+        return DevicesHeaderFinder()
 class DeviceColsCreator(FailableMixin):
     _cols_class = DeviceHeaderCols
 

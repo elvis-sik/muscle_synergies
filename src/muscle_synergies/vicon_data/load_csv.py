@@ -2,7 +2,6 @@ import csv
 from typing import Iterator
 
 from .definitions import Row
-from .failures import Validator
 from .aggregator import (
     Aggregator,
     ForcesEMGAggregator,
@@ -32,27 +31,18 @@ def _initialize_aggregator() -> Aggregator:
                       trajs_aggregator=traj_aggregator)
 
 
-def _initialize_validator(csv_filename: str,
-                          should_raise: bool = True) -> Validator:
-    return Validator(csv_filename=csv_filename, should_raise=should_raise)
-
-
 def _initialize_reader_section_type_state() -> SectionTypeState:
     return SectionTypeState()
 
 
-def _initialize_reader(initial_state: SectionTypeState, validator: Validator,
+def _initialize_reader(initial_state: SectionTypeState,
                        aggregator: Aggregator) -> Reader:
-    return Reader(section_type_state=initial_state,
-                  aggregator=aggregator,
-                  validator=validator)
+    return Reader(section_type_state=initial_state, aggregator=aggregator)
 
 
-def create_reader(csv_filename: str, should_raise: bool = True):
+def create_reader():
     return _initialize_reader(
         initial_state=_initialize_reader_section_type_state(),
-        validator=_initialize_validator(csv_filename=csv_filename,
-                                        should_raise=should_raise),
         aggregator=_initialize_aggregator(),
     )
 

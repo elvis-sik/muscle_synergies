@@ -189,6 +189,15 @@ class _BuildDataMixin:
         method(data)
 
 
+class _EntryByEntryMixin(Generic[T], abc.ABC):
+    def _parse_row(self, row: Row) -> List[T]:
+        return [self._parse_entry(row_entry) for row_entry in row]
+
+    @abc.abstractmethod
+    def _parse_entry(row_entry: str) -> T:
+        pass
+
+
 class SectionTypeState(_UpdateStateMixin, _HasSingleEntryMixin, _ReaderState):
     """The state of a reader that is expecting the section type line.
 

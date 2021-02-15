@@ -12,7 +12,7 @@ from .reader_data import (
 from .reader import (Reader, SectionTypeState)
 
 
-def csv_lines_stream(filename) -> Iterator[Row]:
+def csv_row_stream(filename) -> Iterator[Row]:
     """Yields lines from a CSV file as a stream.
 
     Args:
@@ -61,6 +61,11 @@ def load_vicon_file(csv_filename: str,
                     should_raise: bool = True) -> ViconNexusData:
     reader = create_reader(csv_filename=csv_filename,
                            should_raise=should_raise)
-    for row in csv_lines_stream(csv_filename):
-        reader.feed_row(row)
+    for i, row in enumerate(csv_row_stream(csv_filename), start=1):
+        try:
+            reader.feed_row(row)
+        except Exception as exception:
+            raise RuntimeError(
+                f'error parsing line {i} of file {csv_filename}: ' +
+                str(e)) from exception
     return reader.file_ended()

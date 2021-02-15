@@ -238,6 +238,23 @@ class DevicesLineFinder(FailableMixin):
         return self._compute_on_failable(self._find_headers_unsafe,
                                          fail_res,
                                          compose=True)
+@dataclass
+class ColOfHeader:
+    """The string describing a device and the column in which it occurs.
+
+    This is used as an intermediate representation of the data being read in
+    the device names line (see :py:class:ViconCSVLines). The structure of that
+    line is complex, so the logic of its parsing is split into several classes.
+    ColOfHeader is used for communication between them.
+
+    Args:
+        col_index: the index of the column in the CSV file in which the
+            device header is described.
+
+        header_str: the exact string occurring in that column.
+    """
+    col_index: int
+    header_str: str
 
     __call__ = find_headers
 

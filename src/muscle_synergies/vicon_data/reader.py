@@ -579,62 +579,6 @@ class CoordinatesState(_StepByStepReaderState):
         return UnitsLineParser()
 
 
-class _EntryByEntryParser(_ReaderState, FailableMixin, Generic[T]):
-    """A parser which parses each row entry independently."""
-    def feed_row(self, row: Row, reader: Reader):
-        # 1 and 2. parse and check
-        row = self._preprocess_row(row)
-        fail_res = self._parse_row(row)
-        self._validate_fail_res(fail_res, reader)
-
-        # 3. build data representation
-        parse_result = self._fail_res_parse_result(fail_res)
-        self._build_data(parse_result)
-
-    def _parse_row(self, row: Row) -> FailableResult[List[T]]:
-        frame_cols, data_cols = row[:2], row[2:]
-        parsed_cols = [
-            self._parse_entry(data_entry) for data_entry in data_cols
-        ]
-        return self._compute_on_failable(self._prepend_two_none_cols,
-                                         parsed_cols,
-                                         compose=True)
-
-    def _prepend_two_none_cols(self, cols: List[T]) -> List[T]:
-        return [None, None] + cols
-
-    def _validate_fail_res(self, fail_res: FailableResult, reader: Reader):
-        self._validate(self._reader_validator(reader),
-                       self._fail_res_data_check(fail_res))
-
-    def _build_data(self, parse_result: List[T], reader: Reader):
-        data_builder = self._reader_data_builder(reader)
-        build_method = self._get_build_method(data_builder)
-        build_method(parse_result)
-
-    @abc.abstractmethod
-    def _parse_entry(self, entry: str) -> FailableResult[T]:
-        pass
-
-    @abc.abstractmethod
-    def _get_build_method(self,
-                          data_builder: DataBuilder) -> Callable[[T], Any]:
-        pass
-
-
-class UnitsLineParser(_EntryByEntryParser):
-    def _parse_entry(self, entry: str) -> FailableResult[pint.Unit]:
-        try:
-            unit = ureg(entry)
-        except pint.UndefinedUnitError:
-            return self._fail(f'unit "{entry}" not understood')
-        else:
-            return self._success(unit)
-
-    def _get_build_method(self,
-                          data_builder: DataBuilder) -> Callable[[T], Any]:
-        return data_builder.add_units
-
 
 class UnitsState(_ReaderState):
     @property
@@ -662,15 +606,6 @@ class UnitsState(_ReaderState):
         return DataLineParser()
 
 
-class DataLineParser(_EntryByEntryParser):
-    def _parse_entry(self, entry: str) -> FailableResult[float]:
-        try:
-            data = float(entry)
-        except ValueError:
-            return self._fail(
-                f'real-valued measurement "{entry}" not understood')
-        else:
-            return self._success(data)
 
     def _get_build_method(self,
                           data_builder: DataBuilder) -> Callable[[T], Any]:

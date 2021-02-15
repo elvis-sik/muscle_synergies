@@ -594,6 +594,7 @@ class GettingMeasurementsState(_BuildDataMixin, _EntryByEntryMixin,
         return data_builder.add_measurements
 
     def _transition(self, reader: Reader):
+        # TODO maybe transitioning should be abstracted into a single class
         current_section_type = self._reader_section_type()
 
         if current_section_type is SectionType.FORCES_EMG:

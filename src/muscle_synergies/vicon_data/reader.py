@@ -224,6 +224,15 @@ class SectionTypeState(_UpdateStateMixin, _HasSingleEntryMixin, _ReaderState):
 
 
 class SamplingFrequencyState(_StepByStepReaderState):
+class _BuildDataMixin:
+    @abc.abstractmethod
+    def _get_data_build_method(self, data_builder: DataBuilder
+                               ) -> Callable[[Any], None]:
+        pass
+
+    def _build_data(self, data: Any, reader: Reader):
+        method = self._get_data_build_method(self._reader_data_builder(reader))
+        method(data)
     """The state of a reader that is expecting the sampling frequency line.
 
     For an explanation of what are the different lines of the CSV input, see

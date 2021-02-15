@@ -299,22 +299,54 @@ class _DevicesState(_UpdateStateMixin, _ReaderState):
     def feed_row(self, row: Row, reader: Reader):
         row = self._preprocess_row(row)
         headers = self._find_headers(row)
-        self._process_headers(headers, reader)
+        self._send_headers_to_aggregator(headers, reader)
         self._update_state(reader)
 
-    @abc.abstractmethod
-    def _process_headers(self, headers: List[ColOfHeader], reader: Reader):
-        pass
+    def _add_device(self, reader: Reader, header: ColOfHeader,
+                    device_type: DeviceType,
+                    last_col_func: Callable[[int], None]):
+        self._aggregator_add_device(
+            self._reader_aggregator(reader),
+            **self._build_add_device_params_dict(header, device_type))
+
+    def _aggregator_add_device(self, aggregator: Aggregator, name: str,
+                               device_type: DeviceType, first_col: int,
+                               last_col: int):
+        aggregator.add_device(name=name,
+                              device_type=device_type,
+                              first_col=first_col,
+                              last_col=last_col)
 
     @property
     def _next_state_type(self):
         return CoordinatesState
+
+    def _build_add_device_params_dict(self, header: ColOfHeader,
+                                      device_type: DeviceType):
+        unpacked = self._unpack_col_of_header(header)
+        unpacked['device_type'] = device_type
+        first_col = unpacked['first_col']
+        unpacked['last_col'] = self._last_col(device_type, first_col)
+        return unpacked
+
+    def _unpack_col_of_header(self, header: ColOfHeader
+                              ) -> Mapping[str, Union[str, int]]:
+        return {'first_col': header.col_index, 'name': header.header_str}
 
     def _find_headers(self, row: Row):
         return self.finder(row)
 
     def _instantiate_finder(self):
         return DevicesHeaderFinder()
+
+    @abc.abstractmethod
+    def _send_headers_to_aggregator(self, headers: List[ColOfHeader],
+                                    reader: Reader):
+        pass
+
+    @abc.abstractmethod
+    def _last_col(self, device_type: DeviceType, first_col: int) -> Any:
+        pass
 
 
 class ForcePlateGrouper:
@@ -332,18 +364,22 @@ class ForcesEMGDevicesState(_DevicesState):
             self._grouper = self._instantiate_grouper
         self._grouper = grouper
 
-    def _process_headers(self, headers: List[ColOfHeader], reader: Reader):
+    def _send_headers_to_aggregator(self, headers: List[ColOfHeader],
+                                    reader: Reader):
         force_plates_headers, emg = self._separate_headers(headers)
         grouped_force_plates = self._group_force_plates(force_plates_headers)
         self._aggregate_emg(header, reader)
         for header in grouped_force_plates:
-            self._aggregate_force_plate(header, reader)
+            self._add_force_plate(header, reader)
+        self._add_emg(emg, reader)
 
-    def _aggregate_emg(self, header: ColOfHeader, reader: Reader):
-        pass
+    def _add_emg(self, header: ColOfHeader, reader: Reader):
+        self._add_device(reader, header, DeviceType.EMG, self._last_col_of_emg)
 
-    def _aggregate_force_plate(self, header: ColOfHeader, reader: Reader):
-        pass
+    def _add_force_plate(self, header: ColOfHeader, reader: Reader):
+
+        self._add_device(reader, header, DeviceType.FORCE_PLATE,
+                         self._last_col_of_force_plate)
 
     def _separate_headers(self, headers: List[ColOfHeader]
                           ) -> Tuple[List[ColOfHeader], ColOfHeader]:
@@ -358,22 +394,35 @@ class ForcesEMGDevicesState(_DevicesState):
     def _instantiate_grouper(self):
         return ForcePlateGrouper()
 
+    def _last_col(self, device_type: DeviceType,
+                  first_col: int) -> Optional[int]:
+        assert device_type is not DeviceType.TRAJECTORY_MARKER
+
+        if device_type is DeviceType.EMG:
+            return self._last_col_of_emg(first_col)
+        if device_type is DeviceType.FORCE_PLATE:
+            return self._last_col_of_force_plate(first_col)
+
+    def _last_col_of_force_plate(self, first_col: int) -> int:
+        return first_col + 9
+
+    def _last_col_of_emg(self, first_col: int) -> None:
+        return None
+
 
 class TrajDevicesState(_DevicesState):
-    def _process_headers(self, headers: List[ColOfHeader], reader: Reader):
+    def _send_headers_to_aggregator(self, headers: List[ColOfHeader],
+                                    reader: Reader):
         for header in headers:
+            self._add_device(reader, header, DeviceType.TRAJECTORY_MARKER)
             name = header.header_str
             first_col = header.col_index
-            last_col = first_col + 3
-            aggregator = self._reader_aggregator(reader)
-            self._aggregator_add_trajectory_marker(aggregator, name, first_col,
-                                                   last_col)
+            last_col = self._last_col_of_traj(first_col)
+            self._add_device(reader, name, DeviceType.TRAJECTORY_MARKER,
+                             first_col, last_col)
 
-    # TODO this becomes add_device
-    # then there must be a separate add_emg_device with different signature
-    def _aggregator_add_trajectory_marker(self, aggregator: FOO, name: str,
-                                          first_col: int, last_col: int):
-        aggregator.add_trajectory_marker(name, first_col, last_col)
+        def _last_col(self, _: DeviceType, first_col: int) -> int:
+            return first_col + 3
 
 
 class DeviceColsCreator(FailableMixin):

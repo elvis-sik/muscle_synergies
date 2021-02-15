@@ -579,37 +579,33 @@ class CoordinatesState(_StepByStepReaderState):
         return UnitsLineParser()
 
 
-
-class UnitsState(_ReaderState):
+class UnitsState(_UpdateStateMixin, _BuildDataMixin, _EntryByEntryMixin,
+                 _ReaderState):
     @property
     def line(self) -> ViconCSVLines:
         return ViconCSVLines.UNITS_LINE
 
-    _units_line_parser: UnitsLineParser
+    ureg: pint.UnitRegistry
 
-    def __init__(self, units_line_parser: UnitsLineParser):
-        self._units_line_parser
+    def __init__(self, unit_registry=ureg):
+        super().__init__()
+        self.ureg = unit_registry
 
     def feed_row(self, row: Row, reader: Reader):
         row = self._preprocess_row(row)
-        self._feed_forward(row, reader)
-        new_state = self._new_state()
+        units = self._parse_row(row)
+        self._build_data(units, reader)
+        self._update_state(reader)
 
-    def _feed_forward(self, row: Row, reader: Reader):
-        self._units_line_parser.feed_row(row, reader)
+    def _parse_entry(self, entry: str) -> pint.Unit:
+        return self.ureg(entry)
 
-    def _new_state(self) -> _ReaderState:
-        return GettingMeasurementsState(
-            data_line_parser=self._instantiate_data_line_parser())
+    def _get_data_build_method(self, data_builder: DataBuilder
+                               ) -> Callable[[List[unit]], None]:
+        return data_builder.add_units
 
-    def _instantiate_data_line_parser(self) -> 'DataLineParser':
-        return DataLineParser()
-
-
-
-    def _get_build_method(self,
-                          data_builder: DataBuilder) -> Callable[[T], Any]:
-        return data_builder.add_measurements
+    def _next_state_type(self):
+        return GettingMeasurementsState
 
 
 class _PassUpFileEndedMixin:

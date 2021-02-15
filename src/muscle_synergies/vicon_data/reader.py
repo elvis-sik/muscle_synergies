@@ -323,17 +323,40 @@ class ForcePlateGrouper:
 
 
 class ForcesEMGDevicesState(_DevicesState):
+    _grouper: ForcePlateGrouper
+
+    def __init__(self, finder: Optional[DevicesHeaderFinder],
+                 grouper: Optional[ForcePlateGrouper]):
+        super().__init__(finder)
+        if grouper is None:
+            self._grouper = self._instantiate_grouper
+        self._grouper = grouper
+
     def _process_headers(self, headers: List[ColOfHeader], reader: Reader):
         force_plates_headers, emg = self._separate_headers(headers)
         grouped_force_plates = self._group_force_plates(force_plates_headers)
+        self._aggregate_emg(header, reader)
+        for header in grouped_force_plates:
+            self._aggregate_force_plate(header, reader)
+
+    def _aggregate_emg(self, header: ColOfHeader, reader: Reader):
+        pass
+
+    def _aggregate_force_plate(self, header: ColOfHeader, reader: Reader):
+        pass
 
     def _separate_headers(self, headers: List[ColOfHeader]
                           ) -> Tuple[List[ColOfHeader], ColOfHeader]:
-        pass
+        force_plates_headers = headers[:-1]
+        emg_header = headers[-1]
+        return force_plates_headers, emg_header
 
     def _group_force_plates(self,
                             headers: List[ColOfHeader]) -> List[ColOfHeader]:
-        pass
+        return self._grouper.group(headers)
+
+    def _instantiate_grouper(self):
+        return ForcePlateGrouper()
 
 
 class TrajDevicesState(_DevicesState):

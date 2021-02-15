@@ -319,15 +319,15 @@ class _DevicesState(_UpdateStateMixin, _ReaderState):
 
 class ForcesEMGDevicesState(_DevicesState):
     def _process_headers(self, headers: List[ColOfHeader], reader: Reader):
-        force_plates_raw, emg = self._group_headers(headers)
-        force_plates_processed = self._process_force_plates(force_plates_raw)
+        force_plates_headers, emg = self._separate_headers(headers)
+        grouped_force_plates = self._group_force_plates(force_plates_headers)
 
-    def _group_headers(self, headers: List[ColOfHeader]
-                       ) -> Tuple[List[ColOfHeader], ColOfHeader]:
+    def _separate_headers(self, headers: List[ColOfHeader]
+                          ) -> Tuple[List[ColOfHeader], ColOfHeader]:
         pass
 
-    def _process_force_plates(self,
-                              headers: List[ColOfHeader]) -> List[ColOfHeader]:
+    def _group_force_plates(self,
+                            headers: List[ColOfHeader]) -> List[ColOfHeader]:
         pass
 
 

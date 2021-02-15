@@ -111,53 +111,6 @@ class _ReaderState(abc.ABC):
         reader.set_section_type(new_section_type)
 
 
-class _StepByStepReaderState(_ReaderState, Generic[T]):
-    """A reader step that fulfills each of its responsibilities in turn.
-
-    Reader states have 4 responsibilities:
-    1. validating the data
-    2. parsing it
-    3. building up a representation of the data being parsed
-    4. transition the :py:class:Reader to its next state
-
-    This abc is here to simplify the implementation of reader states which have
-    these 4 responsibilities well-defined in happening in sucession,
-    abstracting the boilerplate needed to make them achieved its child classes'
-    goals.
-    """
-    def feed_row(self, row: Row, reader: 'Reader'):
-        row = self._preprocess_row(row)
-
-        # check and validate
-        check_result = self._check_row(row)
-        validator = self._reader_validator(reader)
-        self._validate(validator, check_result)
-
-        # parse and build up the data
-        parsed_row = self._parse_row(row)
-        self._build_data(parsed_row, self._reader_data_builder(reader))
-
-        # transition to next state
-        new_state = self._new_state()
-        self._reader_set_state(reader, new_state)
-
-    @abc.abstractmethod
-    def _check_row(self, row: Row) -> DataCheck:
-        pass
-
-    @abc.abstractmethod
-    def _parse_row(self, row: Row) -> T:
-        pass
-
-    @abc.abstractmethod
-    def _build_data(self, parsed_data: T, data_builder: DataBuilder):
-        pass
-
-    @abc.abstractmethod
-    def _new_state(self) -> '_ReaderState':
-        pass
-
-
 class _UpdateStateMixin:
     def _update_state(self, reader: Reader):
         pass

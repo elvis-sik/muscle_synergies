@@ -362,7 +362,18 @@ class ForcesEMGDevicesState(_DevicesState):
 class TrajDevicesState(_DevicesState):
     def _process_headers(self, headers: List[ColOfHeader], reader: Reader):
         for header in headers:
-            pass
+            name = header.header_str
+            first_col = header.col_index
+            last_col = first_col + 3
+            aggregator = self._reader_aggregator(reader)
+            self._aggregator_add_trajectory_marker(aggregator, name, first_col,
+                                                   last_col)
+
+    # TODO this becomes add_device
+    # then there must be a separate add_emg_device with different signature
+    def _aggregator_add_trajectory_marker(self, aggregator: FOO, name: str,
+                                          first_col: int, last_col: int):
+        aggregator.add_trajectory_marker(name, first_col, last_col)
 
 
 class DeviceColsCreator(FailableMixin):

@@ -69,9 +69,6 @@ class Reader:
 class _ReaderState(abc.ABC):
     @abc.abstractmethod
     def feed_row(self, row: Row, *, reader: 'Reader'):
-        # TODO document:
-        # this should call validator exactly once.
-        # it also has exactly 4 responsibilities apart from that one
         pass
 
     @abc.abstractproperty

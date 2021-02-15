@@ -44,13 +44,11 @@ class Reader:
     """
     _state: '_ReaderState'
     _data_builder: DataBuilder
-    _validator: Validator
 
     def __init__(self, section_type_state: 'SectionTypeState',
-                 data_builder: DataBuilder, validator: Validator):
+                 data_builder: DataBuilder):
         self._state = section_type_state
         self._data_builder = data_builder
-        self._validator = validator
 
     def file_ended(self) -> ViconNexusData:
         self._state.file_ended(reader=self)
@@ -63,9 +61,6 @@ class Reader:
 
     def get_data_builder(self):
         return self._data_builder
-
-    def get_validator(self):
-        return self._validator
 
     def get_section_type(self) -> SectionType:
         return self._data_builder.get_section_type()

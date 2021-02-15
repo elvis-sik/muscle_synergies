@@ -159,7 +159,6 @@ class _StepByStepReaderState(_ReaderState, Generic[T]):
         pass
 
 
-class SectionTypeState(_StepByStepReaderState):
 class _UpdateStateMixin:
     def _update_state(self, reader: Reader):
         pass
@@ -170,6 +169,9 @@ class _UpdateStateMixin:
     @abc.abstractproperty
     def _next_state_type(self):
         pass
+
+
+class SectionTypeState(_UpdateStateMixin, _ReaderState):
     """The state of a reader that is expecting the section type line.
 
     For an explanation of what are the different lines of the CSV input, see
@@ -179,15 +181,31 @@ class _UpdateStateMixin:
     def line(self) -> ViconCSVLines:
         return ViconCSVLines.SECTION_TYPE_LINE
 
-    def _check_row(self, row: Row) -> DataCheck:
-        # TODO add missing check - does SectionType here match DataBuilder's
-        is_valid = row[0] in {'Devices', 'Trajectories'}
-        message = (
-            'this line should contain either "Devices" or "Trajectories"'
-            ' in its first column')
-        return self._create_data_check(is_valid, message)
+    @property
+    def _next_state_type(self):
+        return SamplingFrequencyState
 
-    def _parse_row(self, row: Row) -> SectionType:
+    def feed_row(self, row: Row, reader: Reader):
+        row = self._preprocess_row(row)
+        self._validate_row_valid_values(row)
+        self._validate_row_has_single_value(row)
+        section_type = self._parse_section_type(row)
+        self._validate(section_type)
+        self._update_state(reader)
+
+    def _validate_row_valid_values(self, row: Row):
+        if row[0] not in {'Devices', 'Trajectories'}:
+            raise ValueError(
+                f'first row in a section should contain "Devices" or "Trajectories" in its first column'
+            )
+
+    def _validate_row_has_single_value(self, row: Row):
+        if row[1:]:
+            raise ValueError(
+                f'first row of a section should contain nothing outside its first column'
+            )
+
+    def _parse_section_type(self, row: Row) -> SectionType:
         section_type_str = row[0]
 
         if section_type_str == 'Devices':
@@ -195,13 +213,12 @@ class _UpdateStateMixin:
         elif section_type_str == 'Trajectories':
             return SectionType.TRAJECTORIES
 
-    def _build_data(self, parsed_data: SectionType, data_builder: DataBuilder):
-        # this does nothing because DataBuilder already knows what
-        # SectionType it should be in.
-        pass
-
-    def _new_state(self):
-        return SamplingFrequencyState()
+    def _validate_section_type(self, parsed_type: SectionType, reader: Reader):
+        current_type = self._reader_section_type(reader)
+        if current_type is not parsed_type:
+            raise ValueError(
+                f'row implies current section is {parsed_type} but expected {current_type}'
+            )
 
 
 class SamplingFrequencyState(_StepByStepReaderState):

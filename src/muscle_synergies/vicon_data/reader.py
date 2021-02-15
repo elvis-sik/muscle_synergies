@@ -100,8 +100,7 @@ class _ReaderState(abc.ABC):
     def _reader_data_builder(self, reader: 'Reader') -> DataBuilder:
         return reader.get_data_builder()
 
-    def _reader_set_new_state(self, reader: 'Reader',
-                              new_state: '_ReaderState'):
+    def _reader_set_state(self, reader: 'Reader', new_state: '_ReaderState'):
         reader.set_state(new_state)
 
     def _reader_section_type(self, reader: Reader) -> SectionType:
@@ -140,7 +139,7 @@ class _StepByStepReaderState(_ReaderState, Generic[T]):
 
         # transition to next state
         new_state = self._new_state()
-        self._reader_set_new_state(reader, new_state)
+        self._reader_set_state(reader, new_state)
 
     @abc.abstractmethod
     def _check_row(self, row: Row) -> DataCheck:
@@ -642,7 +641,6 @@ class UnitsState(_ReaderState):
         row = self._preprocess_row(row)
         self._feed_forward(row, reader)
         new_state = self._new_state()
-        self._reader_set_new_state(new_state)
 
     def _feed_forward(self, row: Row, reader: Reader):
         self._units_line_parser.feed_row(row, reader)
@@ -721,11 +719,11 @@ class GettingMeasurementsState(_PassUpFileEndedMixin, _ReaderState):
 
     def _set_new_section_state(self, reader: Reader):
         new_state = SectionTypeState()
-        self._reader_set_new_state(reader, new_state)
+        self._reader_set_state(reader, new_state)
 
     def _set_blank_state(self, reader: Reader):
         new_state = BlankLinesState()
-        self._reader_set_new_state(reader, new_state)
+        self._reader_set_state(reader, new_state)
 
 
 class BlankLinesState(_PassUpFileEndedMixin, _StepByStepReaderState):

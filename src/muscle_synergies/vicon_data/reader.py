@@ -113,10 +113,11 @@ class _ReaderState(abc.ABC):
 
 class _UpdateStateMixin:
     def _update_state(self, reader: Reader):
-        pass
+        self._reader_set_state(reader, self._new_state())
 
     def _new_state(self):
-        pass
+        st_type = self._next_state_type
+        return st_type()
 
     @abc.abstractproperty
     def _next_state_type(self):

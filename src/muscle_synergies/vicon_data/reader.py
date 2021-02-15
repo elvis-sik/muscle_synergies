@@ -314,6 +314,28 @@ class _DevicesState(_UpdateStateMixin, _ReaderState):
 
     def _instantiate_finder(self):
         return DevicesHeaderFinder()
+
+
+class ForcesEMGDevicesState(_DevicesState):
+    def _process_headers(self, headers: List[ColOfHeader], reader: Reader):
+        force_plates_raw, emg = self._group_headers(headers)
+        force_plates_processed = self._process_force_plates(force_plates_raw)
+
+    def _group_headers(self, headers: List[ColOfHeader]
+                       ) -> Tuple[List[ColOfHeader], ColOfHeader]:
+        pass
+
+    def _process_force_plates(self,
+                              headers: List[ColOfHeader]) -> List[ColOfHeader]:
+        pass
+
+
+class TrajDevicesState(_DevicesState):
+    def _process_headers(self, headers: List[ColOfHeader], reader: Reader):
+        for header in headers:
+            pass
+
+
 class DeviceColsCreator(FailableMixin):
     _cols_class = DeviceHeaderCols
 

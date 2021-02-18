@@ -629,22 +629,13 @@ class Aggregator:
     def add_frequency(self, frequency: int):
         self.get_section_aggregator().add_frequency(frequency)
 
-    def add_data_channeler(self, data_channeler: 'DataChanneler'):
-        self.get_section_aggregator().add_data_channeler(data_channeler)
-
     def add_units(self, units: List[pint.Unit]):
         self.get_section_aggregator().add_units(units)
 
     def add_measurements(self, data: List[float]):
         self.get_section_aggregator().add_data(data)
 
-    def add_emg_device(self, emg_device: 'DeviceHeaderPair'):
-        self.get_section_aggregator().add_emg_device(emg_device)
-
-    def add_force_plates(self, force_plates: List['ForcePlateDevices']):
-        self.get_section_aggregator().add_force_plates(force_plates)
-
-    def add_trajectory_devices(self,
-                               trajectory_devices: List['DeviceHeaderPair']):
-        self.get_section_aggregator().add_trajectory_devices(
-            trajectory_devices)
+    def add_device(self, name: str, device_type: DeviceType, first_col: int,
+                   last_col: Optional[int]):
+        self.get_section_aggregator().add_device(name, device_type, first_col,
+                                                 last_col)

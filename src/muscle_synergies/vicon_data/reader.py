@@ -50,6 +50,7 @@ class Reader:
         self._aggregator = aggregator
 
     def file_ended(self) -> ViconNexusData:
+        # TODO I want to obsolete this. Caller should ask Aggregator for it.
         self._state.file_ended(reader=self)
 
     def feed_row(self, row: Row):

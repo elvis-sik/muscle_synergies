@@ -99,7 +99,10 @@ class DeviceAggregator:
         first_col: the first column in the CSV file corresponding to the device
 
         last_col: the last column in the CSV file corresponding to the device.
-            If
+            If `last_col` is None, assume all columns beginning from
+            `first_col` belong to the device. In this case, the number of
+            columns will be determined the first time data is fed to the device
+            using one of the `add_` methods.
 
         device_aggregator: the DeviceHeaderAggregator object, which must
             refer to the same device header as `device_cols`
@@ -122,10 +125,6 @@ class DeviceAggregator:
         self.last_col = last_col
         if last_col is not None:
             self._initialize_time_series()
-
-    def set_last_col(self, last_col: int):
-        self.last_col = last_col
-        self._initialize_time_series()
 
     def add_coordinates(self, parsed_row: List[str]):
         """Add coordinates to device.
@@ -154,8 +153,12 @@ class DeviceAggregator:
         self._call_method_on_each(self._time_series_add_data,
                                   self._my_cols(parsed_row))
 
-    def _my_cols(self, parsed_cols: List[Any]):
+    def _my_cols(self, parsed_cols: List[Any]) -> List[Any]:
         """Restrict parsed columns to the ones corresponding to device."""
+        if self.time_series is None:
+            assert self.last_col is None
+            self.last_col = len(parsed_cols) - 1
+            self._initialize_time_series()
         return parsed_cols[self._create_slice()]
 
     def _call_method_on_each(
@@ -173,18 +176,8 @@ class DeviceAggregator:
             method(time_series, data_entry)
 
     def _create_slice(self):
-        """Create a slice object corresponding to the device columns.
-
-         Raises:
-             TypeError: if num_of_cols is None. This will happen for an EMG
-                 device header if :py:func:DeviceCols.add_num_cols isn't
-                 called explicitly.
-         """
-        if self.num_of_cols is None:
-            raise TypeError('add_num_of_cols should be called before slice')
-
-        return slice(self.first_col_index,
-                     self.first_col_index + self.num_of_cols)
+        """Create a slice object corresponding to the device columns."""
+        return slice(self.first_col, self.last_col + 1)
 
     def _initialize_time_series(self):
         num_cols = last_col - first_col + 1

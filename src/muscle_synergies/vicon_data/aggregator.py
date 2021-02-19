@@ -88,118 +88,6 @@ class TimeSeriesAggregator(_OnlyOnceMixin):
         return self.data
 
 
-class ComponentsAggregator:
-    """The aggregator of a single device header.
-
-    Most device headers have exactly 3 columns, like the ones for trajectory
-    markers. EMG device headers can have an arbitrary number of columns, each
-    referring to a different muscle. What they all have in common is that they
-    all have components.
-
-    This class passes along data from each line following the device header
-    line to each component. The exact pipeline is this:
-    1. the caller finds the columns of the CSV file which refer to the device
-       header asssociated with a :py:class:DeviceHeaderAggregator instance.
-    2. the caller then passes exactly those columns to that instance using the
-       appropriate method
-       (e.g., :py:func:DeviceHeaderAggregator.add_coordinates)
-    3. this class channels the data forward for different TimeSeriesAggregator
-       objects, which are taken during initialization.
-
-    Args:
-        time_series_list: the list of :py:class:TimeSeriesAggregator objects
-            to which the data has to be passed.
-    """
-    time_series_tuple: Tuple[TimeSeriesAggregator]
-
-    def __init__(self, time_series_list: List[TimeSeriesAggregator]):
-        self.time_series_tuple = tuple(time_series_list)
-
-    def _call_method_on_each(self, parsed_data: List, method_name: str):
-        """Calls a method on each time series with the data as argument.
-
-        Args:
-            parsed_data: the data, parsed from a line from the CSV input, to be
-                passed along to the different :py:class:TimeSeriesAggregator
-                instances.
-
-            method_name: the name of the method to be called from each
-                :py:class:TimeSeriesAggregator.
-
-        Raises:
-            ValueError: if the length of `parsed_data` doesn't match that of
-               the `time_series_list` provided during initialization.
-        """
-        self._validate_data(parsed_data)
-
-        for data_entry, time_series in zip(parsed_data,
-                                           self.time_series_tuple):
-            method = getattr(time_series, method_name)
-            method(data_entry)
-
-    def _validate_data(self, parsed_data: List):
-        """Raises an exception if the data doesn't have the correct length.
-
-        Args:
-            parsed_data: the data the length of which is to be compared with
-                that of the `time_series_list` provided during initialization.
-
-        Raises:
-            ValueError: if the length of `parsed_data` doesn't match that of
-               the `time_series_list` provided during initialization.
-        """
-        if len(parsed_data) != len(self.time_series_tuple):
-            raise ValueError(f'provided parsed_data argument with length'
-                             f' {len(parsed_data)}'
-                             f' but was expecting length'
-                             f' {len(self.time_series_tuple)}')
-
-    def add_coordinates(self, parsed_data: List[str]):
-        """Add coordinates to each individual time series.
-
-        Args:
-            parsed_data: the strings from the CSV file describing the
-                coordinate or muscle.
-
-        Raises:
-            ValueError: the data doesn't have the same length as the
-                `time_series_list` provided during initialization.
-        """
-        self._call_method_on_each(parsed_data, 'add_coordinate')
-
-    def add_units(self, parsed_data: List[pint.Unit]):
-        """Add units to each individual time series.
-
-        Args:
-            parsed_data: the physical units parsed from the CSV file.
-
-        Raises:
-            ValueError: the data doesn't have the same length as the
-                `time_series_list` provided during initialization.
-        """
-        self._call_method_on_each(parsed_data, 'add_unit')
-
-    def add_data(self, parsed_data: List[float]):
-        """Add a data entry to each individual time series.
-
-        Args:
-            parsed_data: data parsed from one line of the CSV file.
-
-        Raises:
-            ValueError: the data doesn't have the same length as the
-                `time_series_list` provided during initialization.
-        """
-        self._call_method_on_each(parsed_data, 'add_data')
-
-    def get_time_series(self, ind: Union[int, slice]) -> TimeSeriesAggregator:
-        return self.time_series_tuple[ind]
-
-    __getitem__ = get_time_series
-
-    def __len__(self):
-        return len(self.time_series_tuple)
-
-
 class DeviceAggregator:
     """Aggregator for the data corresponding to a single device.
 
@@ -227,26 +115,28 @@ class DeviceAggregator:
         device_aggregator: the DeviceHeaderAggregator object, which must
             refer to the same device header as `device_cols`
     """
+    _TIME_SERIES_AGGREGATOR = TimeSeriesAggregator
     name: str
     device_type: DeviceType
     first_col: int
     last_col: Optional[int]
-    components_aggregator: ComponentsAggregator
+    time_series: Tuple[_TIME_SERIES_AGGREGATOR]
 
     def __init__(self,
                  name: str,
                  device_type: DeviceType,
                  first_col: int,
-                 last_col: Optional[int] = None,
-                 components_aggregator: ComponentsAggregator):
+                 last_col: Optional[int] = None):
         self.name = name
         self.device_type = device_type
         self.first_col = first_col
         self.last_col = last_col
-        self.components_aggregator = components_aggregator
+        if last_col is not None:
+            self._initialize_time_series()
 
     def set_last_col(self, last_col: int):
         self.last_col = last_col
+        self._initialize_time_series()
 
     def add_coordinates(self, parsed_row: List[str]):
         """Add coordinates to device.
@@ -254,7 +144,8 @@ class DeviceAggregator:
         Args:
             parsed_row: the coordinates line of the input.
         """
-        self._components_add_coordinates(self._my_cols(parsed_row))
+        self._call_method_on_each(self._time_series_add_data,
+                                  self._my_cols(parsed_row))
 
     def add_units(self, parsed_row: List[pint.Unit]):
         """Add physical units to device.
@@ -262,7 +153,8 @@ class DeviceAggregator:
         Args:
             parsed_row: the units line of the input, already parsed.
         """
-        self._components_add_units(self._my_cols(parsed_row))
+        self._call_method_on_each(self._time_series_add_data,
+                                  self._my_cols(parsed_row))
 
     def add_data(self, parsed_row: List[float]):
         """Add measurements to device.
@@ -270,11 +162,26 @@ class DeviceAggregator:
         Args:
             parsed_row: a data line of the input, already parsed.
         """
-        self._components_add_data(self._my_cols(parsed_row))
+        self._call_method_on_each(self._time_series_add_data,
+                                  self._my_cols(parsed_row))
 
     def _my_cols(self, parsed_cols: List[Any]):
         """Restrict parsed columns to the ones corresponding to device."""
         return parsed_cols[self._create_slice()]
+
+    def _call_method_on_each(
+            self, method: Callable[[_TIME_SERIES_AGGREGATOR, Any], None],
+            parsed_data: List):
+        """Calls a method on each time series with the data as argument.
+
+        Args:
+            parsed_data: the columns of the data referring to the device.
+
+            method: the method to be called on each
+                :py:class:TimeSeriesAggregator.
+        """
+        for data_entry, time_series in zip(parsed_data, self.time_series):
+            method(time_series, data_entry)
 
     def _create_slice(self):
         """Create a slice object corresponding to the device columns.
@@ -290,14 +197,31 @@ class DeviceAggregator:
         return slice(self.first_col_index,
                      self.first_col_index + self.num_of_cols)
 
-    def _components_add_coordinates(self, coords: List[str]):
-        self.components_aggregator.add_coordinates(coords)
+    def _initialize_time_series(self):
+        num_cols = last_col - first_col + 1
+        self.time_series = tuple(self._create_time_series_aggregator()
+                                 for _ in range(num_cols))
 
-    def _components_add_units(self, units: List[pint.Unit]):
-        self.components_aggregator.add_units(units)
+    def _create_time_series_aggregator(self) -> _TIME_SERIES_AGGREGATOR:
+        return self._TIME_SERIES_AGGREGATOR()
 
-    def _components_add_data(self, data: List[float]):
-        self.components_aggregator.add_data(data)
+    def _time_series_add_coordinate(self, time_series: _TIME_SERIES_AGGREGATOR,
+                                    data_entry: str):
+        time_series.add_coordinate(data_entry)
+
+    def _time_series_add_units(self, time_series: _TIME_SERIES_AGGREGATOR,
+                               data_entry: pint.Unit):
+        time_series.add_unit(data_entry)
+
+    def _time_series_add_data(self, time_series: _TIME_SERIES_AGGREGATOR,
+                              data_entry: float):
+        time_series.add_data(data_entry)
+
+    def __getitem__(self, ind: int) -> _TIME_SERIES_AGGREGATOR:
+        return self.time_series[ind]
+
+    def __len__(self):
+        return len(self.time_series)
 
 
 class _SectionAggregator(_OnlyOnceMixin, abc.ABC):

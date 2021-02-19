@@ -254,7 +254,7 @@ class DeviceAggregator:
         Args:
             parsed_row: the coordinates line of the input.
         """
-        self._components_add_coordinates(self._get_my_cols(parsed_row))
+        self._components_add_coordinates(self._my_cols(parsed_row))
 
     def add_units(self, parsed_row: List[pint.Unit]):
         """Adds physical units to device.
@@ -262,7 +262,7 @@ class DeviceAggregator:
         Args:
             parsed_row: the units line of the input, already parsed.
         """
-        self._components_add_units(self._get_my_cols(parsed_row))
+        self._components_add_units(self._my_cols(parsed_row))
 
     def add_data(self, parsed_row: List[float]):
         """Adds measurements to device.
@@ -270,9 +270,10 @@ class DeviceAggregator:
         Args:
             parsed_row: a data line of the input, already parsed.
         """
-        self._components_add_data(self._get_my_cols(parsed_row))
+        self._components_add_data(self._my_cols(parsed_row))
 
-    def _get_my_cols(self, parsed_cols: List[Any]):
+    def _my_cols(self, parsed_cols: List[Any]):
+        """Restrict parsed columns to the ones corresponding to device."""
         return parsed_cols[self._create_slice()]
 
     def _create_slice(self):

@@ -303,11 +303,11 @@ class ForcePlateGrouper:
 
     def _rename_force_plate(self, header: ColOfHeader) -> ColOfHeader:
         header_str = self._header_str(header)
-        new_name = self._get_force_plate_name(header_str)
+        new_name = self._force_plate_name(header_str)
         first_col = self._col_of_header_first_col(header)
         return self._col_of_header(new_name, first_col)
 
-    def _get_force_plate_name(self, header_str: str):
+    def _force_plate_name(self, header_str: str):
         force_plate_name, measurement_name = header_str.split('-')
         return force_plate_name[:-1]
 

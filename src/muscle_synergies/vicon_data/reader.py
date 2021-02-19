@@ -445,11 +445,6 @@ class TrajDevicesState(_DevicesState):
                                     reader: Reader):
         for header in headers:
             self._add_device(reader, header, DeviceType.TRAJECTORY_MARKER)
-            name = header.header_str
-            first_col = header.col_index
-            last_col = self._last_col_of_traj(first_col)
-            self._add_device(reader, name, DeviceType.TRAJECTORY_MARKER,
-                             first_col, last_col)
 
         def _last_col(self, _: DeviceType, first_col: int) -> int:
             return first_col + 3

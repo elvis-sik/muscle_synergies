@@ -200,91 +200,12 @@ class ComponentsAggregator:
         return len(self.time_series_tuple)
 
 
-
-
-class DeviceCols:
-    """Intermediate representation of the data read in the device names line.
-
-    This class is used as a way of communicating data from the :py:class:Reader
-    to the :py:class:Aggregator. For more information on where the data that
-    is held by this class, see the docs for :py:class:ViconCSVLines.
-
-    Args:
-        device_name: the name of the device, as read from the CSV file
-
-        device_type: the type of the device
-
-        first_col_index: the index in a Row in which the data for the device
-            begins
-    """
-    _col_of_header: ColOfHeader
-    device_type: DeviceType
-    num_of_cols: Optional[int]
-
-    def __init__(self, col_of_header: ColOfHeader, device_type: DeviceType):
-        self._col_of_header = col_of_header
-        self.device_type = device_type
-        self.num_of_cols = None
-        self._initialize_num_of_cols()
-
-    @property
-    def device_name(self):
-        return self._col_of_header.header_str
-
-    @property
-    def first_col_index(self):
-        return self._col_of_header.col_index
-
-    def create_slice(self):
-        """Creates a slice object corresponding to the device header columns.
-
-        Raises:
-            TypeError: if num_of_cols is None. This will happen for an EMG
-                device header if :py:func:DeviceCols.add_num_cols isn't
-                called explicitly.
-        """
-        if self.num_of_cols is None:
-            raise TypeError('add_num_of_cols should be called before slice')
-
-        return slice(self.first_col_index,
-                     self.first_col_index + self.num_of_cols)
-
-    def add_num_cols(self, num_of_cols: int):
-        """Add number of columns.
-
-        This should only be used for EMG devices, and only once.
-
-        Raises:
-            TypeError: if either the device isn't a EMG one or the method is
-                called more than once.
-        """
-        if self.num_of_cols is not None:
-            raise TypeError(
-                'tried to set num_of_cols with the variable already set')
-
-        if self.device_type is not DeviceType.EMG:
-            raise TypeError(
-                "tried to set num_of_cols for a device the type of which isn't EMG"
-            )
-
-        self.num_of_cols = num_of_cols
-
-    def _initialize_num_of_cols(self):
-        """Determines if possible the number of columns of the device"""
-        if self.device_type is DeviceType.EMG:
-            self.num_of_cols = None
-        elif self._device_type is DeviceType.FORCE_PLATE:
-            self.num_cols = 9
-        self.num_of_cols = 3
-
-
 class DeviceAggregator:
     """A device header.
 
     This class keeps track of 2 components referring to individual device
     headers (see :py:class:ViconCSVLines for an explanation of what is a device
     header):
-    * :py:class:DeviceCols
     * :py:class:DeviceHeaderAggregator
 
     The first of those (:py:class:DeviceCols) keeps track of which
@@ -294,32 +215,38 @@ class DeviceAggregator:
     file.
 
     Args:
-        device_cols: the DeviceCols object, which must refer to the
-            same device header as `device_aggregator`.
+        name: device name
+
+        device_type: the type of the device
+
+        first_col: the first column in the CSV file corresponding to the device
+
+        last_col: the last column in the CSV file corresponding to the device.
+            If
 
         device_aggregator: the DeviceHeaderAggregator object, which must
             refer to the same device header as `device_cols`
     """
-    device_cols: DeviceCols
+    name: str
+    device_type: DeviceType
+    first_col: int
+    last_col: Optional[int]
     components_aggregator: ComponentsAggregator
 
-    def __init__(self, device_cols: DeviceCols,
+    def __init__(self,
+                 name: str,
+                 device_type: DeviceType,
+                 first_col: int,
+                 last_col: Optional[int] = None,
                  components_aggregator: ComponentsAggregator):
-        self.device_cols = device_cols
+        self.name = name
+        self.device_type = device_type
+        self.first_col = first_col
+        self.last_col = last_col
         self.components_aggregator = components_aggregator
 
-    @classmethod
-    def from_col_of_header():
-        pass
-
-    @property
-    def device_name(self):
-        return self.device_cols.device_name
-
-    @property
-    def device_type(self):
-
-        return self.device_cols.device_type
+    def set_last_col(self, last_col: int):
+        self.last_col = last_col
 
     def add_coordinates(self, parsed_row: List[str]):
         """Adds coordinates to device.
@@ -349,7 +276,18 @@ class DeviceAggregator:
         return parsed_cols[self._create_slice()]
 
     def _create_slice(self):
-        return self.device_cols.create_slice()
+        """Creates a slice object corresponding to the device columns.
+
+         Raises:
+             TypeError: if num_of_cols is None. This will happen for an EMG
+                 device header if :py:func:DeviceCols.add_num_cols isn't
+                 called explicitly.
+         """
+        if self.num_of_cols is None:
+            raise TypeError('add_num_of_cols should be called before slice')
+
+        return slice(self.first_col_index,
+                     self.first_col_index + self.num_of_cols)
 
     def _components_add_coordinates(self, coords: List[str]):
         self.components_aggregator.add_coordinates(coords)

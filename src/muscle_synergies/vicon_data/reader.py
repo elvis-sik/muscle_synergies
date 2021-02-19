@@ -25,14 +25,11 @@ from .definitions import (
     ForcePlateMeasurement,
 )
 from .aggregator import (
-    ViconNexusData,
     ColOfHeader,
     DeviceHeaderPair,
     DeviceHeaderCols,
-    DeviceHeaderAggregator,
-    ForcePlateDevices,
+    DeviceAggregator,
     Aggregator,
-    DataChanneler,
 )
 
 

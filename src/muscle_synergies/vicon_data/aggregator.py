@@ -201,7 +201,7 @@ class ComponentsAggregator:
 
 
 class DeviceAggregator:
-    """A device header.
+    """Aggregator for the data corresponding to a single device.
 
     This class keeps track of 2 components referring to individual device
     headers (see :py:class:ViconCSVLines for an explanation of what is a device
@@ -249,7 +249,7 @@ class DeviceAggregator:
         self.last_col = last_col
 
     def add_coordinates(self, parsed_row: List[str]):
-        """Adds coordinates to device.
+        """Add coordinates to device.
 
         Args:
             parsed_row: the coordinates line of the input.
@@ -257,7 +257,7 @@ class DeviceAggregator:
         self._components_add_coordinates(self._my_cols(parsed_row))
 
     def add_units(self, parsed_row: List[pint.Unit]):
-        """Adds physical units to device.
+        """Add physical units to device.
 
         Args:
             parsed_row: the units line of the input, already parsed.
@@ -265,7 +265,7 @@ class DeviceAggregator:
         self._components_add_units(self._my_cols(parsed_row))
 
     def add_data(self, parsed_row: List[float]):
-        """Adds measurements to device.
+        """Add measurements to device.
 
         Args:
             parsed_row: a data line of the input, already parsed.
@@ -277,7 +277,7 @@ class DeviceAggregator:
         return parsed_cols[self._create_slice()]
 
     def _create_slice(self):
-        """Creates a slice object corresponding to the device columns.
+        """Create a slice object corresponding to the device columns.
 
          Raises:
              TypeError: if num_of_cols is None. This will happen for an EMG

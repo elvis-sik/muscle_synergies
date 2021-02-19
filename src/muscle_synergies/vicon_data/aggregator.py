@@ -200,24 +200,6 @@ class ComponentsAggregator:
         return len(self.time_series_tuple)
 
 
-# TODO thinking this should actually be obsoleted
-# all this logic goes into DevicesState
-# DeviceAggregator gets first_col (mandatory), last_col (optional, def None)
-# then has a add_num_cols method
-# then ReaderState will have to know about number of cols of device types
-# and it'll be responsible for identifying device types
-# it'll only call:
-# - Aggregator.add_force_plate(name, first_col, last_col)
-#   plus the 2 equivalents for other types
-# then CoordinatesState will call:
-# - Aggregator.add_emg_num_cols(num_cols)
-# - Aggregator.add_coordinates(coords)
-
-# this also obsoletes ColOfHeader since the relevant information will be
-# passed as method arguments
-
-# finally, to get the name of a force plate only get its first device header
-# split at '-' and get the first part
 
 
 class DeviceCols:

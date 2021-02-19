@@ -338,8 +338,7 @@ class _DevicesState(_UpdateStateMixin, _ReaderState):
         self._update_state(reader)
 
     def _add_device(self, reader: Reader, header: ColOfHeader,
-                    device_type: DeviceType,
-                    last_col_func: Callable[[int], None]):
+                    device_type: DeviceType):
         self._aggregator_add_device(
             self._reader_aggregator(reader),
             **self._build_add_device_params_dict(header, device_type))
@@ -404,12 +403,11 @@ class ForcesEMGDevicesState(_DevicesState):
         self._add_emg(emg, reader)
 
     def _add_emg(self, header: ColOfHeader, reader: Reader):
-        self._add_device(reader, header, DeviceType.EMG, self._last_col_of_emg)
+        self._add_device(reader, header, DeviceType.EMG)
 
     def _add_force_plate(self, header: ColOfHeader, reader: Reader):
 
-        self._add_device(reader, header, DeviceType.FORCE_PLATE,
-                         self._last_col_of_force_plate)
+        self._add_device(reader, header, DeviceType.FORCE_PLATE)
 
     def _separate_headers(self, headers: List[ColOfHeader]
                           ) -> Tuple[List[ColOfHeader], ColOfHeader]:

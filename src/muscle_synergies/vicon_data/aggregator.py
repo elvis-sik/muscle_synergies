@@ -91,17 +91,6 @@ class TimeSeriesAggregator(_OnlyOnceMixin):
 class DeviceAggregator:
     """Aggregator for the data corresponding to a single device.
 
-    This class keeps track of 2 components referring to individual device
-    headers (see :py:class:ViconCSVLines for an explanation of what is a device
-    header):
-    * :py:class:DeviceHeaderAggregator
-
-    The first of those (:py:class:DeviceCols) keeps track of which
-    columns from the CSV file refer to that device. The second
-    (:py:class:DeviceHeaderAggregator) is accumulates data of different vector
-    time series, each of which coming from an individual column of the CSV
-    file.
-
     Args:
         name: device name
 

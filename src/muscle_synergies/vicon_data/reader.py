@@ -525,7 +525,7 @@ class UnitsState(_UpdateStateMixin, _AggregateDataMixin, _EntryByEntryMixin,
         return self.ureg(entry)
 
     def _get_data_aggregate_method(self, aggregator: Aggregator
-                                   ) -> Callable[[List[unit]], None]:
+                                   ) -> Callable[[List[pint.Unit]], None]:
         return aggregator.add_units
 
     def _next_state_type(self):

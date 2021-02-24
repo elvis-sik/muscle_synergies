@@ -532,24 +532,40 @@ class UnitsState(_UpdateStateMixin, _AggregateDataMixin, _EntryByEntryMixin,
         return GettingMeasurementsState
 
 
-class GettingMeasurementsState(_AggregateDataMixin, _EntryByEntryMixin,
-                               _PassUpFileEndedMixin, _ReaderState):
+class GettingMeasurementsState(_ReaderState):
     @property
     def line(self) -> ViconCSVLines:
         return ViconCSVLines.DATA_LINE
+
+    def __init__(self,
+                 data_state: Optional['DataState'] = None,
+                 blank_state: Optional['BlankState'] = None):
+        if data_state is None:
+            self.data_state = DataState()
+        if blank_state is None:
+            self.blank_state = BlankState()
 
     def feed_row(self, row: Row, reader: Reader):
         row = self._preprocess_row(row)
 
         if self._is_blank_line(row):
-            self._transition(reader)
+            self.data_state.feed_row(row, reader)
         else:
-            floats = self._parse_row(row)
-            self._aggregate_data(floats, reader)
+            self.blank_state.feed_row(row, reader)
 
     @staticmethod
     def _is_blank_line(row: Row) -> bool:
         return bool(row)
+
+
+class DataState(_AggregateDataMixin, _EntryByEntryMixin, _ReaderState):
+    @property
+    def line(self) -> ViconCSVLines:
+        return ViconCSVLines.DATA_LINE
+
+    def feed_row(self, row: Row, reader: Reader):
+        floats = self._parse_row(row)
+        self._aggregate_data(floats, reader)
 
     def _parse_entry(row_entry: str) -> float:
         return float(row_entry)
@@ -558,41 +574,21 @@ class GettingMeasurementsState(_AggregateDataMixin, _EntryByEntryMixin,
                                    ) -> Callable[[List[float]], None]:
         return aggregator.add_measurements
 
-    def _transition(self, reader: Reader):
-        # TODO maybe transitioning should be abstracted into a single class
-        current_section_type = self._reader_section_type()
 
-        if current_section_type is SectionType.FORCES_EMG:
-            self._set_new_section_state(reader)
-        elif current_section_type is SectionType.TRAJECTORIES:
-            self._set_blank_state(reader)
-        else:
-            raise TypeError(
-                "current section type isn't a member of SectionType")
-
-        self._reader_transition_section(reader)
-
-    def _reader_transition_section(self, reader: Reader):
-        aggregator = self._reader_aggregator(reader)
-        aggregator.transition()
-
-    def _set_new_section_state(self, reader: Reader):
-        new_state = SectionTypeState()
-        self._reader_set_state(reader, new_state)
-
-    def _set_blank_state(self, reader: Reader):
-        new_state = BlankLinesState()
-        self._reader_set_state(reader, new_state)
-
-
-class BlankLinesState(_PassUpFileEndedMixin, _ReaderState):
+class BlankState(_ReaderState):
     @property
     def line(self) -> ViconCSVLines:
         return ViconCSVLines.BLANK_LINE
 
     def feed_row(self, row: Row, reader: Reader):
-        row = self._preprocess_row(row)
-        if row:
-            raise ValueError(
-                f'BlankLinesState expects to only be fed empty rows but got this: {row}'
-            )
+        self._transition(reader)
+
+    def _transition(self, reader: Reader):
+        current_section_type = self._reader_section_type()
+        new_state = SectionTypeState()
+        self._reader_set_state(reader, new_state)
+        self._reader_transition_section(reader)
+        aggregator = self._aggregator_transition(aggregator)
+
+    def _aggregator_transition(self, aggregator: Aggregator):
+        aggregator.transition()

@@ -528,6 +528,7 @@ class UnitsState(_UpdateStateMixin, _AggregateDataMixin, _EntryByEntryMixin,
                                    ) -> Callable[[List[pint.Unit]], None]:
         return aggregator.add_units
 
+    @property
     def _next_state_type(self):
         return GettingMeasurementsState
 

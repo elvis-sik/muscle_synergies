@@ -1,4 +1,5 @@
 import csv
+from dataclasses import dataclass
 from typing import Iterator
 
 from .definitions import Row
@@ -6,9 +7,12 @@ from .aggregator import (
     Aggregator,
     ForcesEMGAggregator,
     TrajAggregator,
-    ViconNexusData,
 )
 from .reader import (Reader, SectionTypeState)
+from .user_data import (
+    Builder,
+    ViconNexusData,
+)
 
 
 def csv_row_stream(filename) -> Iterator[Row]:
@@ -35,27 +39,42 @@ def _initialize_reader_section_type_state() -> SectionTypeState:
     return SectionTypeState()
 
 
-def _initialize_reader(initial_state: SectionTypeState,
-                       aggregator: Aggregator) -> Reader:
-    return Reader(section_type_state=initial_state, aggregator=aggregator)
+def create_reader(initial_state=None, aggregator=None):
+    if initial_state is None:
+        initial_state = _initialize_reader_section_type_state(),
+    if aggregator is None:
+        aggregator = _initialize_aggregator(),
+    return _initialize_reader(initial_state=initial_state,
+                              aggregator=aggregator)
 
 
-def create_reader():
-    return _initialize_reader(
-        initial_state=_initialize_reader_section_type_state(),
-        aggregator=_initialize_aggregator(),
-    )
+def create_builder(aggregator=None):
+    if aggregator is None:
+        aggregator = _initialize_aggregator()
+    return Builder(aggregator)
 
 
-def load_vicon_file(csv_filename: str,
-                    should_raise: bool = True) -> ViconNexusData:
-    reader = create_reader(csv_filename=csv_filename,
-                           should_raise=should_raise)
+@dataclass
+class _LoadingRun:
+    reader: Reader
+    builder: Builder
+
+
+def create_loading_run() -> _LoadingRun:
+    aggregator = _initialize_aggregator()
+    reader = create_reader(aggregator=aggregator)
+    builder = create_builder(aggregator=aggregator)
+    return _LoadingRun(reader, builder)
+
+
+def load_vicon_file(csv_filename: str) -> ViconNexusData:
+    loading_run = create_loading_run()
+
     for i, row in enumerate(csv_row_stream(csv_filename), start=1):
         try:
-            reader.feed_row(row)
+            loading_run.reader.feed_row(row)
         except Exception as exception:
             raise RuntimeError(
                 f'error parsing line {i} of file {csv_filename}: ' +
                 str(e)) from exception
-    return reader.file_ended()
+    return builder.build()

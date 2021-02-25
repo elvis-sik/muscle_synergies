@@ -26,6 +26,7 @@ from .definitions import (
     ViconCSVLines,
     DeviceType,
     ForcePlateMeasurement,
+    SamplingFreq,
 )
 
 
@@ -424,15 +425,30 @@ class Aggregator:
 
     @property
     def finished(self):
-        force_emg_finished = self.get_section_aggregator(
+        force_emg_finished = self._get_section_aggregator(
             SectionType.FORCES_EMG).finished
-        traj_finished = self.get_section_aggregator(
+        traj_finished = self._get_section_aggregator(
             SectionType.TRAJECTORIES).finished
         return force_emg_finished and traj_finished
 
-    def get_section_aggregator(self,
-                               section_type: Optional[SectionType] = None
-                               ) -> _SectionAggregator:
+    def get_sampling_freq(self) -> SamplingFreq:
+        forces_emg_agg = self._get_section_aggregator(SectionType.FORCES_EMG)
+        traj_agg = self._get_section_aggregator(SectionType.TRAJECTORIES)
+
+        freq_forces_emg = forces_emg_agg.frequency
+        freq_traj = traj_agg.frequency
+        num_frames = traj_agg.get_num_rows()
+        return SamplingFreq(freq_forces_emg, freq_traj, num_frames)
+
+    def get_devices(self) -> Sequence[DeviceAggregator]:
+        forces_emg = self._get_section_aggregator(
+            SectionType.FORCES_EMG).devices
+        traj = self._get_section_aggregator(SectionType.TRAJECTORIES).devices
+        return forces_emg + traj
+
+    def _get_section_aggregator(self,
+                                section_type: Optional[SectionType] = None
+                                ) -> _SectionAggregator:
         if section_type is None:
             return self._current_aggregator
         if section_type is SectionType.FORCES_EMG:
@@ -442,27 +458,27 @@ class Aggregator:
 
     def set_current_section(self, section_type: SectionType):
         assert section_type in SectionType
-        self._current_aggregator = self.get_section_aggregator(section_type)
+        self._current_aggregator = self._get_section_aggregator(section_type)
 
     def file_ended(self) -> ViconNexusData:
-        self.get_section_aggregator().file_ended(aggregator=self)
+        self._get_section_aggregator().file_ended(aggregator=self)
 
     def get_section_type(self) -> SectionType:
-        return self.get_section_aggregator().section_type
+        return self._get_section_aggregator().section_type
 
     def transition(self):
-        self.get_section_aggregator().transition()
+        self._get_section_aggregator().transition()
 
     def add_frequency(self, frequency: int):
-        self.get_section_aggregator().add_frequency(frequency)
+        self._get_section_aggregator().add_frequency(frequency)
 
     def add_units(self, units: List[pint.Unit]):
-        self.get_section_aggregator().add_units(units)
+        self._get_section_aggregator().add_units(units)
 
     def add_measurements(self, data: List[float]):
-        self.get_section_aggregator().add_data(data)
+        self._get_section_aggregator().add_data(data)
 
     def add_device(self, name: str, device_type: DeviceType, first_col: int,
                    last_col: Optional[int]):
-        self.get_section_aggregator().add_device(name, device_type, first_col,
-                                                 last_col)
+        self._get_section_aggregator().add_device(name, device_type, first_col,
+                                                  last_col)

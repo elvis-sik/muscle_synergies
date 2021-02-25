@@ -18,11 +18,6 @@ Y = TypeVar('Y')
 # corresponding to different values
 Row = NewType('Row', List[str])
 
-# unified types for several different representations of a device header
-DeviceHeaderRepresentation = Union['ColOfHeader', 'DeviceHeaderCols',
-                                   'DeviceHeaderPair', 'DeviceHeaderData']
-ForcePlateRepresentation = Union['ForcePlateDevices', 'ForcePlateData']
-
 
 class SectionType(Enum):
     """Type of a section of a Vicon Nexus CSV file.

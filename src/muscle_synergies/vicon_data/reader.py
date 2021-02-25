@@ -46,10 +46,6 @@ class Reader:
         self._state = section_type_state
         self._aggregator = aggregator
 
-    def file_ended(self) -> ViconNexusData:
-        # TODO I want to obsolete this. Caller should ask Aggregator for it.
-        self._state.file_ended(reader=self)
-
     def feed_row(self, row: Row):
         self._state.feed_row(row, reader=self)
 
@@ -71,21 +67,6 @@ class _ReaderState(abc.ABC):
     @abc.abstractproperty
     def line(self) -> ViconCSVLines:
         pass
-
-    def file_ended(self, reader: 'Reader') -> ViconNexusData:
-        current_section_type = self._reader_section_type(reader)
-        current_line = self.line
-        data_check = self._create_data_check(
-            False, "file doesn't seem to have the expected structure. " +
-            "It was expected to have two sections with data " +
-            "(one for force plate and EMG data, the other for trajectory markers) "
-            +
-            "with each section having 5 lines before a variable number of lines "
-            + "containing measurements. " +
-            f"Current section type is {current_section_type} and the line "
-            f"currently expected is {current_line}.")
-        validator = self._reader_validator(reader)
-        self._validate(validator, data_check)
 
     def _preprocess_row(self, row: Row) -> Row:
         row = list(entry.strip() for entry in row)
@@ -148,12 +129,6 @@ class _EntryByEntryMixin(abc.ABC):
     @abc.abstractmethod
     def _parse_entry(row_entry: str) -> T:
         pass
-
-
-class _PassUpFileEndedMixin:
-    def file_ended(self, reader: Reader) -> ViconNexusData:
-        aggregator = self._reader_aggregator(reader)
-        return aggregator.file_ended()
 
 
 class SectionTypeState(_UpdateStateMixin, _HasSingleEntryMixin, _ReaderState):

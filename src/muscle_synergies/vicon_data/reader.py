@@ -515,20 +515,18 @@ class DataState(_AggregateDataMixin, _EntryByEntryMixin, _ReaderState):
         return aggregator.add_measurements
 
 
-class BlankState(_ReaderState):
+class BlankState(_UpdateStateMixin, _ReaderState):
     @property
     def line(self) -> ViconCSVLines:
         return ViconCSVLines.BLANK_LINE
 
     def feed_row(self, row: Row, reader: Reader):
-        self._transition(reader)
+        self._aggregator_transition(self._reader_aggregator(reader))
+        self._update_state(reader)
 
-    def _transition(self, reader: Reader):
-        current_section_type = self._reader_section_type()
-        new_state = SectionTypeState()
-        self._reader_set_state(reader, new_state)
-        self._reader_transition_section(reader)
-        aggregator = self._aggregator_transition(aggregator)
+    @property
+    def _next_state_type(self):
+        return SectionTypeState
 
     def _aggregator_transition(self, aggregator: Aggregator):
         aggregator.transition()

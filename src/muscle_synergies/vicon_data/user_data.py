@@ -4,6 +4,8 @@ from typing import (List, Set, Dict, Tuple, Optional, Sequence, Callable, Any,
                     Mapping, Iterator, Generic, TypeVar, NewType, Union,
                     Iterable)
 
+import pandas as pd
+
 from .aggregator import (
     Aggregator,
     ForcesEMGAggregator,

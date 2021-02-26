@@ -35,11 +35,10 @@ def _initialize_reader_section_type_state() -> SectionTypeState:
 
 def create_reader(initial_state=None, aggregator=None):
     if initial_state is None:
-        initial_state = _initialize_reader_section_type_state(),
+        initial_state = _initialize_reader_section_type_state()
     if aggregator is None:
         aggregator = _initialize_aggregator(),
-    return _initialize_reader(initial_state=initial_state,
-                              aggregator=aggregator)
+    return Reader(section_type_state=initial_state, aggregator=aggregator)
 
 
 def create_builder(aggregator=None):
@@ -70,5 +69,5 @@ def load_vicon_file(csv_filename: str) -> ViconNexusData:
         except Exception as exception:
             raise RuntimeError(
                 f'error parsing line {i} of file {csv_filename}: ' +
-                str(e)) from exception
+                str(exception)) from exception
     return builder.build()

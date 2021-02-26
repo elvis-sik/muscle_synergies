@@ -840,8 +840,8 @@ class TestState:
                 'cop': 'Imported AMTI OR6 Series Force Plate #2 - CoP'
             }
 
-        def create_device_headers(self, device_names: List[str]
-                                  ) -> List[vd.DeviceHeaderCols]:
+        def create_device_headers(self, device_names: List[str]):
+            # ) -> List[vd.DeviceHeaderCols]:
             all_dev_cols = []
 
             for dev_name in device_names:

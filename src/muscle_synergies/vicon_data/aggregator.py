@@ -28,7 +28,7 @@ from .definitions import (
 )
 
 
-class TimeSeriesAggregator(_OnlyOnceMixin):
+class TimeSeriesAggregator:
     """Builds data of an individual time series.
 
     Columns in the CSV file correspond to measurements made over time (at
@@ -202,7 +202,7 @@ class DeviceAggregator:
         return len(self.time_series)
 
 
-class _SectionAggregator(_OnlyOnceMixin, abc.ABC):
+class _SectionAggregator(abc.ABC):
     finished: bool
     frequency: Optional[int]
     devices: List[DeviceAggregator]
@@ -337,7 +337,7 @@ class Aggregator:
                                 section_type: Optional[SectionType] = None
                                 ) -> _SectionAggregator:
         if section_type is None:
-            return
+            return self._current_aggregator
         if section_type is SectionType.FORCES_EMG:
             return self._force_emg_aggregator
         if section_type is SectionType.TRAJECTORIES:
@@ -345,7 +345,11 @@ class Aggregator:
 
     def set_current_section(self, section_type: Optional[SectionType]):
         assert (section_type in SectionType) or (section_type is None)
-        self._current_aggregator = self._get_section_aggregator(section_type)
+        if section_type is None:
+            self._current_aggregator = None
+        else:
+            self._current_aggregator = self._get_section_aggregator(
+                section_type)
 
     def get_section_type(self) -> SectionType:
         return self._get_section_aggregator().section_type

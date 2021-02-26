@@ -17,17 +17,12 @@ from .definitions import (
     X,
     Y,
     Row,
-    DeviceHeaderRepresentation,
-    ForcePlateRepresentation,
     SectionType,
     ViconCSVLines,
     DeviceType,
     ForcePlateMeasurement,
 )
 from .aggregator import (
-    ColOfHeader,
-    DeviceHeaderPair,
-    DeviceHeaderCols,
     DeviceAggregator,
     Aggregator,
 )
@@ -71,7 +66,7 @@ class _ReaderState(abc.ABC):
     def _preprocess_row(self, row: Row) -> Row:
         row = list(entry.strip() for entry in row)
 
-        while row and row[-1]:
+        while row and not row[-1]:
             row.pop()
         return Row(row)
 
@@ -131,7 +126,7 @@ class _EntryByEntryMixin(abc.ABC):
         pass
 
 
-class SectionTypeState(_UpdateStateMixin, _HasSingleEntryMixin, _ReaderState):
+class SectionTypeState(_UpdateStateMixin, _HasSingleColMixin, _ReaderState):
     """The state of a reader that is expecting the section type line.
 
     For an explanation of what are the different lines of the CSV input, see
@@ -150,7 +145,7 @@ class SectionTypeState(_UpdateStateMixin, _HasSingleEntryMixin, _ReaderState):
         self._validate_row_valid_values(row)
         self._validate_row_has_single_col(row)
         section_type = self._parse_section_type(row)
-        self._validate(section_type)
+        self._validate_section_type(section_type, reader)
         self._update_state(reader)
 
     def _validate_row_valid_values(self, row: Row):

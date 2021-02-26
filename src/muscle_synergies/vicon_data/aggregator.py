@@ -207,206 +207,92 @@ class DeviceAggregator:
 class _SectionAggregator(_OnlyOnceMixin, abc.ABC):
     finished: bool
     frequency: Optional[int]
-    data_channeler: Optional['DataChanneler']
+    devices: List[DeviceAggregator]
 
     def __init__(self):
         super().__init__()
         self._finished = False
         self.frequency = None
-        self.data_channeler = None
-
-    @property
-    def finished(self) -> bool:
-        return self._finished
+        self.devices = []
 
     @abc.abstractproperty
     def section_type(self) -> SectionType:
         return
 
     @abc.abstractmethod
-    def file_ended(self, aggregator: 'Aggregator') -> ViconNexusData:
-        pass
-
-    @abc.abstractmethod
     def transition(self, aggregator: 'Aggregator'):
         self._finished = True
 
+    @property
+    def finished(self) -> bool:
+        return self._finished
+
+    def add_device(self, name: str, device_type: DeviceType, first_col: int,
+                   last_col: Optional[int]):
+        self._raise_if_finished()
+        self.devices.append(
+            self._instantiate_device_aggregator(name, device_type, first_col,
+                                                last_col))
+
     def add_frequency(self, frequency: int):
-        self._raise_if_finished('frequency')
-        if self.frequency is not None:
-            self._raise_called_twice('frequency')
+        self._raise_if_finished()
         self.frequency = frequency
 
-    def add_data_channeler(self, data_channeler: 'DataChanneler'):
-        self._raise_if_finished('DataChanneler')
-        if self.data_channeler is not None:
-            self._raise_called_twice('DataChanneler')
-        self.data_channeler = data_channeler
+    def add_coordinates(self, coords: List[str]):
+        self._raise_if_finished()
+
+        for device in self.devices:
+            device.add_coordinates(units)
 
     def add_units(self, units: List[pint.Unit]):
-        self._raise_if_finished('units')
-        self.data_channeler.add_units(units)
+        self._raise_if_finished()
 
-    def add_measurements(self, data: List[float]):
-        self._raise_if_finished('data')
-        self.data_channeler.add_data(data)
+        for device in self.devices:
+            device.add_units(units)
 
-    def _raise_if_finished(self, tried_to_add_what: str):
+    def add_data(self, data: List[float]):
+        self._raise_if_finished()
+
+        for device in self.devices:
+            device.add_data(data)
+
+    def _instantiate_device_aggregator(self, name: str,
+                                       device_type: DeviceType, first_col: int,
+                                       last_col: Optional[int]
+                                       ) -> DeviceAggregator:
+        return DeviceAggregator(name, device_type, first_col, last_col)
+
+    def _raise_if_finished(self):
         if self.finished:
             raise TypeError(
-                f'tried to add {tried_to_add_what} to a finished _SectionAggregator'
-            )
+                f'tried to add something to a finished _SectionAggregator')
 
 
 class ForcesEMGAggregator(_SectionAggregator):
     section_type = SectionType.FORCES_EMG
-    emg_device: Optional['DeviceHeaderPair']
-    force_plates: List['ForcePlateDevices']
-
-    def __init__(self):
-        super().__init__()
-        self.emg_device = None
-        self.force_plates = []
-
-    def add_emg_device(self, emg_device: 'DeviceHeaderPair'):
-        if self.emg_device is not None:
-            self._raise_called_twice('EMG device')
-        self.emg_device = emg_device
-
-    def add_force_plates(self, force_plates: List['ForcePlateDevices']):
-        if self.force_plates:
-            self._raise_called_twice('list of force plates')
-        self.force_plates.extend(force_plates)
-
-    def file_ended(self, aggregator: 'Aggregator') -> ViconNexusData:
-        raise ValueError('file ended without a trajectory marker section.')
 
     def transition(self, aggregator: 'Aggregator'):
         super().transition(aggregator)
-        aggregator.set_current_section(next_section_aggregator)
+        aggregator.set_current_section(SectionType.TRAJECTORIES)
 
 
 class TrajAggregator(_SectionAggregator):
     section_type = SectionType.TRAJECTORIES
-    trajectory_devices: List['DeviceHeaderPair']
 
     def __init__(self):
         super().__init__()
-        self.trajectory_devices = []
+        self._num_rows = 0
 
-    def add_trajectory_devices(self,
-                               trajectory_devices: List['DeviceHeaderPair']):
-        if self.trajectory_devices:
-            self._raise_called_twice('list of trajectory markers')
-        self.trajectory_devices.extend(trajectory_devices)
+    def add_data(self, data: List[float]):
+        self._num_rows += 1
+        super().add_data(data)
+
+    def get_num_rows(self) -> int:
+        return self._num_rows
 
     def transition(self, aggregator: 'Aggregator'):
         super().transition(aggregator)
-
-    def file_ended(self, aggregator: 'Aggregator') -> ViconNexusData:
-        frequencies_obj = self._instantiate_frequencies_obj(
-            forces_emg_freq=self._forces_emg_freq(aggregator),
-            traj_freq=self.frequency,
-            num_frames=self._get_num_frames(aggregator),
-        )
-        force_plates = self._build_force_plate_mapping(aggregator, frequencies)
-        emg = self._build_emg_dev_data(aggregator, frequencies)
-        trajectory_markers = self._build_trajectory_marker_mapping(
-            aggregator, frequencies)
-
-        return self._instantiate_vicon_nexus_data(
-            force_plates=force_plates,
-            emg=emg,
-            trajectory_markers=trajectory_markers)
-
-    def _build_force_plate_mapping(self, aggregator: 'Aggregator',
-                                   frequencies: Frequencies
-                                   ) -> DeviceMapping[ForcePlateData]:
-        converted = []
-        devices = self._force_plate_devices(aggregator)
-        for device in devices:
-            converted.append(
-                self._instantiate_force_plate_data(device, frequencies))
-        return self._instantiate_device_mapping(devices)
-
-    def _build_emg_dev_data(self, aggregator: 'Aggregator',
-                            frequencies: Frequencies
-                            ) -> Optional[DeviceHeaderData]:
-        emg_pair = self._emg_pair(aggregator)
-        if emg_pair is None:
-            return
-        return self._instantiate_device_header_data(emg_pair, frequencies)
-
-    def _build_trajectory_marker_mapping(self, aggregator: 'Aggregator',
-                                         frequencies: Frequencies
-                                         ) -> DeviceMapping[DeviceHeaderData]:
-        converted = []
-        devices = self.trajectory_devices
-        for device in devices:
-            converted.append(
-                self._instantiate_device_header_data(device, frequencies))
-        return self._instantiate_device_mapping(devices)
-
-    def _get_num_frames(self) -> int:
-        # TODO
-        # This is a somewhat fragile solution which would fail if there is no
-        # trajectory marker. There also is currently no check on the code
-        # anywhere for consistency in the data: do all TimeSeriesAggregator
-        # hold the same number of data entries? One consequence of it not being
-        # the case would be the possibility that the number of frames here is
-        # wrong.
-
-        # I think the best way to do that would be to create a FrameCounter
-        # object to be passed to both the Aggregators which then passes it
-        # along to the DataChanneler and also has access to it. It could be
-        # created when the DeviceCols are created, i.e., the DevicesLine.
-        dev_pair = self.trajectory_devices[0]
-        dev_aggregator = dev_pair.device_aggregator
-        time_series_aggregator = dev_aggregator[0]
-        data = time_series_aggregator.get_data()
-        return len(data)
-
-    def _forces_emg_freq(self, aggregator: 'Aggregator') -> int:
-        return self._get_forces_emg_aggregator(aggregator).frequency
-
-    def _force_plate_devices(self, aggregator: 'Aggregator'
-                             ) -> List[ForcePlateDevices]:
-        return self._get_forces_emg_aggregator(aggregator).force_plates
-
-    def _emg_pair(self,
-                  aggregator: 'Aggregator') -> Optional['DeviceHeaderPair']:
-        return self._get_forces_emg_aggregator(aggregator).emg_device
-
-    def _get_forces_emg_aggregator(self, aggregator: 'Aggregator'
-                                   ) -> ForcesEMGAggregator:
-        return aggregator.get_section_aggregator(SectionType.FORCES_EMG)
-
-    def _instantiate_frequencies_obj(self, *, num_frames, forces_emg_freq,
-                                     traj_freq) -> Frequencies:
-        return Frequencies(forces_emg_freq, traj_freq, num_frames)
-
-    def _instantiate_force_plate_data(self, force_plate_dev: ForcePlateDevices,
-                                      frequencies: Frequencies
-                                      ) -> ForcePlateData:
-        return ForcePlateData.from_force_plate(force_plate_dev, frequencies)
-
-    def _instantiate_device_header_data(self, dev_pair: 'DeviceHeaderPair',
-                                        frequencies: Frequencies
-                                        ) -> DeviceHeaderData:
-        return DeviceHeaderData(dev_pair, frequencies)
-
-    def _instantiate_device_mapping(
-            self, device_list: List[Union[DeviceHeaderData, ForcePlateData]]
-    ) -> DeviceMapping[Union[DeviceHeaderData, ForcePlateData]]:
-        return DeviceMapping(device_list)
-
-    def _instantiate_vicon_nexus_data(
-            self, *, force_plates: DeviceMapping[ForcePlateDevices],
-            emg: DeviceHeaderData,
-            trajectory_markers: DeviceMapping) -> ViconNexusData:
-        return ViconNexusData(force_plates=force_plates,
-                              emg=emg,
-                              trajectory_markers=trajectory_markers)
+        aggregator.set_current_section(None)
 
 
 class Aggregator:

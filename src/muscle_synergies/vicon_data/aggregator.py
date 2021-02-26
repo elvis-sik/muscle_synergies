@@ -20,8 +20,6 @@ from .definitions import (
     X,
     Y,
     Row,
-    DeviceHeaderRepresentation,
-    ForcePlateRepresentation,
     SectionType,
     ViconCSVLines,
     DeviceType,

@@ -30,14 +30,6 @@ from .definitions import (
 )
 
 
-# TODO leave this exclusively for TimeSeriesAggregator
-class _OnlyOnceMixin:
-    def _raise_called_twice(self, what_was_added_twice: str):
-        raise TypeError(
-            f'attempted to add {what_was_added_twice} after it had ' +
-            'been already added')
-
-
 class TimeSeriesAggregator(_OnlyOnceMixin):
     """Builds data of an individual time series.
 
@@ -87,6 +79,11 @@ class TimeSeriesAggregator(_OnlyOnceMixin):
         mutating it will mutate it as well.
         """
         return self.data
+
+    def _raise_called_twice(self, what_was_added_twice: str):
+        raise TypeError(
+            f'attempted to add {what_was_added_twice} after it had ' +
+            'been already added')
 
 
 class DeviceAggregator:

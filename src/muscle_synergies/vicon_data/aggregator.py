@@ -339,18 +339,15 @@ class Aggregator:
                                 section_type: Optional[SectionType] = None
                                 ) -> _SectionAggregator:
         if section_type is None:
-            return self._current_aggregator
+            return
         if section_type is SectionType.FORCES_EMG:
             return self._force_emg_aggregator
         if section_type is SectionType.TRAJECTORIES:
             return self._traj_aggregator
 
-    def set_current_section(self, section_type: SectionType):
-        assert section_type in SectionType
+    def set_current_section(self, section_type: Optional[SectionType]):
+        assert (section_type in SectionType) or (section_type is None)
         self._current_aggregator = self._get_section_aggregator(section_type)
-
-    def file_ended(self) -> ViconNexusData:
-        self._get_section_aggregator().file_ended(aggregator=self)
 
     def get_section_type(self) -> SectionType:
         return self._get_section_aggregator().section_type

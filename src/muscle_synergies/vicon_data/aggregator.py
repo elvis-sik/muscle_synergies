@@ -415,12 +415,18 @@ class TrajAggregator(_SectionAggregator):
 class Aggregator:
     _force_emg_aggregator: ForcesEMGAggregator
     _traj_aggregator: TrajAggregator
-    _current_aggregator: _SectionAggregator
+    _current_aggregator: Optional[_SectionAggregator]
 
-    def __init__(self, forces_emg_aggregator: _SectionAggregator,
-                 trajs_aggregator: _SectionAggregator):
-        self._force_emg_aggregator = forces_emg_aggregator
-        self._traj_aggregator = trajs_aggregator
+    def __init__(self,
+                 forces_emg_agg: Optional[_SectionAggregator] = None,
+                 trajs_agg: Optional[_SectionAggregator] = None):
+        if forces_emg_agg is None:
+            forces_emg_agg = ForcesEMGAggregator()
+        if trajs_agg is None:
+            trajs_agg = TrajAggregator()
+
+        self._force_emg_aggregator = forces_emg_agg
+        self._traj_aggregator = trajs_agg
         self._current_aggregator = self._force_emg_aggregator
 
     @property

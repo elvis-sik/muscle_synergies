@@ -4,10 +4,7 @@ from typing import Iterator
 
 from .definitions import Row
 from .aggregator import (
-    Aggregator,
-    ForcesEMGAggregator,
-    TrajAggregator,
-)
+    Aggregator, )
 from .reader import (Reader, SectionTypeState)
 from .user_data import (
     Builder,
@@ -29,10 +26,7 @@ def csv_row_stream(filename) -> Iterator[Row]:
 
 
 def _initialize_aggregator() -> Aggregator:
-    forces_emg_aggregator = ForcesEMGAggregator()
-    traj_aggregator = TrajAggregator()
-    return Aggregator(forces_emg_aggregator=forces_emg_aggregator,
-                      trajs_aggregator=traj_aggregator)
+    return Aggregator()
 
 
 def _initialize_reader_section_type_state() -> SectionTypeState:

@@ -1,132 +1,31 @@
 import abc
-import collections.abc
 from collections import defaultdict
 import csv
 from dataclasses import dataclass
 from enum import Enum
 from functools import partial
-import re
 from typing import (List, Set, Dict, Tuple, Optional, Sequence, Callable, Any,
-                    Mapping, Iterator, Generic, TypeVar, NewType, Union,
-                    Iterable)
+                    Mapping, Iterator, TypeVar, NewType, Union, Iterable)
 
 import pandas as pd
 import pint
+from pint_pandas import PintArray
 
-from .reader_data import (CategorizedHeaders, ColOfHeader, SectionDataBuilder,
-                          DataCheck, DeviceHeader, DeviceHeaderCols,
-                          DeviceHeaderSectionDataBuilder, DeviceType,
-                          ForcePlate, Row, SectionType, Union, Validator,
-                          ViconCSVLines, T, X, Y, DeviceHeaderRepresentation,
-                          Failable, FailableResult, ureg, PintArray)
-
-
-class _ParsedDataRepresentation(collections.abc.Mapping):
-    _data_frame_dict: Mapping[X, pd.DataFrame]
-
-    def __init__(
-            self,
-            data_frame_dict: Mapping[X, pd.DataFrame],
-    ):
-        self._data_frame_dict = dict(data_frame_dict)
-
-    # TODO Preciso terminar esse planejamento:
-    # 1. implementar esse método
-    # 2. o que vai ser devolvido pro user precisa ser o seguinte:
-    #    - algo muito similar a um CategorizedHeaders
-    #    - o membro force_plates pode literalmente ser ForcePlate
-    #    - os 3 dev_headers de ForcePlate podem ser um
-    #      _ParsedDataRepresentation (?)
-    # 3. a classe _ParsedDataRepresentation precisa saber a respeito de
-    #    frames e subframes.
-    # 4. talvez ter um from_list_of_device_headers na ABC. Talvez nas
-    #    filhas. Ou isso é responsabilidade do caller?
-    # 5. daí faltam implementar:
-    #    a. 2 métodos de DataBuilder
-    #    b. mudar as classes do topo desse arquivo para o reader_data
-    #    c. corrigir o Reader
-    #    d. finalizar os 2 ReaderState pela metade
-    #    e. começar os testes
-
-    @staticmethod
-    def convert_device_header_builder(
-            device_header_builder: DeviceHeaderDataBuilder) -> pd.DataFrame:
-        def create_pint_array(data, physical_unit):
-            PintArray(data, dtype=physical_unit)
-
-        data_dict = {}
-        for time_series_builder in device_header_builder:
-            coord_name = time_series_builder.get_coordinate_name()
-            physical_unit = time_series_builder.get_physical_unit()
-            data = time_series_builder.get_data()
-            data_dict[coord_name] = create_pint_parray(data, physical_unit)
-
-        return pd.DataFrame(data_dict)
-
-    def __getitem__(self, ind: X) -> pd.DataFrame:
-        return self._data_frame_dict.__getitem__(ind)
-
-    def __len__(self) -> int:
-        return len(self._data_frame_dict)
-
-    def __iter__(self) -> Iterable[X]:
-        yield from iter(self._data_frame_dict)
-
-
-class TrajectoriesData(_ParsedDataRepresentation):
-    pass
-
-
-class ForcePlateData(_ParsedDataRepresentation):
-    pass
-
-
-class EMGData(_ParsedDataRepresentation):
-    pass
-
-
-class DataBuilder:
-    _current_section_type: Otional[SectionType]
-
-    _forces_emg_data_builder: SectionDataBuilder
-    _trajs_data_builder: SectionDataBuilder
-
-    def __init__(self,
-                 forces_emg_data_builder: SectionDataBuilder,
-                 trajs_data_builder: SectionDataBuilder,
-                 initial_section_type=SectionType.FORCES_EMG):
-        self._forces_emg_data_builder = forces_emg_data_builder
-        self._trajs_data_builder = trajs_data_builder
-        self._current_section_type = initial_section_type
-
-    def get_section_type(self) -> SectionType:
-        return self._current_section_type
-
-    def get_section_data_builder(self) -> Optional[SectionDataBuilder]:
-        if self.get_section_type() is SectionType.FORCES_EMG:
-            return self._forces_emg_data_builder
-        elif self.get_section_type() is SectionType.TRAJECTORIES:
-            return self._trajs_data_builder
-        return
-
-    def transition(self):
-        if self.get_section_type() is SectionType.FORCES_EMG:
-            self._current_section_type = SectionType.TRAJECTORIES
-        elif self.get_section_type() is SectionType.TRAJECTORIES:
-            self._build_data()
-        elif self.get_section_type() is None:
-            raise TypeError(
-                'tried to transition the state of a finished data builder')
-
-    @property
-    def finished(self):
-        return self._current_section_type is None
-
-    def get_built_data(self):
-        pass
-
-    def _build_data(self) -> 'DataRepresentation':
-        pass
+from .definitions import (
+    ureg,
+    T,
+    X,
+    Y,
+    Row,
+    SectionType,
+    ViconCSVLines,
+    DeviceType,
+    ForcePlateMeasurement,
+)
+from .aggregator import (
+    DeviceAggregator,
+    Aggregator,
+)
 
 
 class Reader:
@@ -134,117 +33,47 @@ class Reader:
 
     Initialize it
     """
-    _state: _ReaderState
-    _data_builder: SectionDataBuilder
-    _validator: Validator
-    _section_type: SectionType
+    _state: '_ReaderState'
+    _aggregator: Aggregator
 
-    def __init__(self,
-                 section_data_builder: SectionDataBuilder,
-                 validator: Validator,
-                 initial_section_type=SectionType.FORCES_EMG):
-        self.state = ViconCSVLines.SECTION_TYPE_LINE
-        self.data_builder = section_data_builder
-        self.validator = validator
-        self._section_type = initial_section_type
-
-    def set_state(self, new_state: _ReaderState):
-        self._state = new_state
-
-    def get_data_builder(self):
-        return self._data_builder
-
-    def get_validator(self):
-        return self._validator
-
-    def get_section_type(self) -> SectionType:
-        return self._section_type
-
-    def set_section_type(self, new_section_type: SectionType):
-        self._section_type = new_section_type
+    def __init__(self, section_type_state: 'SectionTypeState',
+                 aggregator: Aggregator):
+        self._state = section_type_state
+        self._aggregator = aggregator
 
     def feed_row(self, row: Row):
-        self._raise_if_ended()
+        self._state.feed_row(row, reader=self)
 
-        check_function = self._get_check_function()
-        read_function = self._get_read_function()
-        aggregation_function = self._get_build_function()
+    def set_state(self, new_state: '_ReaderState'):
+        self._state = new_state
 
-        self._call_validator(check_function(row))
-        read_line = read_function(row)
-        aggregation_function(read_line)
+    def get_aggregator(self):
+        return self._aggregator
 
-        self._transition()
-
-    def _get_check_function(self):
-        if self.state == ViconCSVLines.SECTION_TYPE_LINE:
-            return check_section_type_line
-        elif self.state == ViconCSVLines.SAMPLING_FREQUENCY_LINE:
-            return check_sampling_frequency_line
-        elif self.state == ViconCSVLines.DEVICE_NAMES_LINE:
-            return self.devices_reader.check_device_names_line
-
-    def _get_read_function(self):
-        if self.state == ViconCSVLines.SECTION_TYPE_LINE:
-            return read_section_type_line
-        elif self.state == ViconCSVLines.SAMPLING_FREQUENCY_LINE:
-            return read_sampling_frequency_line
-        elif self.state == ViconCSVLines.DEVICE_NAMES_LINE:
-            return self.devices_reader.read_device_names_line
-
-    def _get_build_function(self):
-        if self.state == ViconCSVLines.SECTION_TYPE_LINE:
-            return self.data_builder.add_section_type
-        elif self.state == ViconCSVLines.SAMPLING_FREQUENCY_LINE:
-            return self.data_builder.add_frequency
-        elif self.state == ViconCSVLines.DEVICE_NAMES_LINE:
-            # TODO Essa é a próxima linha
-            return
-
-    def _transition(self):
-        if self.state == ViconCSVLines.SECTION_TYPE_LINE:
-            self.state = ViconCSVLines.SAMPLING_FREQUENCY_LINE
-        elif self.state == ViconCSVLines.SAMPLING_FREQUENCY_LINE:
-            self.state = ViconCSVLines.DEVICE_NAMES_LINE
-        elif self.state == ViconCSVLines.DEVICE_NAMES_LINE:
-            return
-
-    def _raise_if_ended(self):
-        if self.state == ViconCSVLines.BLANK_LINE:
-            raise EOFError(
-                'tried to read another line from a section that has already been completely readd'
-            )
-
-    def _call_validator(self, data_check_result: DataCheck):
-        self.validator.validate(data_check_result)
+    def get_section_type(self) -> SectionType:
+        return self._aggregator.get_section_type()
 
 
 class _ReaderState(abc.ABC):
     @abc.abstractmethod
-    def feed_row(self, row: Row, reader: 'Reader'):
-        # TODO document:
-        # this should call validator exactly once.
-        # it also has exactly 4 responsibilities apart from that one
+    def feed_row(self, row: Row, *, reader: 'Reader'):
+        pass
+
+    @abc.abstractproperty
+    def line(self) -> ViconCSVLines:
         pass
 
     def _preprocess_row(self, row: Row) -> Row:
         row = list(entry.strip() for entry in row)
 
-        while row and row[-1]:
+        while row and not row[-1]:
             row.pop()
         return Row(row)
 
-    def _validate(self, validator: Validator, check_result: DataCheck):
-        validator.validate(check_result)
+    def _reader_aggregator(self, reader: 'Reader') -> Aggregator:
+        return reader.get_aggregator()
 
-    def _reader_validator(self, reader: 'Reader') -> Validator:
-        return reader.get_validator()
-
-    def _reader_data_builder(self, reader: 'Reader') -> 'SectionDataBuilder':
-        return reader.get_data_builder()
-
-    def _reader_set_new_state(self, reader: 'Reader',
-                              new_state: '_ReaderState'):
+    def _reader_set_state(self, reader: 'Reader', new_state: '_ReaderState'):
         reader.set_state(new_state)
 
     def _reader_section_type(self, reader: Reader) -> SectionType:
@@ -254,76 +83,78 @@ class _ReaderState(abc.ABC):
                                      new_section_type: SectionType):
         reader.set_section_type(new_section_type)
 
-    def _create_data_check(self,
-                           is_valid: bool,
-                           error_message: Optional[str] = None):
-        return DataCheck(is_valid=is_valid, error_message=error_message)
 
-    def _create_valid_data_check(self):
-        return DataCheck.valid_data()
+class _UpdateStateMixin:
+    def _update_state(self, reader: Reader):
+        self._reader_set_state(reader, self._new_state())
 
+    def _new_state(self):
+        st_type = self._next_state_type
+        return st_type()
 
-class _StepByStepReaderState(_ReaderState, Generic[T]):
-    """A reader step that fulfills each of its responsibilities in turn.
-
-    Reader states have 4 responsibilities:
-    1. validating the data
-    2. parsing it
-    3. building up a representation of the data being parsed
-    4. transition the :py:class:Reader to its next state
-
-    This abc is here to simplify the implementation of reader states which have
-    these 4 responsibilities well-defined in happening in sucession,
-    abstracting the boilerplate needed to make them achieved its child classes'
-    goals.
-    """
-    def feed_row(self, row: Row, reader: 'Reader'):
-        row = self._preprocess_row(row)
-
-        # check and validate
-        check_result = self._check_row(row)
-        validator = self._reader_validator(reader)
-        self._validate(validator, check_result)
-
-        # parse and build up the data
-        parsed_row = self._parse_row(row)
-        self._build_data(parsed_row, self._reader_data_builder(reader))
-
-        # transition to next state
-        new_state = self._new_state()
-        self._reader_set_new_state(reader, new_state)
-
-    @abc.abstractmethod
-    def _check_row(self, row: Row) -> DataCheck:
-        pass
-
-    @abc.abstractmethod
-    def _parse_row(self, row: Row) -> T:
-        pass
-
-    @abc.abstractmethod
-    def _build_data(self, parsed_data: T, data_builder: 'SectionDataBuilder'):
-        pass
-
-    @abc.abstractmethod
-    def _new_state(self) -> '_ReaderState':
+    @abc.abstractproperty
+    def _next_state_type(self):
         pass
 
 
-class SectionTypeState(_StepByStepReaderState):
+class _HasSingleColMixin:
+    def _validate_row_has_single_col(self, row: Row):
+        if row[1:]:
+            raise ValueError(
+                f'first row of a section should contain nothing outside its first column'
+            )
+
+
+class _AggregateDataMixin:
+    @abc.abstractmethod
+    def _get_data_aggregate_method(self, aggregator: Aggregator
+                                   ) -> Callable[[Any], None]:
+        pass
+
+    def _aggregate_data(self, data: Any, reader: Reader):
+        method = self._get_data_aggregate_method(
+            self._reader_aggregator(reader))
+        method(data)
+
+
+class _EntryByEntryMixin(abc.ABC):
+    def _parse_row(self, row: Row) -> List[T]:
+        return [self._parse_entry(row_entry) for row_entry in row]
+
+    @abc.abstractmethod
+    def _parse_entry(row_entry: str) -> T:
+        pass
+
+
+class SectionTypeState(_UpdateStateMixin, _HasSingleColMixin, _ReaderState):
     """The state of a reader that is expecting the section type line.
 
     For an explanation of what are the different lines of the CSV input, see
     the docs for :py:class:ViconCSVLines.
     """
-    def _check_row(self, row: Row) -> DataCheck:
-        is_valid = row[0] in {'Devices', 'Trajectories'}
-        message = (
-            'this line should contain either "Devices" or "Trajectories"'
-            ' in its first column')
-        return self._create_data_check(is_valid, message)
+    @property
+    def line(self) -> ViconCSVLines:
+        return ViconCSVLines.SECTION_TYPE_LINE
 
-    def _parse_row(self, row: Row) -> SectionType:
+    @property
+    def _next_state_type(self):
+        return SamplingFrequencyState
+
+    def feed_row(self, row: Row, reader: Reader):
+        row = self._preprocess_row(row)
+        self._validate_row_valid_values(row)
+        self._validate_row_has_single_col(row)
+        section_type = self._parse_section_type(row)
+        self._validate_section_type(section_type, reader)
+        self._update_state(reader)
+
+    def _validate_row_valid_values(self, row: Row):
+        if row[0] not in {'Devices', 'Trajectories'}:
+            raise ValueError(
+                f'first row in a section should contain "Devices" or "Trajectories" in its first column'
+            )
+
+    def _parse_section_type(self, row: Row) -> SectionType:
         section_type_str = row[0]
 
         if section_type_str == 'Devices':
@@ -331,52 +162,68 @@ class SectionTypeState(_StepByStepReaderState):
         elif section_type_str == 'Trajectories':
             return SectionType.TRAJECTORIES
 
-    def _build_data(self, parsed_data: SectionType,
-                    data_builder: 'SectionDataBuilder'):
-        data_builder.add_section_type(parsed_data)
+    def _validate_section_type(self, parsed_type: SectionType, reader: Reader):
+        current_type = self._reader_section_type(reader)
+        if current_type is not parsed_type:
+            raise ValueError(
+                f'row implies current section is {parsed_type} but expected {current_type}'
+            )
 
-    def _new_state(self):
-        return SamplingFrequencyState()
 
-
-class SamplingFrequencyState(_StepByStepReaderState):
+class SamplingFrequencyState(_AggregateDataMixin, _UpdateStateMixin,
+                             _HasSingleColMixin, _ReaderState):
     """The state of a reader that is expecting the sampling frequency line.
 
     For an explanation of what are the different lines of the CSV input, see
     the docs for :py:class:ViconCSVLines.
     """
-    def _check_row(self, row: Row) -> DataCheck:
-        try:
-            is_valid = int(row[0])
-        except ValueError:
-            is_valid = False
+    @property
+    def line(self) -> ViconCSVLines:
+        return ViconCSVLines.SAMPLING_FREQUENCY_LINE
 
-        message = (
-            'this line should contain an integer representing'
-            f' sampling frequency in its first column and not {row[0]}.')
+    @property
+    def _next_state_type(self):
+        return DevicesState
 
-        return self._create_data_check(is_valid, message)
+    def _get_data_aggregate_method(self, aggregator: Aggregator
+                                   ) -> Callable[[int], None]:
+        return aggregator.add_frequency
 
-    def _parse_row(self, row: Row) -> int:
-        try:
-            return int(row[0])
-        except ValueError:
-            return None
+    def feed_row(self, row: Row, reader: Reader):
+        row = self._preprocess_row(row)
+        self._validate_has_single_col(row)
+        freq = self._parse_freq(row)
+        self._aggregate_data(freq, reader)
+        self._update_state(reader)
 
-    def _build_data(self, parsed_data: int,
-                    data_builder: 'SectionDataBuilder'):
-        data_builder.add_frequency(parsed_data)
-
-    def _new_state(self) -> '_ReaderState':
-        return DevicesState()
+    @staticmethod
+    def _parse_freq(row: Row):
+        return int(row[0])
 
 
-class DevicesLineFinder(Failable):
-    def find_headers(self, row: Row) -> FailableResult[List[ColOfHeader]]:
-        fail_res = self._check_row(row)
-        return self._compute_on_failable(self._find_headers_unsafe,
-                                         fail_res,
-                                         compose=True)
+@dataclass
+class ColOfHeader:
+    """The string describing a device and the column in which it occurs.
+
+    This is used as an intermediate representation of the data being read in
+    the device names line (see :py:class:ViconCSVLines). The structure of that
+    line is complex, so the logic of its parsing is split into several classes.
+    ColOfHeader is used for communication between them.
+
+    Args:
+        col_index: the index of the column in the CSV file in which the
+            device header is described.
+
+        header_str: the exact string occurring in that column.
+    """
+    col_index: int
+    header_str: str
+
+
+class DevicesHeaderFinder:
+    def find_headers(self, row: Row) -> List[ColOfHeader]:
+        self._validate_row_values_in_correct_cols(row)
+        return self._find_headers_unsafe(row)
 
     __call__ = find_headers
 
@@ -386,12 +233,13 @@ class DevicesLineFinder(Failable):
     def _col_of_header(self, name, col) -> ColOfHeader:
         return ColOfHeader(col_index=col, header_str=name)
 
-    def _check_row(self, row: Row) -> FailableResult[None]:
-        error_message = ('this line should contain two blank columns '
-                         'then one device name every 3 columns')
+    def _validate_row_values_in_correct_cols(self, row: Row):
+        def error():
+            raise ValueError('this line should contain two blank columns ' +
+                             'then one device name every 3 columns')
 
         if row[0] or row[1]:
-            return self._fail(error_message)
+            error()
 
         for col_num, col_val in enumerate(row[2:], start=2):
             if self._col_should_contain_name(col_num):
@@ -400,375 +248,280 @@ class DevicesLineFinder(Failable):
                 current_is_correct = not col_val
 
             if not current_is_correct:
-                return self._fail(error_message)
-
-        return self._success(None)
+                error()
 
     @staticmethod
     def _col_should_contain_name(col_num):
         return (col_num - 2) % 3 == 0
 
 
-class DeviceColsCreator(Failable):
-    def __init__(self,
-                 *,
-                 cols_class=DeviceHeaderCols,
-                 failable_result_class=FailableResult):
-        super().__init__(failable_result_class)
-        self._cols_class = cols_class
+class ForcePlateGrouper:
+    def group(self, headers: List[ColOfHeader]) -> List[ColOfHeader]:
+        grouped_headers = []
+        for header in self._filter_individual_force_plates(headers):
+            grouped_headers.append(self._rename_force_plate(header))
+        return grouped_headers
 
-    def create_cols(self, headers: List[ColOfHeader]
-                    ) -> FailableResult[List[DeviceHeaderCols]]:
-        cols = []
-        for col_of_header in headers:
-            new_col = self._failable_create_device_header_cols(col_of_header)
-            cols.append(new_col)
+    def _filter_individual_force_plates(self, headers: List[ColOfHeader]
+                                        ) -> Iterator[ColOfHeader]:
+        for i, head in enumerate(headers):
+            if i % 3 == 0:
+                yield head
 
-        return self._sequence_fail(cols)
+    def _rename_force_plate(self, header: ColOfHeader) -> ColOfHeader:
+        header_str = self._header_str(header)
+        new_name = self._force_plate_name(header_str)
+        first_col = self._col_of_header_first_col(header)
+        return self._col_of_header(new_name, first_col)
 
-    __call__ = create_cols
+    def _force_plate_name(self, header_str: str):
+        force_plate_name, measurement_name = header_str.split('-')
+        return force_plate_name[:-1]
 
-    def _failable_create_device_header_cols(
-            self,
-            col_of_header: ColOfHeader) -> FailableResult[DeviceHeaderCols]:
-        device_name = col_of_header.header_str
-        inferred_device_type = self._infer_device_type(device_name)
-        cols_creator_method = partial(self._create_device_header_cols,
-                                      col_of_header)
-        return self._compute_on_failable(cols_creator_method,
-                                         inferred_device_type,
-                                         compose=True)
+    def _col_of_header_header_str(self, header: ColOfHeader) -> str:
+        return header.header_str
 
-    def _create_device_header_cols(self,
-                                   col_of_header: ColOfHeader,
-                                   device_type=DeviceType) -> DeviceHeaderCols:
-        return self._cols_class(device_type=device_type,
-                                col_of_header=col_of_header)
+    def _col_of_header_first_col(self, header: ColOfHeader) -> int:
+        return header.col_index
 
-    def _infer_device_type(self,
-                           device_name: str) -> FailableResult[DeviceType]:
-        lowercase_device_name = device_name.lower()
-
-        if "force plate" in lowercase_device_name:
-            return self._success(DeviceType.FORCE_PLATE)
-        if "emg" in lowercase_device_name:
-            return self._success(DeviceType.EMG)
-        if "angelica" in lowercase_device_name:
-            return self._success(DeviceType.TRAJECTORY_MARKER)
-
-        error_message = (
-            f'device name {device_name} not understood. '
-            'Expected one of the following strings to occur in it ignoring'
-            ' case: "force plate", "emg" or "angelica"')
-
-        return self._fail(error_message)
+    def _col_of_header(self, header_str: str, first_col: int) -> ColOfHeader:
+        return ColOfHeader(header_str, first_col)
 
 
-class DeviceCategorizer(Failable):
-    def categorize(self, dev_cols: List[DeviceHeaderCols]
-                   ) -> FailableResult[CategorizedHeaders]:
-        grouped_headers = self._group_headers(dev_cols)
-        fail_res = self._fail_if_section_is_inconsistent(grouped_headers)
-        self._compute_on_failable(self._build_categorized_headers,
-                                  fail_res,
-                                  compose=True)
+class _DevicesState(_UpdateStateMixin, _ReaderState):
+    finder: DevicesHeaderFinder
 
-    __call__ = categorize
+    @property
+    def line(self) -> ViconCSVLines:
+        return ViconCSVLines.DEVICE_NAMES_LINE
 
-    def _group_headers(self, dev_cols: List[DeviceHeaderCols]
-                       ) -> Mapping[DeviceType, DeviceHeaderCols]:
-        grouped = defaultdict(list)
-
-        for dev in dev_cols:
-            grouped[dev.device_type].append(dev)
-
-        return grouped
-
-    def _fail_if_section_is_inconsistent(
-            self, grouped_headers: Mapping[DeviceType, DeviceHeaderCols]
-    ) -> FailableResult[Mapping[DeviceType, DeviceHeaderCols]]:
-        if not len(grouped_headers[DeviceType.EMG]) <= 1:
-            error_message = (
-                'expected only a single device header of type EMG, '
-                f'but got both {emg_cols.device_name} and {col.device_name}')
-            return self._fail(error_message)
-
-        is_forces_emg_section = (bool(grouped_headers[DeviceType.FORCE_PLATE])
-                                 or bool(grouped_headers[DeviceType.EMG]))
-
-        is_trajs_section = bool(grouped_headers[DeviceType.TRAJECTORY_MARKER])
-
-        if is_forces_emg_section and is_trajs_section:
-            error_message = (
-                'each section of the file is expected to have either only EMG '
-                'and force plate devices or only trajectory ones. The row '
-                'given mixes types from the 2 sections.')
-            return self._fail(error_message)
-
-        return self._success(grouped_headers)
-
-    def _build_categorized_headers(
-            self, grouped_headers: Mapping[DeviceType, DeviceHeaderCols]
-    ) -> CategorizedHeaders:
-        emg_list = grouped_headers[DeviceType.EMG]
-        try:
-            emg = emg_list[0]
-        except AttributeError:
-            emg = None
-
-        force_plates = grouped_headers[DeviceType.FORCE_PLATE]
-        trajectory_markers = grouped_headers[DeviceType.TRAJECTORY_MARKER]
-
-        return CategorizedHeaders(force_plates, emg, trajectory_markers)
-
-    def _exclusive_or(a, b):
-        return bool(a) != bool(b)
-
-
-class ForcePlateGrouper(Failable):
-    def group_force_plates(self,
-                           dev_cols: List[DeviceHeaderCols]) -> ForcePlate:
-        # TODO if the method called below is able to group force plates
-        # by their names, it should also be able to understand their types
-        # so the only thing remaining after it is run would be to
-        # 1. check that the 3 exact necessary headers are there
-        # 2. build the grouped representation
-        grouped_force_plate_headers = self._group_force_plates_headers(
-            dev_cols)
-
-        fail_res = self._grouped_force_plates(grouped_force_plate_headers)
-        return self._compute_on_failable(self._build_grouped, fail_res)
-
-    __call__ = group_force_plates
-
-    def _group_force_plate_headers(self, dev_cols: List[DeviceHeaderCols]
-                                   ) -> Mapping[str, List[DeviceHeaderCols]]:
-        for dev in dev_cols:
-            force_plate_name = 0
-
-    def _check_grouped_force_plates(
-            self, grouped: Mapping[str, DeviceHeaderCols]
-    ) -> FailableResult[Mapping[str, DeviceHeaderCols]]:
-        pass
-
-    def _build_grouped(self,
-                       grouped: Mapping[str, DeviceHeaderCols]) -> ForcePlate:
-        pass
-
-    def _group_force_plates(self, cols_list: List['DeviceHeaderCols']
-                            ) -> _GroupingResult:
-        def empty_force_plate_dict():
-            return {'force': None, 'cop': None, 'moment': None}
-
-        def build_dict_up():
-            pass
-
-        plates_by_name = defaultdict(empty_force_plate_dict)
-
-        for col in cols_list:
-            force_plate_header = col.device_name
-
-            try:
-                first_part, second_part = force_plate_header.split('-')
-            except ValueError:
-                data_check = {
-                    'is_valid':
-                    False,
-                    'error_message':
-                    'expected force plates to obey format "name - var"'
-                    ' where var is one of "force", "moment" or "CoP".'
-                }
-                return _GroupingResult(data_check=data_check,
-                                       force_plate_cols=[])
-
-            force_plate_name = first_part[:-1]
-            measured_data = second_part[1:]
-
-
-class DevicesState(_ReaderState):
-    # Responsibilities:
-    # 1. understanding from the device headers what is their type
-    # 2. initialize DeviceCols with that
-    # 3. initialize DeviceSectionDataBuilders (trivial)
-    # 4. create the DeviceHeaders (trivial)
-    #    TODO figure out if there is a design pattern for that
-    #    it honestly seems to me that abstracting all of that crap out of
-    #    this class is good
-    # 5. create DataChanneler
-    # 6. TODO who keeps track of DataChanneler? I believe the States, have to
-    #    check my notes
-    # 7. pass along to the next state an EMG device if there is one
-    #    TODO decide if I split in 2 the next state
-    #    leaning towards yes
-    def feed_row(self, row: Row, reader: 'Reader'):
-        row = self._preprocess_row(row)
-
-    def _parse_and_process(self, row: Row, reader: 'Reader'):
-        parse_result = self._parse_row(row)
-        self._validate(reader, parse_result.data_check)
-        grouping_result = self._group_force_plates(
-            parse_result.force_plate_device_cols)
-        self._validate(reader, grouping_result.data_check)
-
-
-class CoordinatesState(_StepByStepReaderState):
-    def _create_device_header(self, device_name: str,
-                              first_col_index: int) -> 'DeviceHeader':
-        device_header_cols = self._create_device_header_cols(
-            device_name, first_col_index)
-        device_header_data_builder = self._create_data_builder()
-
-    def _create_data_builder(self):
-        return DeviceHeaderDataBuilder()
-
-
-class _EntryByEntryParser(_ReaderState, Failable, Generic[T]):
-    """A parser which parses each row entry independently."""
-    def feed_row(self, row: Row, reader: Reader):
-        # 1 and 2. parse and check
-        row = self._preprocess_row(row)
-        fail_res = self._parse_row(row)
-        self._validate_fail_res(fail_res, reader)
-
-        # 3. build data representation
-        parse_result = self._fail_res_parse_result(fail_res)
-        self._build_data(parse_result)
-
-    def _parse_row(self, row: Row) -> FailableResult[List[T]]:
-        frame_cols, data_cols = row[:2], row[2:]
-        parsed_cols = [
-            self._parse_entry(data_entry) for data_entry in data_cols
-        ]
-        return self._compute_on_failable(self._prepend_two_none_cols,
-                                         parsed_cols,
-                                         compose=True)
-
-    def _prepend_two_none_cols(self, cols: List[T]) -> List[T]:
-        return [None, None] + cols
-
-    def _validate_fail_res(self, fail_res: FailableResult, reader: Reader):
-        self._validate(self._reader_validator(reader),
-                       self._fail_res_data_check(fail_res))
-
-    def _build_data(self, parse_result: List[T], reader: Reader):
-        data_builder = self._reader_data_builder(reader)
-        build_method = self._get_build_method(data_builder)
-        build_method(parse_result)
-
-    @abc.abstractmethod
-    def _parse_entry(self, entry: str) -> FailableResult[T]:
-        pass
-
-    @abc.abstractmethod
-    def _get_build_method(self,
-                          data_builder: SectionDataBuilder) -> Callable[[T]]:
-        pass
-
-
-class UnitsLineParser(_EntryByEntryParser):
-    def _parse_entry(self, entry: str) -> FailableResult[pint.Unit]:
-        try:
-            unit = ureg(entry)
-        except pint.UndefinedUnitError:
-            return self._fail(f'unit "{entry}" not understood')
-        else:
-            return self._success(unit)
-
-    def _get_build_method(self,
-                          data_builder: SectionDataBuilder) -> Callable[[T]]:
-        return data_builder.add_units
-
-
-class UnitsState(_ReaderState):
-    _units_line_parser: UnitsLineParser
-
-    def __init__(self, units_line_parser: UnitsLineParser):
-        self._units_line_parser
+    def __init__(self, finder: Optional[DevicesHeaderFinder] = None):
+        super().__init__()
+        if finder is None:
+            self._finder = self._instantiate_finder()
+        self._finder = finder
 
     def feed_row(self, row: Row, reader: Reader):
         row = self._preprocess_row(row)
-        self._feed_forward(row, reader)
-        new_state = self._new_state()
-        self._reader_set_new_state(new_state)
+        headers = self._find_headers(row)
+        self._send_headers_to_aggregator(headers, reader)
+        self._update_state(reader)
 
-    def _feed_forward(self, row: Row, reader: Reader):
-        self._units_line_parser.feed_row(row, reader)
+    def _add_device(self, reader: Reader, header: ColOfHeader,
+                    device_type: DeviceType):
+        self._aggregator_add_device(
+            self._reader_aggregator(reader),
+            **self._build_add_device_params_dict(header, device_type))
 
-    def _new_state(self) -> _ReaderState:
-        return GettingMeasurementsState(
-            failable_result_class=self._failable_result_class)
+    def _aggregator_add_device(self, aggregator: Aggregator, name: str,
+                               device_type: DeviceType, first_col: int,
+                               last_col: int):
+        aggregator.add_device(name=name,
+                              device_type=device_type,
+                              first_col=first_col,
+                              last_col=last_col)
+
+    @property
+    def _next_state_type(self):
+        return CoordinatesState
+
+    def _build_add_device_params_dict(self, header: ColOfHeader,
+                                      device_type: DeviceType):
+        unpacked = self._unpack_col_of_header(header)
+        unpacked['device_type'] = device_type
+        first_col = unpacked['first_col']
+        unpacked['last_col'] = self._last_col(device_type, first_col)
+        return unpacked
+
+    def _unpack_col_of_header(self, header: ColOfHeader
+                              ) -> Mapping[str, Union[str, int]]:
+        return {'first_col': header.col_index, 'name': header.header_str}
+
+    def _find_headers(self, row: Row):
+        return self.finder(row)
+
+    def _instantiate_finder(self):
+        return DevicesHeaderFinder()
+
+    @abc.abstractmethod
+    def _send_headers_to_aggregator(self, headers: List[ColOfHeader],
+                                    reader: Reader):
+        pass
+
+    @abc.abstractmethod
+    def _last_col(self, device_type: DeviceType, first_col: int) -> Any:
+        pass
 
 
-class DataLineParser(_EntryByEntryParser):
-    def _parse_entry(self, entry: str) -> FailableResult[float]:
-        try:
-            data = float(entry)
-        except ValueError:
-            return self._fail(
-                f'real-valued measurement "{entry}" not understood')
-        else:
-            return self._success(data)
+class ForcesEMGDevicesState(_DevicesState):
+    _grouper: ForcePlateGrouper
 
-    def _get_build_method(self,
-                          data_builder: SectionDataBuilder) -> Callable[[T]]:
-        return data_builder.add_measurements
+    def __init__(self, finder: Optional[DevicesHeaderFinder],
+                 grouper: Optional[ForcePlateGrouper]):
+        super().__init__(finder)
+        if grouper is None:
+            self._grouper = self._instantiate_grouper
+        self._grouper = grouper
+
+    def _send_headers_to_aggregator(self, headers: List[ColOfHeader],
+                                    reader: Reader):
+        force_plates_headers, emg = self._separate_headers(headers)
+        grouped_force_plates = self._group_force_plates(force_plates_headers)
+        self._aggregate_emg(header, reader)
+        for header in grouped_force_plates:
+            self._add_force_plate(header, reader)
+        self._add_emg(emg, reader)
+
+    def _add_emg(self, header: ColOfHeader, reader: Reader):
+        self._add_device(reader, header, DeviceType.EMG)
+
+    def _add_force_plate(self, header: ColOfHeader, reader: Reader):
+
+        self._add_device(reader, header, DeviceType.FORCE_PLATE)
+
+    def _separate_headers(self, headers: List[ColOfHeader]
+                          ) -> Tuple[List[ColOfHeader], ColOfHeader]:
+        force_plates_headers = headers[:-1]
+        emg_header = headers[-1]
+        return force_plates_headers, emg_header
+
+    def _group_force_plates(self,
+                            headers: List[ColOfHeader]) -> List[ColOfHeader]:
+        return self._grouper.group(headers)
+
+    def _instantiate_grouper(self):
+        return ForcePlateGrouper()
+
+    def _last_col(self, device_type: DeviceType,
+                  first_col: int) -> Optional[int]:
+        assert device_type is not DeviceType.TRAJECTORY_MARKER
+
+        if device_type is DeviceType.EMG:
+            return self._last_col_of_emg(first_col)
+        if device_type is DeviceType.FORCE_PLATE:
+            return self._last_col_of_force_plate(first_col)
+
+    def _last_col_of_force_plate(self, first_col: int) -> int:
+        return first_col + 9
+
+    def _last_col_of_emg(self, first_col: int) -> None:
+        return None
+
+
+class TrajDevicesState(_DevicesState):
+    def _send_headers_to_aggregator(self, headers: List[ColOfHeader],
+                                    reader: Reader):
+        for header in headers:
+            self._add_device(reader, header, DeviceType.TRAJECTORY_MARKER)
+
+        def _last_col(self, _: DeviceType, first_col: int) -> int:
+            return first_col + 3
+
+
+class CoordinatesState(_UpdateStateMixin, _AggregateDataMixin, _ReaderState):
+    @property
+    def line(self) -> ViconCSVLines:
+        return ViconCSVLines.COORDINATES_LINE
+
+    def feed_row(self, row: Row, reader: Reader):
+        row = self._preprocess_row(row)
+        self._aggregate_data(row, reader)
+        self._update_state(reader)
+
+    def _get_data_aggregate_method(self, aggregator: Aggregator
+                                   ) -> Callable[[List[str]], None]:
+        return aggregator.add_coordinates
+
+    @property
+    def _next_state_type(self):
+        return UnitsState
+
+
+class UnitsState(_UpdateStateMixin, _AggregateDataMixin, _EntryByEntryMixin,
+                 _ReaderState):
+    @property
+    def line(self) -> ViconCSVLines:
+        return ViconCSVLines.UNITS_LINE
+
+    ureg: pint.UnitRegistry
+
+    def __init__(self, unit_registry=ureg):
+        super().__init__()
+        self.ureg = unit_registry
+
+    def feed_row(self, row: Row, reader: Reader):
+        row = self._preprocess_row(row)
+        units = self._parse_row(row)
+        self._aggregate_data(units, reader)
+        self._update_state(reader)
+
+    def _parse_entry(self, entry: str) -> pint.Unit:
+        return self.ureg(entry)
+
+    def _get_data_aggregate_method(self, aggregator: Aggregator
+                                   ) -> Callable[[List[pint.Unit]], None]:
+        return aggregator.add_units
+
+    @property
+    def _next_state_type(self):
+        return GettingMeasurementsState
 
 
 class GettingMeasurementsState(_ReaderState):
-    _data_line_parser: DataLineParser
+    @property
+    def line(self) -> ViconCSVLines:
+        return ViconCSVLines.DATA_LINE
 
-    def __init__(self, data_line_parser: DataLineParser):
-        self._data_line_parser = data_line_parser
+    def __init__(self,
+                 data_state: Optional['DataState'] = None,
+                 blank_state: Optional['BlankState'] = None):
+        if data_state is None:
+            self.data_state = DataState()
+        if blank_state is None:
+            self.blank_state = BlankState()
 
     def feed_row(self, row: Row, reader: Reader):
         row = self._preprocess_row(row)
 
         if self._is_blank_line(row):
-            self._transition(reader)
+            self.data_state.feed_row(row, reader)
         else:
-            self._feed_forward(row, reader)
+            self.blank_state.feed_row(row, reader)
 
     @staticmethod
     def _is_blank_line(row: Row) -> bool:
         return bool(row)
 
-    def _feed_forward(self, row: Row, reader: Reader):
-        self._data_line_parser.feed_row(row, reader)
 
-    def _transition(self, reader: Reader):
-        current_section_type = self._reader_section_type()
+class DataState(_AggregateDataMixin, _EntryByEntryMixin, _ReaderState):
+    @property
+    def line(self) -> ViconCSVLines:
+        return ViconCSVLines.DATA_LINE
 
-        if current_section_type is SectionType.FORCES_EMG:
-            self._new_section_state(reader)
-        elif current_section_type is SectionType.TRAJECTORIES:
-            self._blank_state(reader)
-        else:
-            raise TypeError(
-                "current section type isn't a member of SectionType")
+    def feed_row(self, row: Row, reader: Reader):
+        floats = self._parse_row(row)
+        self._aggregate_data(floats, reader)
 
-        self._reader_transition_section(reader)
+    def _parse_entry(row_entry: str) -> float:
+        return float(row_entry)
 
-    def _reader_transition_section(self, reader: Reader):
-        reader.transition_section()
-
-    def _new_section_state(self, reader: Reader):
-        new_state = SectionTypeState()
-        self._reader_set_new_state(reader, new_state)
-
-    def _blank_state(self, reader: Reader):
-        new_state = BlankLinesState()
-        self._reader_set_new_state(reader, new_state)
+    def _get_data_aggregate_method(self, aggregator: Aggregator
+                                   ) -> Callable[[List[float]], None]:
+        return aggregator.add_data
 
 
-class BlankLinesState(_StepByStepReaderState):
-    def _check_row(self, row: Row) -> DataCheck:
-        assert not bool(row)
+class BlankState(_UpdateStateMixin, _ReaderState):
+    @property
+    def line(self) -> ViconCSVLines:
+        return ViconCSVLines.BLANK_LINE
 
-    def _new_state(self) -> _ReaderState:
-        return self
+    def feed_row(self, row: Row, reader: Reader):
+        self._aggregator_transition(self._reader_aggregator(reader))
+        self._update_state(reader)
 
-    def _do_nothing(self, *args, **kwargs) -> None:
-        return
+    @property
+    def _next_state_type(self):
+        return SectionTypeState
 
-    _parse_row = _do_nothing
-    _build_data = _do_nothing
+    def _aggregator_transition(self, aggregator: Aggregator):
+        aggregator.transition()

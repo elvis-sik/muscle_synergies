@@ -481,7 +481,7 @@ class Aggregator:
     def add_units(self, units: List[pint.Unit]):
         self._get_section_aggregator().add_units(units)
 
-    def add_measurements(self, data: List[float]):
+    def add_data(self, data: List[float]):
         self._get_section_aggregator().add_data(data)
 
     def add_device(self, name: str, device_type: DeviceType, first_col: int,

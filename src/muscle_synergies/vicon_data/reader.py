@@ -512,7 +512,7 @@ class DataState(_AggregateDataMixin, _EntryByEntryMixin, _ReaderState):
 
     def _get_data_aggregate_method(self, aggregator: Aggregator
                                    ) -> Callable[[List[float]], None]:
-        return aggregator.add_measurements
+        return aggregator.add_data
 
 
 class BlankState(_UpdateStateMixin, _ReaderState):

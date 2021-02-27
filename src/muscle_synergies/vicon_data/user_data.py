@@ -1,10 +1,12 @@
 import abc
+from collections import defaultdict
 from dataclasses import dataclass
 from typing import (List, Set, Dict, Tuple, Optional, Sequence, Callable, Any,
                     Mapping, Iterator, Generic, TypeVar, NewType, Union,
                     Iterable)
 
 import pandas as pd
+from pint_pandas import PintArray
 
 from .aggregator import (
     Aggregator,
@@ -38,18 +40,27 @@ class Builder:
 
         devices_by_type = defaultdict(list)
         for device_agg in self._devices(aggregator):
-            device_data = self._build_device(device_agg)
+            device_data = self._build_device(device_agg, frame_tracker)
             devices_by_type[device.device_type].append(device_data)
 
         return self._vicon_nexus_data(devices_by_type)
 
     def _build_device(self, device_agg: DeviceAggregator,
                       frame_tracker: '_SectionFrameTracker') -> 'DeviceData':
-        device_name = device_agg.device_name
-        device_type = device_agg.device_type
-        dataframe = self._extract_dataframe(device_agg)
-        return self._instantiate_device(device_name, device_type,
-                                        frame_tracker, dataframe)
+        params_dict = self._params_device_data(device_agg, frame_tracker)
+        return self._instantiate_device(**params_dict)
+
+    def _params_device_data(
+            self, device_agg: DeviceAggregator,
+            frame_tracker: '_SectionFrameTracker'
+    ) -> Mapping[str, Union[str, DeviceType, '_SectionFrameTracker', pd.
+                            DataFrame]]:
+        return {
+            'device_name': device_agg.name,
+            'device_type': device_agg.device_type,
+            'frame_tracker': frame_tracker,
+            'dataframe': self._extract_dataframe(device_agg)
+        }
 
     def _build_frame_tracker(
             self, aggregator: Aggregator
@@ -78,7 +89,7 @@ class Builder:
             coord_name = time_series_aggregator.get_coordinate_name()
             physical_unit = time_series_aggregator.get_physical_unit()
             data = time_series_aggregator.get_data()
-            data_dict[coord_name] = create_pint_parray(data, physical_unit)
+            data_dict[coord_name] = create_pint_array(data, physical_unit)
 
         return pd.DataFrame(data_dict)
 

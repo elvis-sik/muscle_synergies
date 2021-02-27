@@ -119,6 +119,7 @@ class DeviceAggregator:
         self.device_type = device_type
         self.first_col = first_col
         self.last_col = last_col
+        self.time_series = None
         if last_col is not None:
             self._initialize_time_series()
 
@@ -128,7 +129,7 @@ class DeviceAggregator:
         Args:
             parsed_row: the coordinates line of the input.
         """
-        self._call_method_on_each(self._time_series_add_data,
+        self._call_method_on_each(self._time_series_add_coordinate,
                                   self._my_cols(parsed_row))
 
     def add_units(self, parsed_row: List[pint.Unit]):
@@ -137,7 +138,7 @@ class DeviceAggregator:
         Args:
             parsed_row: the units line of the input, already parsed.
         """
-        self._call_method_on_each(self._time_series_add_data,
+        self._call_method_on_each(self._time_series_add_units,
                                   self._my_cols(parsed_row))
 
     def add_data(self, parsed_row: List[float]):
@@ -176,7 +177,7 @@ class DeviceAggregator:
         return slice(self.first_col, self.last_col + 1)
 
     def _initialize_time_series(self):
-        num_cols = last_col - first_col + 1
+        num_cols = self.last_col - self.first_col + 1
         self.time_series = tuple(self._create_time_series_aggregator()
                                  for _ in range(num_cols))
 
@@ -240,7 +241,7 @@ class _SectionAggregator(abc.ABC):
         self._raise_if_finished()
 
         for device in self.devices:
-            device.add_coordinates(units)
+            device.add_coordinates(coords)
 
     def add_units(self, units: List[pint.Unit]):
         self._raise_if_finished()
@@ -355,10 +356,13 @@ class Aggregator:
         return self._get_section_aggregator().section_type
 
     def transition(self):
-        self._get_section_aggregator().transition()
+        self._get_section_aggregator().transition(aggregator=self)
 
     def add_frequency(self, frequency: int):
         self._get_section_aggregator().add_frequency(frequency)
+
+    def add_coordinates(self, coordinates: List[str]):
+        self._get_section_aggregator().add_coordinates(coordinates)
 
     def add_units(self, units: List[pint.Unit]):
         self._get_section_aggregator().add_units(units)

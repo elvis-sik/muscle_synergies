@@ -22,5 +22,20 @@ all_loaded_exp = forces_emg_loaded_exp + traj_loaded_exp
 
 
 @pt.mark.parametrize('loaded_dev_data,exp_dev_data', all_loaded_exp)
-def test_loads_device_data_correct(loaded_dev_data, exp_dev_data):
-    assert loaded_dev_data == exp_dev_data
+def test_loads_correct_name(loaded_dev_data, exp_dev_data):
+    assert loaded_dev_data.name == exp_dev_data.name
+
+
+@pt.mark.parametrize('loaded_dev_data,exp_dev_data', all_loaded_exp)
+def test_loads_correct_dev_type(loaded_dev_data, exp_dev_data):
+    assert loaded_dev_data.dev_type == exp_dev_data.dev_type
+
+
+@pt.mark.parametrize('loaded_dev_data,exp_dev_data', all_loaded_exp)
+def test_loads_correct_units(loaded_dev_data, exp_dev_data):
+    assert loaded_dev_data.units == exp_dev_data.units
+
+
+@pt.mark.parametrize('loaded_dev_data,exp_dev_data', all_loaded_exp)
+def test_loads_correct_df(loaded_dev_data, exp_dev_data):
+    assert loaded_dev_data.df.equals(exp_dev_data.df)

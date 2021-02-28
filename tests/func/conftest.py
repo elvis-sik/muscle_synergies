@@ -92,14 +92,14 @@ def exp_emg(module_mocker):
 @pt.fixture(scope='module')
 def exp_forcep1(module_mocker):
     device_name = 'Imported AMTI OR6 Series Force Plate #1'
-    device_type = DeviceType.FORCE_PLATE
+    device_type = vd.DeviceType.FORCE_PLATE
     frame_tracker = module_mocker.Mock()
     data = [[0, 0, 0, 0, 0, 0, 232, 254, 0], [0, 0, 0, 0, 0, 0, 232, 254, 0],
             [0, 0, 0, 0, 0, 0, 232, 254, 0], [0, 0, 0, 0, 0, 0, 232, 254, 0],
             [0, 0, 0, 0, 0, 0, 232, 254, 0], [0, 0, 0, 0, 0, 0, 232, 254, 0]]
     coords = ['Fx', 'Fy', 'Fz', 'Mx', 'My', 'Mz', 'Cx', 'Cy', 'Cz']
     units = ['N', 'N', 'N', 'N.mm', 'N.mm', 'N.mm', 'mm', 'mm', 'mm']
-    dataframe = pd.DataFrame(data, columns=coords)
+    dataframe = pd.DataFrame(data, columns=coords, dtype=float)
     return vd.DeviceData(device_name, device_type, units, frame_tracker,
                          dataframe)
 
@@ -107,7 +107,7 @@ def exp_forcep1(module_mocker):
 @pt.fixture(scope='module')
 def exp_forcep2(module_mocker):
     device_name = 'Imported AMTI OR6 Series Force Plate #2'
-    device_type = DeviceType.FORCE_PLATE
+    device_type = vd.DeviceType.FORCE_PLATE
     frame_tracker = module_mocker.Mock()
     data = [
         [0, 0, 0, 0, 0, 0, 232, 769, 0],
@@ -119,7 +119,7 @@ def exp_forcep2(module_mocker):
     ]
     coords = ['Fx', 'Fy', 'Fz', 'Mx', 'My', 'Mz', 'Cx', 'Cy', 'Cz']
     units = ['N', 'N', 'N', 'N.mm', 'N.mm', 'N.mm', 'mm', 'mm', 'mm']
-    dataframe = pd.DataFrame(data, columns=coords)
+    dataframe = pd.DataFrame(data, columns=coords, dtype=float)
     return vd.DeviceData(device_name, device_type, units, frame_tracker,
                          dataframe)
 
@@ -127,7 +127,7 @@ def exp_forcep2(module_mocker):
 @pt.fixture(scope='module')
 def exp_angelica_hv(module_mocker):
     device_name = 'Angelica:HV'
-    device_type = DeviceType.TRAJECTORY_MARKER
+    device_type = vd.DeviceType.TRAJECTORY_MARKER
     frame_tracker = module_mocker.Mock()
     data = [
         [209331, 1219.74, 1780.67],
@@ -135,7 +135,7 @@ def exp_angelica_hv(module_mocker):
     ]
     coords = ('X', 'Y', 'Z')
     units = ('mm', 'mm', 'mm')
-    dataframe = pd.DataFrame(data, columns=coords)
+    dataframe = pd.DataFrame(data, columns=coords, dtype=float)
     return vd.DeviceData(device_name, device_type, units, frame_tracker,
                          dataframe)
 
@@ -143,7 +143,7 @@ def exp_angelica_hv(module_mocker):
 @pt.fixture(scope='module')
 def exp_angelica_cme(module_mocker):
     device_name = 'Angelica:CM_E'
-    device_type = DeviceType.TRAJECTORY_MARKER
+    device_type = vd.DeviceType.TRAJECTORY_MARKER
     frame_tracker = module_mocker.Mock()
     data = [
         [None, None],
@@ -151,7 +151,7 @@ def exp_angelica_cme(module_mocker):
     ]
     coords = ('X', 'Y', 'Z')
     units = ('mm', 'mm', 'mm')
-    dataframe = pd.DataFrame(data, columns=coords)
+    dataframe = pd.DataFrame(data, columns=coords, dtype=float)
     return vd.DeviceData(device_name, device_type, units, frame_tracker,
                          dataframe)
 
@@ -159,7 +159,7 @@ def exp_angelica_cme(module_mocker):
 @pt.fixture(scope='module')
 def exp_angelica_cle(module_mocker):
     device_name = 'Angelica:CL_E'
-    device_type = DeviceType.TRAJECTORY_MARKER
+    device_type = vd.DeviceType.TRAJECTORY_MARKER
     frame_tracker = module_mocker.Mock()
     data = [
         [227725, 1091.81, 496721],
@@ -167,7 +167,7 @@ def exp_angelica_cle(module_mocker):
     ]
     coords = ('X', 'Y', 'Z')
     units = ('mm', 'mm', 'mm')
-    dataframe = pd.DataFrame(data, columns=coords)
+    dataframe = pd.DataFrame(data, columns=coords, dtype=float)
     return vd.DeviceData(device_name, device_type, units, frame_tracker,
                          dataframe)
 
@@ -175,7 +175,7 @@ def exp_angelica_cle(module_mocker):
 @pt.fixture(scope='module')
 def exp_angelica_elastdp(module_mocker):
     device_name = 'Angelica:ELAST_DP'
-    device_type = DeviceType.TRAJECTORY_MARKER
+    device_type = vd.DeviceType.TRAJECTORY_MARKER
     frame_tracker = module_mocker.Mock()
     data = [
         [None, None],
@@ -183,6 +183,6 @@ def exp_angelica_elastdp(module_mocker):
     ]
     coords = ('X', 'Y', 'Z')
     units = ('mm', 'mm', 'mm')
-    dataframe = pd.DataFrame(data, columns=coords)
+    dataframe = pd.DataFrame(data, columns=coords, dtype=float)
     return vd.DeviceData(device_name, device_type, units, frame_tracker,
                          dataframe)

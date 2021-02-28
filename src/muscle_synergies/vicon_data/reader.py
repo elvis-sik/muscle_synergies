@@ -7,9 +7,6 @@ from functools import partial
 from typing import (List, Set, Dict, Tuple, Optional, Sequence, Callable, Any,
                     Mapping, Iterator, TypeVar, NewType, Union, Iterable)
 
-import pandas as pd
-import pint
-
 from .definitions import (
     T,
     X,
@@ -432,29 +429,18 @@ class CoordinatesState(_UpdateStateMixin, _AggregateDataMixin, _ReaderState):
         return UnitsState
 
 
-class UnitsState(_UpdateStateMixin, _AggregateDataMixin, _EntryByEntryMixin,
-                 _ReaderState):
+class UnitsState(_UpdateStateMixin, _AggregateDataMixin, _ReaderState):
     @property
     def line(self) -> ViconCSVLines:
         return ViconCSVLines.UNITS_LINE
 
-    ureg: pint.UnitRegistry
-
-    def __init__(self, unit_registry=ureg):
-        super().__init__()
-        self.ureg = unit_registry
-
     def feed_row(self, row: Row, reader: Reader):
-        row = self._preprocess_row(row)
-        units = self._parse_row(row)
+        units = self._preprocess_row(row)
         self._aggregate_data(units, reader)
         self._update_state(reader)
 
-    def _parse_entry(self, entry: str) -> pint.Unit:
-        return self.ureg(entry)
-
     def _get_data_aggregate_method(self, aggregator: Aggregator
-                                   ) -> Callable[[List[pint.Unit]], None]:
+                                   ) -> Callable[[List[str]], None]:
         return aggregator.add_units
 
     def _next_state_type(self, reader: Reader):

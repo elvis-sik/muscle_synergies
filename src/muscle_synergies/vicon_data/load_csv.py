@@ -70,4 +70,4 @@ def load_vicon_file(csv_filename: str) -> ViconNexusData:
             raise RuntimeError(
                 f'error parsing line {i} of file {csv_filename}: ' +
                 str(exception)) from exception
-    return builder.build()
+    return loading_run.builder.build()

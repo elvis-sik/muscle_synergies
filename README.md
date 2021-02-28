@@ -1,6 +1,6 @@
 # Muscle Synergies
 
-README.md em português: [README.pb.md](README.pb.md)
+Versão desse documento em português: [portuguese](README.pb.md)
 
 Extract muscle synergies from experimental data obtained using Vicon Nexus.
 

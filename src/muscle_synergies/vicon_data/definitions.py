@@ -2,13 +2,6 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import TypeVar, Union, List, NewType
 
-import pint
-import pint_pandas
-
-# a single registry for the physical units used across the program
-ureg = pint.UnitRegistry()
-pint_pandas.PintType.ureg = ureg
-
 # type variables used to define generic types
 T = TypeVar('T')
 X = TypeVar('X')

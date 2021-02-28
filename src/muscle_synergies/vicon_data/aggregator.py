@@ -11,11 +11,7 @@ from typing import (List, Set, Dict, Tuple, Optional, Sequence, Callable, Any,
                     Mapping, Iterator, Generic, TypeVar, NewType, Union,
                     Iterable)
 
-import pandas as pd
-import pint
-
 from .definitions import (
-    ureg,
     T,
     X,
     Y,
@@ -26,62 +22,6 @@ from .definitions import (
     ForcePlateMeasurement,
     SamplingFreq,
 )
-
-
-class TimeSeriesAggregator:
-    """Builds data of an individual time series.
-
-    Columns in the CSV file correspond to measurements made over time (at
-    least in parts of it, see :py:class:ViconCSVLines for more details on the
-    structure of the CSV file).
-
-    This class keeps track of the information for one such time series as that
-    information is read line by line from the input.
-    """
-    coordinate_name: Optional[str]
-    physical_unit: Optional[pint.Unit]
-    data: List[float]
-
-    def __init__(self):
-        super().__init__()
-        self.coordinate_name = None
-        self.physical_unit = None
-        self.data = []
-
-    def add_coordinate(self, coord_name: str):
-        """Adds the coordinate name."""
-        if self.coordinate_name is not None:
-            self._raise_called_twice('coordinate')
-        self.coordinate_name = coord_name
-
-    def add_unit(self, physical_unit: pint.Unit):
-        """Adds the physical units."""
-        if self.physical_unit is not None:
-            self._raise_called_twice('physical unit')
-        self.physical_unit = physical_unit
-
-    def add_data(self, data_entry: float):
-        """Adds a data entry."""
-        self.data.append(data_entry)
-
-    def get_coordinate_name(self) -> Optional[str]:
-        return self.coordinate_name
-
-    def get_physical_unit(self) -> Optional[pint.Unit]:
-        return self.physical_unit
-
-    def get_data(self) -> List[float]:
-        """Gets the data added so far.
-
-        The list returned is the same one used internally by this class, so
-        mutating it will mutate it as well.
-        """
-        return self.data
-
-    def _raise_called_twice(self, what_was_added_twice: str):
-        raise TypeError(
-            f'attempted to add {what_was_added_twice} after it had ' +
-            'been already added')
 
 
 class DeviceAggregator:
@@ -103,12 +43,16 @@ class DeviceAggregator:
         device_aggregator: the DeviceHeaderAggregator object, which must
             refer to the same device header as `device_cols`
     """
-    _TIME_SERIES_AGGREGATOR = TimeSeriesAggregator
     name: str
     device_type: DeviceType
     first_col: int
     last_col: Optional[int]
-    time_series: Tuple[_TIME_SERIES_AGGREGATOR]
+
+    coords: Optional[List[str]]
+    units: Optional[List[str]]
+    data_rows: List[List[float]]
+
+    _num_cols: int
 
     def __init__(self,
                  name: str,
@@ -119,8 +63,12 @@ class DeviceAggregator:
         self.device_type = device_type
         self.first_col = first_col
         self.last_col = last_col
-        if last_col is not None:
-            self._initialize_time_series()
+        self.coords = None
+        self.units = None
+        self._num_cols = None
+        self.data_rows = []
+        if self.last_col is not None:
+            self._initialize_num_cols()
 
     def add_coordinates(self, parsed_row: List[str]):
         """Add coordinates to device.
@@ -128,17 +76,15 @@ class DeviceAggregator:
         Args:
             parsed_row: the coordinates line of the input.
         """
-        self._call_method_on_each(self._time_series_add_data,
-                                  self._my_cols(parsed_row))
+        self.coords = self._my_cols(parsed_row)
 
-    def add_units(self, parsed_row: List[pint.Unit]):
+    def add_units(self, parsed_row: List[str]):
         """Add physical units to device.
 
         Args:
             parsed_row: the units line of the input, already parsed.
         """
-        self._call_method_on_each(self._time_series_add_data,
-                                  self._my_cols(parsed_row))
+        self.units = self._my_cols(parsed_row)
 
     def add_data(self, parsed_row: List[float]):
         """Add measurements to device.
@@ -146,60 +92,22 @@ class DeviceAggregator:
         Args:
             parsed_row: a data line of the input, already parsed.
         """
-        self._call_method_on_each(self._time_series_add_data,
-                                  self._my_cols(parsed_row))
+        self.data_rows.append(self._my_cols(parsed_row))
 
     def _my_cols(self, parsed_cols: List[Any]) -> List[Any]:
         """Restrict parsed columns to the ones corresponding to device."""
-        if self.time_series is None:
+        if self._num_cols is None:
             assert self.last_col is None
             self.last_col = len(parsed_cols) - 1
-            self._initialize_time_series()
+            self._initialize_num_cols()
         return parsed_cols[self._create_slice()]
-
-    def _call_method_on_each(
-            self, method: Callable[[_TIME_SERIES_AGGREGATOR, Any], None],
-            parsed_data: List):
-        """Calls a method on each time series with the data as argument.
-
-        Args:
-            parsed_data: the columns of the data referring to the device.
-
-            method: the method to be called on each
-                :py:class:TimeSeriesAggregator.
-        """
-        for data_entry, time_series in zip(parsed_data, self.time_series):
-            method(time_series, data_entry)
 
     def _create_slice(self):
         """Create a slice object corresponding to the device columns."""
         return slice(self.first_col, self.last_col + 1)
 
-    def _initialize_time_series(self):
-        num_cols = last_col - first_col + 1
-        self.time_series = tuple(self._create_time_series_aggregator()
-                                 for _ in range(num_cols))
-
-    def _create_time_series_aggregator(self) -> _TIME_SERIES_AGGREGATOR:
-        return self._TIME_SERIES_AGGREGATOR()
-
-    def _time_series_add_coordinate(self, time_series: _TIME_SERIES_AGGREGATOR,
-                                    data_entry: str):
-        time_series.add_coordinate(data_entry)
-
-    def _time_series_add_units(self, time_series: _TIME_SERIES_AGGREGATOR,
-                               data_entry: pint.Unit):
-        time_series.add_unit(data_entry)
-
-    def _time_series_add_data(self, time_series: _TIME_SERIES_AGGREGATOR,
-                              data_entry: float):
-        time_series.add_data(data_entry)
-
-    def __getitem__(self, ind: int) -> _TIME_SERIES_AGGREGATOR:
-        return self.time_series[ind]
-
-    def __len__(self):
-        return len(self.time_series)
+    def _initialize_num_cols(self):
+        self._num_cols = self.last_col - self.first_col + 1
 
 
 class _SectionAggregator(abc.ABC):
@@ -240,9 +148,9 @@ class _SectionAggregator(abc.ABC):
         self._raise_if_finished()
 
         for device in self.devices:
-            device.add_coordinates(units)
+            device.add_coordinates(coords)
 
-    def add_units(self, units: List[pint.Unit]):
+    def add_units(self, units: List[str]):
         self._raise_if_finished()
 
         for device in self.devices:
@@ -355,12 +263,15 @@ class Aggregator:
         return self._get_section_aggregator().section_type
 
     def transition(self):
-        self._get_section_aggregator().transition()
+        self._get_section_aggregator().transition(aggregator=self)
 
     def add_frequency(self, frequency: int):
         self._get_section_aggregator().add_frequency(frequency)
 
-    def add_units(self, units: List[pint.Unit]):
+    def add_coordinates(self, coordinates: List[str]):
+        self._get_section_aggregator().add_coordinates(coordinates)
+
+    def add_units(self, units: List[str]):
         self._get_section_aggregator().add_units(units)
 
     def add_data(self, data: List[float]):

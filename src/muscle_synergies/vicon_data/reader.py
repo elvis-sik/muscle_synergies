@@ -492,16 +492,17 @@ class DataState(_FixedNumColsMixin, _AggregateDataMixin, _ReaderState):
         floats = self._parse_row(row)
         self._aggregate_data(floats, reader)
 
-    def _parse_row(self, row: Row) -> List[float]:
+    def _parse_row(self, row: Row) -> List[Optional[float]]:
         return list(map(self._parse_entry, row))
 
-    def _parse_entry(self, row_entry: str) -> float:
+    def _parse_entry(self, row_entry: str) -> Optional[float]:
         if not row_entry:
-            return 0  # inactive device
+            return None
         return float(row_entry)
 
-    def _get_data_aggregate_method(self, aggregator: Aggregator
-                                   ) -> Callable[[List[float]], None]:
+    def _get_data_aggregate_method(
+            self,
+            aggregator: Aggregator) -> Callable[[List[Optional[float]]], None]:
         return aggregator.add_data
 
 

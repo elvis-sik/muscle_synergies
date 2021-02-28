@@ -85,13 +85,11 @@ class Builder:
                           dataframe=dataframe)
 
     @classmethod
-    def _extract_dataframe(
-            cls,
-            device_aggregator: DeviceAggregator,
-    ) -> pd.DataFrame:
+    def _extract_dataframe(cls, device_aggregator: DeviceAggregator
+                           ) -> pd.DataFrame:
         data = cls._device_agg_data(device_aggregator)
         header = cls._device_agg_coords(device_aggregator)
-        pd.DataFrame(data, columns=header)
+        return pd.DataFrame(data, columns=header)
 
     def _simplify_emg(
             self, devices_by_type: Mapping[DeviceType, List['DeviceData']]
@@ -250,11 +248,15 @@ class DeviceData:
             frame_tracker: _SectionFrameTracker,
             dataframe: pd.DataFrame,
     ):
-        self.device_name = device_name
-        self.device_type = device_type
-        self.units = units
-        self._frame_tracker = frame_tracker
+        self.name = device_name
+        self.dev_type = device_type
+        self.units = tuple(units)
         self.df = dataframe
+        self._frame_tracker = frame_tracker
+
+    def __eq__(self, other) -> bool:
+        return (self.name == other.name and self.dev_type == other.dev_type
+                and self.units == other.units and self.df.equals(other.df))
 
     @property
     def sampling_frequency(self) -> int:

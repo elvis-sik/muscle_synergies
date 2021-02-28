@@ -7,16 +7,7 @@ from functools import partial
 from typing import (List, Set, Dict, Tuple, Optional, Sequence, Callable, Any,
                     Mapping, Iterator, TypeVar, NewType, Union, Iterable)
 
-<<<<<<< HEAD
-import pandas as pd
-import pint
-from pint_pandas import PintArray
-
 from .definitions import (
-    ureg,
-=======
-from .definitions import (
->>>>>>> master
     T,
     X,
     Y,
@@ -90,16 +81,6 @@ class _ReaderState(abc.ABC):
 
 class _UpdateStateMixin:
     def _update_state(self, reader: Reader):
-<<<<<<< HEAD
-        self._reader_set_state(reader, self._new_state())
-
-    def _new_state(self):
-        st_type = self._next_state_type
-        return st_type()
-
-    @abc.abstractproperty
-    def _next_state_type(self):
-=======
         self._reader_set_state(reader, self._new_state(reader))
 
     def _new_state(self, reader: Reader):
@@ -108,7 +89,6 @@ class _UpdateStateMixin:
 
     @abc.abstractmethod
     def _next_state_type(self, reader: Reader):
->>>>>>> master
         pass
 
 
@@ -134,17 +114,10 @@ class _AggregateDataMixin:
 
 class _EntryByEntryMixin(abc.ABC):
     def _parse_row(self, row: Row) -> List[T]:
-<<<<<<< HEAD
-        return [self._parse_entry(row_entry) for row_entry in row]
-
-    @abc.abstractmethod
-    def _parse_entry(row_entry: str) -> T:
-=======
         return list(map(self._parse_entry, row))
 
     @abc.abstractmethod
     def _parse_entry(self, row_entry: str) -> T:
->>>>>>> master
         pass
 
 
@@ -158,12 +131,7 @@ class SectionTypeState(_UpdateStateMixin, _HasSingleColMixin, _ReaderState):
     def line(self) -> ViconCSVLines:
         return ViconCSVLines.SECTION_TYPE_LINE
 
-<<<<<<< HEAD
-    @property
-    def _next_state_type(self):
-=======
     def _next_state_type(self, reader: Reader):
->>>>>>> master
         return SamplingFrequencyState
 
     def feed_row(self, row: Row, reader: Reader):
@@ -196,11 +164,7 @@ class SectionTypeState(_UpdateStateMixin, _HasSingleColMixin, _ReaderState):
             )
 
 
-<<<<<<< HEAD
-class SamplingFrequencyState(_AggregateDataMixin, _UpdateStateMixin,
-=======
 class SamplingFrequencyState(_UpdateStateMixin, _AggregateDataMixin,
->>>>>>> master
                              _HasSingleColMixin, _ReaderState):
     """The state of a reader that is expecting the sampling frequency line.
 
@@ -210,46 +174,6 @@ class SamplingFrequencyState(_UpdateStateMixin, _AggregateDataMixin,
     @property
     def line(self) -> ViconCSVLines:
         return ViconCSVLines.SAMPLING_FREQUENCY_LINE
-<<<<<<< HEAD
-
-    @property
-    def _next_state_type(self):
-        return DevicesState
-
-    def _get_data_aggregate_method(self, aggregator: Aggregator
-                                   ) -> Callable[[int], None]:
-        return aggregator.add_frequency
-
-    def feed_row(self, row: Row, reader: Reader):
-        row = self._preprocess_row(row)
-        self._validate_has_single_col(row)
-        freq = self._parse_freq(row)
-        self._aggregate_data(freq, reader)
-        self._update_state(reader)
-
-    @staticmethod
-    def _parse_freq(row: Row):
-        return int(row[0])
-
-
-@dataclass
-class ColOfHeader:
-    """The string describing a device and the column in which it occurs.
-
-    This is used as an intermediate representation of the data being read in
-    the device names line (see :py:class:ViconCSVLines). The structure of that
-    line is complex, so the logic of its parsing is split into several classes.
-    ColOfHeader is used for communication between them.
-
-    Args:
-        col_index: the index of the column in the CSV file in which the
-            device header is described.
-
-        header_str: the exact string occurring in that column.
-    """
-    col_index: int
-    header_str: str
-=======
 
     def _next_state_type(self, reader: Reader):
         if self._reader_section_type(reader) is SectionType.FORCES_EMG:
@@ -271,14 +195,11 @@ class ColOfHeader:
     def _parse_freq(row: Row):
         return int(row[0])
 
->>>>>>> master
 
 @dataclass
 class ColOfHeader:
     """The string describing a device and the column in which it occurs.
 
-<<<<<<< HEAD
-=======
     This is used as an intermediate representation of the data being read in
     the device names line (see :py:class:ViconCSVLines). The structure of that
     line is complex, so the logic of its parsing is split into several classes.
@@ -294,7 +215,6 @@ class ColOfHeader:
     header_str: str
 
 
->>>>>>> master
 class DevicesHeaderFinder:
     def find_headers(self, row: Row) -> List[ColOfHeader]:
         self._validate_row_values_in_correct_cols(row)
@@ -344,11 +264,7 @@ class ForcePlateGrouper:
                 yield head
 
     def _rename_force_plate(self, header: ColOfHeader) -> ColOfHeader:
-<<<<<<< HEAD
-        header_str = self._header_str(header)
-=======
         header_str = self._col_of_header_header_str(header)
->>>>>>> master
         new_name = self._force_plate_name(header_str)
         first_col = self._col_of_header_first_col(header)
         return self._col_of_header(new_name, first_col)
@@ -364,11 +280,7 @@ class ForcePlateGrouper:
         return header.col_index
 
     def _col_of_header(self, header_str: str, first_col: int) -> ColOfHeader:
-<<<<<<< HEAD
-        return ColOfHeader(header_str, first_col)
-=======
         return ColOfHeader(header_str=header_str, col_index=first_col)
->>>>>>> master
 
 
 class _DevicesState(_UpdateStateMixin, _ReaderState):
@@ -381,13 +293,8 @@ class _DevicesState(_UpdateStateMixin, _ReaderState):
     def __init__(self, finder: Optional[DevicesHeaderFinder] = None):
         super().__init__()
         if finder is None:
-<<<<<<< HEAD
-            self._finder = self._instantiate_finder()
-        self._finder = finder
-=======
             finder = self._instantiate_finder()
         self.finder = finder
->>>>>>> master
 
     def feed_row(self, row: Row, reader: Reader):
         row = self._preprocess_row(row)
@@ -409,12 +316,7 @@ class _DevicesState(_UpdateStateMixin, _ReaderState):
                               first_col=first_col,
                               last_col=last_col)
 
-<<<<<<< HEAD
-    @property
-    def _next_state_type(self):
-=======
     def _next_state_type(self, reader: Reader):
->>>>>>> master
         return CoordinatesState
 
     def _build_add_device_params_dict(self, header: ColOfHeader,
@@ -441,25 +343,11 @@ class _DevicesState(_UpdateStateMixin, _ReaderState):
         pass
 
     @abc.abstractmethod
-<<<<<<< HEAD
-    def _last_col(self, device_type: DeviceType, first_col: int) -> Any:
-=======
     def _last_col(self, device_type: DeviceType, first_col: int) -> int:
->>>>>>> master
         pass
 
 
 class ForcesEMGDevicesState(_DevicesState):
-<<<<<<< HEAD
-    _grouper: ForcePlateGrouper
-
-    def __init__(self, finder: Optional[DevicesHeaderFinder],
-                 grouper: Optional[ForcePlateGrouper]):
-        super().__init__(finder)
-        if grouper is None:
-            self._grouper = self._instantiate_grouper
-        self._grouper = grouper
-=======
     grouper: ForcePlateGrouper
 
     def __init__(self,
@@ -469,7 +357,6 @@ class ForcesEMGDevicesState(_DevicesState):
         if grouper is None:
             grouper = self._instantiate_grouper()
         self.grouper = grouper
->>>>>>> master
 
     def _send_headers_to_aggregator(self, headers: List[ColOfHeader],
                                     reader: Reader):

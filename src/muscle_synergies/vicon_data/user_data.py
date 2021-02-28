@@ -89,7 +89,7 @@ class Builder:
                            ) -> pd.DataFrame:
         data = cls._device_agg_data(device_aggregator)
         header = cls._device_agg_coords(device_aggregator)
-        return pd.DataFrame(data, columns=header)
+        return pd.DataFrame(data, columns=header, dtype=float)
 
     def _simplify_emg(
             self, devices_by_type: Mapping[DeviceType, List['DeviceData']]

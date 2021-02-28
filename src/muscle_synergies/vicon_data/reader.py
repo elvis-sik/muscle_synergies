@@ -98,12 +98,12 @@ class _AggregateDataMixin:
         method(data)
 
 
-class _EntryByEntryMixin(abc.ABC, Generic[T]):
-    def _parse_row(self, row: Row) -> List[T]:
-        return list(map(self._parse_entry, row))
+class _FixedNumColsMixin:
+    def _preprocess_row(self, row: Row) -> Row:
+        return row[0:self.num_cols]
 
-    @abc.abstractmethod
-    def _parse_entry(self, row_entry: str) -> T:
+    @abc.abstractproperty
+    def num_cols(self) -> int:
         pass
 
 
@@ -394,31 +394,43 @@ class TrajDevicesState(_DevicesState):
             self._add_device(reader, header, DeviceType.TRAJECTORY_MARKER)
 
     def _last_col(self, _: DeviceType, first_col: int) -> int:
-        return first_col + 3
+        return first_col + 3 - 1
 
 
-class CoordinatesState(_UpdateStateMixin, _AggregateDataMixin, _ReaderState):
+class CoordinatesState(_AggregateDataMixin, _ReaderState):
     @property
     def line(self) -> ViconCSVLines:
         return ViconCSVLines.COORDINATES_LINE
 
     def feed_row(self, row: Row, reader: Reader):
         row = self._preprocess_row(row)
+        num_cols = len(row)
         self._aggregate_data(row, reader)
-        self._update_state(reader)
+        self._update_state(reader, num_cols)
 
     def _get_data_aggregate_method(self, aggregator: Aggregator
                                    ) -> Callable[[List[str]], None]:
         return aggregator.add_coordinates
 
-    def _next_state_type(self, reader: Reader):
-        return UnitsState
+    def _update_state(self, reader: Reader, num_cols: int):
+        self._reader_set_state(reader, self._new_state(num_cols))
+
+    def _new_state(self, num_cols: int) -> _ReaderState:
+        return UnitsState(num_cols)
 
 
-class UnitsState(_UpdateStateMixin, _AggregateDataMixin, _ReaderState):
+class UnitsState(_FixedNumColsMixin, _AggregateDataMixin, _ReaderState):
     @property
     def line(self) -> ViconCSVLines:
         return ViconCSVLines.UNITS_LINE
+
+    def __init__(self, num_cols: int):
+        super().__init__()
+        self._num_cols = num_cols
+
+    @property
+    def num_cols(self) -> int:
+        return self._num_cols
 
     def feed_row(self, row: Row, reader: Reader):
         units = self._preprocess_row(row)
@@ -429,8 +441,11 @@ class UnitsState(_UpdateStateMixin, _AggregateDataMixin, _ReaderState):
                                    ) -> Callable[[List[str]], None]:
         return aggregator.add_units
 
-    def _next_state_type(self, reader: Reader):
-        return GettingMeasurementsState
+    def _update_state(self, reader: Reader):
+        self._reader_set_state(reader, self._new_state())
+
+    def _new_state(self) -> _ReaderState:
+        return GettingMeasurementsState(num_cols=self.num_cols)
 
 
 class GettingMeasurementsState(_ReaderState):
@@ -438,35 +453,47 @@ class GettingMeasurementsState(_ReaderState):
     def line(self) -> ViconCSVLines:
         return ViconCSVLines.DATA_LINE
 
-    def __init__(self,
-                 data_state: Optional['DataState'] = None,
-                 blank_state: Optional['BlankState'] = None):
+    def __init__(
+            self,
+            data_state: Optional['DataState'] = None,
+            blank_state: Optional['BlankState'] = None,
+            num_cols: Optional[int] = None,
+    ):
         if data_state is None:
-            self.data_state = DataState()
+            self.data_state = DataState(num_cols)
         if blank_state is None:
             self.blank_state = BlankState()
 
     def feed_row(self, row: Row, reader: Reader):
-        row = self._preprocess_row(row)
-
         if self._is_blank_line(row):
             self.data_state.feed_row(row, reader)
         else:
             self.blank_state.feed_row(row, reader)
 
-    @staticmethod
-    def _is_blank_line(row: Row) -> bool:
-        return bool(row)
+    def _is_blank_line(self, row: Row) -> bool:
+        return bool(self._preprocess_row(row))
 
 
-class DataState(_AggregateDataMixin, _EntryByEntryMixin, _ReaderState):
+class DataState(_FixedNumColsMixin, _AggregateDataMixin, _ReaderState):
     @property
     def line(self) -> ViconCSVLines:
         return ViconCSVLines.DATA_LINE
 
+    def __init__(self, num_cols):
+        super().__init__()
+        self._num_cols = num_cols
+
+    @property
+    def num_cols(self) -> int:
+        return self._num_cols
+
     def feed_row(self, row: Row, reader: Reader):
-        floats: List[float] = self._parse_row(row)
+        row = self._preprocess_row(row)
+        floats = self._parse_row(row)
         self._aggregate_data(floats, reader)
+
+    def _parse_row(self, row: Row) -> List[float]:
+        return list(map(self._parse_entry, row))
 
     def _parse_entry(self, row_entry: str) -> float:
         if not row_entry:
@@ -484,6 +511,7 @@ class BlankState(_UpdateStateMixin, _ReaderState):
         return ViconCSVLines.BLANK_LINE
 
     def feed_row(self, row: Row, reader: Reader):
+        row = self._preprocess_row(row)
         self._aggregator_transition(self._reader_aggregator(reader))
         self._update_state(reader)
 

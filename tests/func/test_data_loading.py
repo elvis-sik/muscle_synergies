@@ -1,15 +1,6 @@
+import pandas as pd
 import pytest as pt
 from pytest_cases import fixture_ref, parametrize
-
-
-class TestFullData:
-    """Tests on a realistic dataset."""
-
-    # shape of pandas arrays
-    # number of devices
-    # sampling frequency
-    def test_laptop_doesnt_die(self, full_data):
-        assert full_data.emg is not None
 
 
 class TestAbridgedData:
@@ -59,3 +50,88 @@ class TestAbridgedData:
         for (frame, subframe) in invalid_frame_subframe_seq:
             with pt.raises(KeyError):
                 device_data.iloc(frame, subframe)
+
+
+class TestFullData:
+    """Tests on a realistic dataset."""
+    """
+
+    NEXT the tests I thought about are the following ones
+    + shape of pandas arrays
+    + number of devices
+    + sampling frequency
+
+    The hardest part to implement is the fixtures.
+
+    """
+    def test_correct_num_force_plates(self, full_data):
+        assert len(full_data.force_plates) == 2
+
+    def test_there_is_emg(self, full_data):
+        assert full_data.emg is not None
+
+    def test_correct_num_traj(self, full_data):
+        assert len(full_data.trajectory_markers) == 40
+
+    @parametrize('devices, exp_names', [
+        (fixture_ref('full_data_forcep'),
+         fixture_ref('full_data_forcep_names')),
+        (fixture_ref('full_data_emg'), fixture_ref('full_data_emg_names')),
+        (fixture_ref('full_data_traj'), fixture_ref('full_data_traj_names')),
+    ])
+    def test_load_correct_names(self, devices, exp_names):
+        for (dev, name) in zip(devices, exp_names):
+            assert dev.name == name
+
+    @parametrize('devices, exp_cols', [
+        (fixture_ref('full_data_forcep'), fixture_ref('forcep_cols')),
+        (fixture_ref('full_data_emg'), fixture_ref('emg_cols')),
+        (fixture_ref('full_data_traj'), fixture_ref('traj_cols')),
+    ])
+    def test_correct_cols(self, devices, exp_cols):
+        for dev in devices:
+            coords = tuple(dev.df.columns)
+            assert coords == tuple(exp_cols)
+
+    @parametrize('devices, exp_units', [
+        (fixture_ref('full_data_forcep'), fixture_ref('forcep_units')),
+        (fixture_ref('full_data_emg'), fixture_ref('emg_units')),
+        (fixture_ref('full_data_traj'), fixture_ref('traj_units')),
+    ])
+    def test_correct_units(self, devices, exp_units):
+        for dev in devices:
+            loaded_units = dev.units
+            assert tuple(loaded_units) == tuple(exp_units)
+
+    def test_traj_sampling_freq(self, full_data_traj):
+        for dev in full_data_traj:
+            assert dev.sampling_frequency == 100
+
+    def test_forces_emg_sampling_freq(self, full_data_forces_emg):
+        for dev in full_data_forces_emg:
+            assert dev.sampling_frequency == 2000
+
+    @parametrize('devices, exp_shape', [
+        (fixture_ref('full_data_forcep'),
+         fixture_ref('full_data_forcep_shape')),
+        (fixture_ref('full_data_emg'), fixture_ref('full_data_emg_shape')),
+        (fixture_ref('full_data_traj'), fixture_ref('full_data_traj_shape')),
+    ])
+    def test_traj_data_shape(self, devices, exp_shape):
+        for dev in devices:
+            assert dev.df.shape == exp_shape
+
+    @parametrize('cols_dev, exp_means',
+                 [(fixture_ref('full_data_forces_emg_series'),
+                   fixture_ref('full_data_forces_emg_means')),
+                  (fixture_ref('full_data_traj_series'),
+                   fixture_ref('full_data_traj_means'))])
+    def test_col_means_correct(self, cols_dev, exp_means):
+        # TODO libreoffice fooled me giving me wrong means
+        for ((col, dev), exp_mean) in zip(cols_dev, exp_means):
+            loaded_mean = col.mean()
+            if exp_mean is None:
+                assert loaded_mean is pd.NaN
+                continue
+            relative_err = abs(loaded_mean - exp_mean) / (abs(exp_mean) + 1)
+            assert relative_err <= .01

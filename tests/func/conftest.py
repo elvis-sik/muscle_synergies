@@ -130,8 +130,8 @@ def exp_angelica_hv(module_mocker):
     device_type = vd.DeviceType.TRAJECTORY_MARKER
     frame_tracker = module_mocker.Mock()
     data = [
-        [209331, 1219.74, 1780.67],
-        [209475, 1219.82, 1780.88],
+        [209.331, 1219.74, 1780.67],
+        [209.475, 1219.82, 1780.88],
     ]
     coords = ('X', 'Y', 'Z')
     units = ('mm', 'mm', 'mm')
@@ -146,8 +146,8 @@ def exp_angelica_cme(module_mocker):
     device_type = vd.DeviceType.TRAJECTORY_MARKER
     frame_tracker = module_mocker.Mock()
     data = [
-        [None, None],
-        [None, None],
+        [None, None, None],
+        [None, None, None],
     ]
     coords = ('X', 'Y', 'Z')
     units = ('mm', 'mm', 'mm')
@@ -162,8 +162,8 @@ def exp_angelica_cle(module_mocker):
     device_type = vd.DeviceType.TRAJECTORY_MARKER
     frame_tracker = module_mocker.Mock()
     data = [
-        [227725, 1091.81, 496721],
-        [227702, 1091.8, 496729],
+        [227.725, 1091.81, 496.721],
+        [227.702, 1091.8, 496.729],
     ]
     coords = ('X', 'Y', 'Z')
     units = ('mm', 'mm', 'mm')
@@ -178,8 +178,8 @@ def exp_angelica_elastdp(module_mocker):
     device_type = vd.DeviceType.TRAJECTORY_MARKER
     frame_tracker = module_mocker.Mock()
     data = [
-        [None, None],
-        [None, None],
+        [None, None, None],
+        [None, None, None],
     ]
     coords = ('X', 'Y', 'Z')
     units = ('mm', 'mm', 'mm')

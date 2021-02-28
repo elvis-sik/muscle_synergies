@@ -1,25 +1,11 @@
 """Types that help the Reader build a representation of Vicon Nexus data."""
 
 import abc
-import collections.abc
-from collections import defaultdict
-import csv
-from dataclasses import dataclass
-from enum import Enum
-import re
-from typing import (List, Set, Dict, Tuple, Optional, Sequence, Callable, Any,
-                    Mapping, Iterator, Generic, TypeVar, NewType, Union,
-                    Iterable)
+from typing import (List, Optional, Sequence, Any)
 
 from .definitions import (
-    T,
-    X,
-    Y,
-    Row,
     SectionType,
-    ViconCSVLines,
     DeviceType,
-    ForcePlateMeasurement,
     SamplingFreq,
 )
 
@@ -52,7 +38,7 @@ class DeviceAggregator:
     units: Optional[List[str]]
     data_rows: List[List[float]]
 
-    _num_cols: int
+    _num_cols: Optional[int]
 
     def __init__(self,
                  name: str,
@@ -111,7 +97,6 @@ class DeviceAggregator:
 
 
 class _SectionAggregator(abc.ABC):
-    finished: bool
     frequency: Optional[int]
     devices: List[DeviceAggregator]
 
@@ -123,7 +108,7 @@ class _SectionAggregator(abc.ABC):
 
     @abc.abstractproperty
     def section_type(self) -> SectionType:
-        return
+        pass
 
     @abc.abstractmethod
     def transition(self, aggregator: 'Aggregator'):
@@ -171,7 +156,7 @@ class _SectionAggregator(abc.ABC):
     def _raise_if_finished(self):
         if self.finished:
             raise TypeError(
-                f'tried to add something to a finished _SectionAggregator')
+                'tried to add something to a finished _SectionAggregator')
 
 
 class ForcesEMGAggregator(_SectionAggregator):

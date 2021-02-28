@@ -6,7 +6,7 @@ from .reader import *
 from .user_data import *
 
 __all__ = (
-    load_vicon_file,
-    ViconNexusData,
-    DeviceData,
+    'load_vicon_file',
+    'ViconNexusData',
+    'DeviceData',
 )

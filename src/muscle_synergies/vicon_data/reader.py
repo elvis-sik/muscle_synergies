@@ -1,26 +1,16 @@
 import abc
-from collections import defaultdict
-import csv
 from dataclasses import dataclass
-from enum import Enum
-from functools import partial
-from typing import (List, Set, Dict, Tuple, Optional, Sequence, Callable, Any,
-                    Mapping, Iterator, TypeVar, NewType, Union, Iterable)
+from typing import (List, Tuple, Optional, Callable, Any, Mapping, Iterator,
+                    Union, Generic)
 
 from .definitions import (
     T,
-    X,
-    Y,
     Row,
     SectionType,
     ViconCSVLines,
     DeviceType,
-    ForcePlateMeasurement,
 )
-from .aggregator import (
-    DeviceAggregator,
-    Aggregator,
-)
+from .aggregator import Aggregator
 
 
 class Reader:
@@ -65,18 +55,14 @@ class _ReaderState(abc.ABC):
             row.pop()
         return Row(row)
 
-    def _reader_aggregator(self, reader: 'Reader') -> Aggregator:
+    def _reader_aggregator(self, reader: Reader) -> Aggregator:
         return reader.get_aggregator()
 
-    def _reader_set_state(self, reader: 'Reader', new_state: '_ReaderState'):
+    def _reader_set_state(self, reader: Reader, new_state: '_ReaderState'):
         reader.set_state(new_state)
 
     def _reader_section_type(self, reader: Reader) -> SectionType:
         return reader.get_section_type()
-
-    def _reader_set_new_section_type(self, reader: Reader,
-                                     new_section_type: SectionType):
-        reader.set_section_type(new_section_type)
 
 
 class _UpdateStateMixin:
@@ -96,7 +82,7 @@ class _HasSingleColMixin:
     def _validate_row_has_single_col(self, row: Row):
         if row[1:]:
             raise ValueError(
-                f'first row of a section should contain nothing outside its first column'
+                'first row of a section should contain nothing outside its first column'
             )
 
 
@@ -112,7 +98,7 @@ class _AggregateDataMixin:
         method(data)
 
 
-class _EntryByEntryMixin(abc.ABC):
+class _EntryByEntryMixin(abc.ABC, Generic[T]):
     def _parse_row(self, row: Row) -> List[T]:
         return list(map(self._parse_entry, row))
 
@@ -145,7 +131,7 @@ class SectionTypeState(_UpdateStateMixin, _HasSingleColMixin, _ReaderState):
     def _validate_row_valid_values(self, row: Row):
         if row[0] not in {'Devices', 'Trajectories'}:
             raise ValueError(
-                f'first row in a section should contain "Devices" or "Trajectories" in its first column'
+                'first row in a section should contain "Devices" or "Trajectories" in its first column'
             )
 
     def _parse_section_type(self, row: Row) -> SectionType:
@@ -479,7 +465,7 @@ class DataState(_AggregateDataMixin, _EntryByEntryMixin, _ReaderState):
         return ViconCSVLines.DATA_LINE
 
     def feed_row(self, row: Row, reader: Reader):
-        floats = self._parse_row(row)
+        floats: List[float] = self._parse_row(row)
         self._aggregate_data(floats, reader)
 
     def _parse_entry(self, row_entry: str) -> float:

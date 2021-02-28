@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import TypeVar, Union, List, NewType
+from typing import TypeVar, List, NewType
 
 # type variables used to define generic types
 T = TypeVar('T')
@@ -17,10 +17,10 @@ class SectionType(Enum):
 
     The files outputted by experiments are split into sections, each containing
     different types of data. The sections are separated by a single blank line.
-    Each section contains a header plus several rows of measurements. The header
-    spans 5 lines including, among other things, an identification of its type
-    See the docs for py:class:ViconCSVLines for a full description of the meaning
-    of the different lines.
+    Each section contains a header plus several rows of measurements. The
+    header spans 5 lines including, among other things, an identification of
+    its type See the docs for py:class:ViconCSVLines for a full description of
+    the meaning of the different lines.
 
     Members:
     + FORCES_EMG refers to a section that begins with the single word "Devices"
@@ -36,15 +36,15 @@ class ViconCSVLines(Enum):
     """Lines in the CSV file with experimental data.
 
     The members refer to lines in the CSV file.
-    + SECTION_TYPE_LINE is the first line in a section, which contains either the
-      word "Devices" (for the section with force plate and EMG data) or
+    + SECTION_TYPE_LINE is the first line in a section, which contains either
+      the word "Devices" (for the section with force plate and EMG data) or
       "Trajectories" (for the section with kinematic data).
 
     + SAMPLING_FREQUENCY_LINE is the second line in a section, which contains a
       single integer representing the sampling frequency.
 
-    + DEVICE_NAMES_LINE is the third line in a section, which contains the names
-      of measuring devices (such as "Angelica:HV").
+    + DEVICE_NAMES_LINE is the third line in a section, which contains the
+      names of measuring devices (such as "Angelica:HV").
 
     + COORDINATES_LINE is the fourth line in a section, which contains headers
       like "X", "Y" and "Z" referring to the different coordinates of
@@ -71,28 +71,29 @@ class DeviceType(Enum):
     """Type of a measurement device.
 
     Measurement devices are named in the third line of each section of the CSV
-    file outputted by Vicon Nexus. Each name is included in a single column, but
-    the data for each device in the following lines usually span more than 1
-    column:
+    file outputted by Vicon Nexus. Each name is included in a single column,
+    but the data for each device in the following lines usually span more than
+    1 column:
     + one column per muscle in the case of EMG data.
     + 3 columns (1 per spatial coordinate) in the case of trajectory markers.
     + several columns per force plate (see below).
 
     Force plates are complicated by the fact that a single one of them is
-    represented as several "devices". For example, take a look at the following:
+    represented as several "devices". For example, take a look at the
+    following:
     + Imported AMTI OR6 Series Force Plate #1 - Force
     + Imported AMTI OR6 Series Force Plate #1 - Moment
     + Imported AMTI OR6 Series Force Plate #1 - CoP
 
-    These 3 refer actually to different measurements (force, moment, origin) for
-    the same experimental device (Force Plate #1). All of the measured
+    These 3 refer actually to different measurements (force, moment, origin)
+    for the same experimental device (Force Plate #1). All of the measured
     quantities are vectors, so each of those 3 "devices" is represented in 3
     columns.
 
-    At any rate, all 3 of the different columns (Force, Moment and CoP) for each
-    force plate is treated as if they were actually different devices when they
-    are first read by the parsing functions of :py:module:vicon_data, and then
-    later they are unified.
+    At any rate, all 3 of the different columns (Force, Moment and CoP) for
+    each force plate is treated as if they were actually different devices when
+    they are first read by the parsing functions of :py:module:vicon_data, and
+    then later they are unified.
 
     Members:
     + FORCE_PLATE is a force plate. The data

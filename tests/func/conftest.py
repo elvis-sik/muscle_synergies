@@ -2,6 +2,8 @@ import pathlib
 
 import pandas as pd
 import pytest as pt
+from pytest_cases import fixture as cases_fixture
+from pytest_cases import parametrize
 
 import muscle_synergies.vicon_data as vd
 
@@ -9,9 +11,15 @@ this_file = pathlib.Path(__file__)
 project_root = this_file.parent.parent.parent
 sample_data_dir = project_root / 'sample_data'
 abridged_csv = sample_data_dir / 'abridged_data.csv'
+full_data_csv = sample_data_dir / 'dynamic_trial.csv'
 
 
-@pt.fixture(scope='module')
+@pt.fixture(scope='package')
+def full_data():
+    return vd.load_vicon_file(full_data_csv)
+
+
+@pt.fixture(scope='package')
 def abridged_data():
     return vd.load_vicon_file(abridged_csv)
 
@@ -51,11 +59,11 @@ def loaded_angelica_elastdp(abridged_data):
     return abridged_data.trajectory_markers[3]
 
 
-@pt.fixture(scope='module')
-def exp_emg(module_mocker):
+@pt.fixture(scope='package')
+def exp_emg(package_mocker):
     device_name = 'EMG2000 - Voltage'
     device_type = vd.DeviceType.EMG
-    frame_tracker = module_mocker.Mock()
+    frame_tracker = package_mocker.Mock()
     data = [
         [
             0.0037236, 0.00722359, 0.00344124, 0.00149971, -0.000798493,
@@ -89,11 +97,11 @@ def exp_emg(module_mocker):
                          dataframe)
 
 
-@pt.fixture(scope='module')
-def exp_forcep1(module_mocker):
+@pt.fixture(scope='package')
+def exp_forcep1(package_mocker):
     device_name = 'Imported AMTI OR6 Series Force Plate #1'
     device_type = vd.DeviceType.FORCE_PLATE
-    frame_tracker = module_mocker.Mock()
+    frame_tracker = package_mocker.Mock()
     data = [[0, 0, 0, 0, 0, 0, 232, 254, 0], [0, 0, 0, 0, 0, 0, 232, 254, 0],
             [0, 0, 0, 0, 0, 0, 232, 254, 0], [0, 0, 0, 0, 0, 0, 232, 254, 0],
             [0, 0, 0, 0, 0, 0, 232, 254, 0], [0, 0, 0, 0, 0, 0, 232, 254, 0]]
@@ -104,11 +112,11 @@ def exp_forcep1(module_mocker):
                          dataframe)
 
 
-@pt.fixture(scope='module')
-def exp_forcep2(module_mocker):
+@pt.fixture(scope='package')
+def exp_forcep2(package_mocker):
     device_name = 'Imported AMTI OR6 Series Force Plate #2'
     device_type = vd.DeviceType.FORCE_PLATE
-    frame_tracker = module_mocker.Mock()
+    frame_tracker = package_mocker.Mock()
     data = [
         [0, 0, 0, 0, 0, 0, 232, 769, 0],
         [0, 0, 0, 0, 0, 0, 232, 769, 0],
@@ -124,11 +132,11 @@ def exp_forcep2(module_mocker):
                          dataframe)
 
 
-@pt.fixture(scope='module')
-def exp_angelica_hv(module_mocker):
+@pt.fixture(scope='package')
+def exp_angelica_hv(package_mocker):
     device_name = 'Angelica:HV'
     device_type = vd.DeviceType.TRAJECTORY_MARKER
-    frame_tracker = module_mocker.Mock()
+    frame_tracker = package_mocker.Mock()
     data = [
         [209.331, 1219.74, 1780.67],
         [209.475, 1219.82, 1780.88],
@@ -140,11 +148,11 @@ def exp_angelica_hv(module_mocker):
                          dataframe)
 
 
-@pt.fixture(scope='module')
-def exp_angelica_cme(module_mocker):
+@pt.fixture(scope='package')
+def exp_angelica_cme(package_mocker):
     device_name = 'Angelica:CM_E'
     device_type = vd.DeviceType.TRAJECTORY_MARKER
-    frame_tracker = module_mocker.Mock()
+    frame_tracker = package_mocker.Mock()
     data = [
         [None, None, None],
         [None, None, None],
@@ -156,11 +164,11 @@ def exp_angelica_cme(module_mocker):
                          dataframe)
 
 
-@pt.fixture(scope='module')
-def exp_angelica_cle(module_mocker):
+@pt.fixture(scope='package')
+def exp_angelica_cle(package_mocker):
     device_name = 'Angelica:CL_E'
     device_type = vd.DeviceType.TRAJECTORY_MARKER
-    frame_tracker = module_mocker.Mock()
+    frame_tracker = package_mocker.Mock()
     data = [
         [227.725, 1091.81, 496.721],
         [227.702, 1091.8, 496.729],
@@ -172,11 +180,11 @@ def exp_angelica_cle(module_mocker):
                          dataframe)
 
 
-@pt.fixture(scope='module')
-def exp_angelica_elastdp(module_mocker):
+@pt.fixture(scope='package')
+def exp_angelica_elastdp(package_mocker):
     device_name = 'Angelica:ELAST_DP'
     device_type = vd.DeviceType.TRAJECTORY_MARKER
-    frame_tracker = module_mocker.Mock()
+    frame_tracker = package_mocker.Mock()
     data = [
         [None, None, None],
         [None, None, None],
@@ -186,3 +194,120 @@ def exp_angelica_elastdp(module_mocker):
     dataframe = pd.DataFrame(data, columns=coords, dtype=float)
     return vd.DeviceData(device_name, device_type, units, frame_tracker,
                          dataframe)
+
+
+@pt.fixture
+def frame_subframe_seq():
+    return [
+        (1, 0),
+        (1, 1),
+        (1, 2),
+        (2, 0),
+        (2, 1),
+        (2, 2),
+    ]
+
+
+@pt.fixture
+def forces_emg_index_seq():
+    return [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+    ]
+
+
+@pt.fixture
+def traj_index_seq():
+    return [
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+    ]
+
+
+@pt.fixture
+def invalid_frame_subframe_seq():
+    return [
+        (-1, 0),
+        (0, 3),
+        (1, 3),
+        (3, 0),
+        (3, 2),
+    ]
+
+
+_forces_emg_loaded = [
+    loaded_emg,
+    loaded_forcep1,
+    loaded_forcep2,
+]
+_traj_loaded = [
+    loaded_angelica_hv,
+    loaded_angelica_cme,
+    loaded_angelica_cle,
+    loaded_angelica_elastdp,
+]
+_all_loaded = _forces_emg_loaded + _traj_loaded
+
+
+@cases_fixture
+@parametrize('device_type', _forces_emg_loaded)
+def forces_emg_loaded(device_type):
+    return device_type
+
+
+@cases_fixture
+@parametrize('device_type', _traj_loaded)
+def traj_loaded(device_type):
+    return device_type
+
+
+@cases_fixture
+@parametrize('device_type', _all_loaded)
+def all_loaded(device_type):
+    return device_type
+
+
+_forces_emg_exp = [
+    exp_emg,
+    exp_forcep1,
+    exp_forcep2,
+]
+_traj_exp = [
+    exp_angelica_hv,
+    exp_angelica_cme,
+    exp_angelica_cle,
+    exp_angelica_elastdp,
+]
+_all_exp = _forces_emg_exp + _traj_exp
+
+
+@cases_fixture
+@parametrize('device_type', _forces_emg_exp)
+def forces_emg_exp(device_type):
+    return device_type
+
+
+@cases_fixture
+@parametrize('device_type', _traj_exp)
+def traj_exp(device_type):
+    return device_type
+
+
+@cases_fixture
+@parametrize('device_type', _all_exp)
+def all_exp(device_type):
+    return device_type
+
+
+@cases_fixture
+@parametrize('loaded, exp', zip(_all_loaded, _all_exp))
+def all_loaded_exp(loaded, exp):
+    return loaded, exp

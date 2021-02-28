@@ -262,21 +262,33 @@ class DeviceData:
     def sampling_frequency(self) -> int:
         return self._frame_tracker.sampling_frequency
 
-    def _create_frame_slice(self,
-                            *,
-                            stop_frame: int,
-                            stop_subframe: int,
-                            start_frame: Optional[int] = None,
-                            start_subframe: Optional[int] = None,
-                            step: Optional[int] = None) -> slice:
-        stop_index = self._frame_tracker_index(stop_frame, stop_subframe)
-        if start_frame is None:
+    def iloc(self, frame: int, subframe: int) -> int:
+        return self.df.iloc[self._convert_key(frame, subframe)]
+
+    def ilocr(self,
+              stop: Tuple[int, int],
+              start: Optional[Tuple[int, int]] = None,
+              step: Optional[int] = None):
+        return self.df[self._key_slice_frame_subframe(stop, start, step)]
+
+    def _key_slice_frame_subframe(self,
+                                  stop: Tuple[int, int],
+                                  start: Optional[Tuple[int, int]] = None,
+                                  step: Optional[int] = None) -> slice:
+        stop_index = self._convert_key(*stop)
+        if start is None:
             return slice(stop_index)
 
-        start_index = self._frame_tracker_index(start_frame, start_subframe)
+        start_index = self._convert_key(*start)
         if step is None:
             return slice(start_index, stop_index)
         return slice(start_index, stop_index, step)
+
+    def _convert_key(self, frame: int, subframe: int) -> int:
+        try:
+            return self._frame_tracker_index(frame, subframe)
+        except ValueError as e:
+            raise KeyError from e
 
     def _frame_tracker_index(self, frame: int, subframe: int) -> int:
         return self._frame_tracker.index(frame, subframe)

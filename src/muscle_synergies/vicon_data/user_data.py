@@ -3,20 +3,12 @@ from collections import defaultdict
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import (
-    Any,
-    Callable,
-    Dict,
-    Generic,
-    Iterable,
     Iterator,
     List,
     Mapping,
-    NewType,
     Optional,
     Sequence,
-    Set,
     Tuple,
-    TypeVar,
     Union,
 )
 

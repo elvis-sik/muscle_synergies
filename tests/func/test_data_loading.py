@@ -6,6 +6,7 @@ from pytest_cases import fixture_ref, parametrize
 
 class TestAbridgedData:
     """Tests using a toy dataset."""
+
     def test_loads_correct_name(self, all_loaded_exp):
         loaded_dev_data, exp_dev_data = all_loaded_exp
         assert loaded_dev_data.name == exp_dev_data.name
@@ -28,11 +29,13 @@ class TestAbridgedData:
     def test_forces_emg_loads_correct_sampling_freq(self, forces_emg_loaded):
         assert forces_emg_loaded.sampling_frequency == 300
 
-    @parametrize('device, index_seq', [
-        (fixture_ref('forces_emg_loaded'),
-         fixture_ref('forces_emg_index_seq')),
-        (fixture_ref('traj_loaded'), fixture_ref('traj_index_seq')),
-    ])
+    @parametrize(
+        "device, index_seq",
+        [
+            (fixture_ref("forces_emg_loaded"), fixture_ref("forces_emg_index_seq")),
+            (fixture_ref("traj_loaded"), fixture_ref("traj_index_seq")),
+        ],
+    )
     def test_iloc(self, device, frame_subframe_seq, index_seq):
         for ((frame, subframe), ind) in zip(frame_subframe_seq, index_seq):
             loaded_row = device.iloc(frame, subframe)
@@ -46,7 +49,8 @@ class TestAbridgedData:
         assert loaded_row == expected_row
 
     def test_forces_emg_loads_correct_sampling_freq(
-            self, all_loaded, invalid_frame_subframe_seq):
+        self, all_loaded, invalid_frame_subframe_seq
+    ):
         device_data = all_loaded
         for (frame, subframe) in invalid_frame_subframe_seq:
             with pt.raises(KeyError):
@@ -55,6 +59,7 @@ class TestAbridgedData:
 
 class TestFullData:
     """Tests on a realistic dataset."""
+
     def test_correct_num_force_plates(self, full_data):
         assert len(full_data.forcepl) == 2
 
@@ -64,32 +69,39 @@ class TestFullData:
     def test_correct_num_traj(self, full_data):
         assert len(full_data.traj) == 40
 
-    @parametrize('devices, exp_names', [
-        (fixture_ref('full_data_forcep'),
-         fixture_ref('full_data_forcep_names')),
-        (fixture_ref('full_data_emg_list'),
-         fixture_ref('full_data_emg_names')),
-        (fixture_ref('full_data_traj'), fixture_ref('full_data_traj_names')),
-    ])
+    @parametrize(
+        "devices, exp_names",
+        [
+            (fixture_ref("full_data_forcep"), fixture_ref("full_data_forcep_names")),
+            (fixture_ref("full_data_emg_list"), fixture_ref("full_data_emg_names")),
+            (fixture_ref("full_data_traj"), fixture_ref("full_data_traj_names")),
+        ],
+    )
     def test_load_correct_names(self, devices, exp_names):
         for (dev, name) in zip(devices, exp_names):
             assert dev.name == name
 
-    @parametrize('devices, exp_cols', [
-        (fixture_ref('full_data_forcep'), fixture_ref('forcep_cols')),
-        (fixture_ref('full_data_emg_list'), fixture_ref('emg_cols')),
-        (fixture_ref('full_data_traj'), fixture_ref('traj_cols')),
-    ])
+    @parametrize(
+        "devices, exp_cols",
+        [
+            (fixture_ref("full_data_forcep"), fixture_ref("forcep_cols")),
+            (fixture_ref("full_data_emg_list"), fixture_ref("emg_cols")),
+            (fixture_ref("full_data_traj"), fixture_ref("traj_cols")),
+        ],
+    )
     def test_correct_cols(self, devices, exp_cols):
         for dev in devices:
             coords = tuple(dev.df.columns)
             assert coords == tuple(exp_cols)
 
-    @parametrize('devices, exp_units', [
-        (fixture_ref('full_data_forcep'), fixture_ref('forcep_units')),
-        (fixture_ref('full_data_emg_list'), fixture_ref('emg_units')),
-        (fixture_ref('full_data_traj'), fixture_ref('traj_units')),
-    ])
+    @parametrize(
+        "devices, exp_units",
+        [
+            (fixture_ref("full_data_forcep"), fixture_ref("forcep_units")),
+            (fixture_ref("full_data_emg_list"), fixture_ref("emg_units")),
+            (fixture_ref("full_data_traj"), fixture_ref("traj_units")),
+        ],
+    )
     def test_correct_units(self, devices, exp_units):
         for dev in devices:
             loaded_units = dev.units
@@ -103,30 +115,29 @@ class TestFullData:
         for dev in full_data_forces_emg:
             assert dev.sampling_frequency == 2000
 
-    @parametrize('devices, exp_shape', [
-        (fixture_ref('full_data_forcep'),
-         fixture_ref('full_data_forcep_shape')),
-        (fixture_ref('full_data_emg_list'),
-         fixture_ref('full_data_emg_shape')),
-        (fixture_ref('full_data_traj'), fixture_ref('full_data_traj_shape')),
-    ])
+    @parametrize(
+        "devices, exp_shape",
+        [
+            (fixture_ref("full_data_forcep"), fixture_ref("full_data_forcep_shape")),
+            (fixture_ref("full_data_emg_list"), fixture_ref("full_data_emg_shape")),
+            (fixture_ref("full_data_traj"), fixture_ref("full_data_traj_shape")),
+        ],
+    )
     def test_traj_data_shape(self, devices, exp_shape):
         for dev in devices:
             assert dev.df.shape == exp_shape
 
-    def test_col_average_traj(self, full_data_angelica_hv,
-                              angelica_hv_average):
+    def test_col_average_traj(self, full_data_angelica_hv, angelica_hv_average):
         df = full_data_angelica_hv.df
         exp_x, exp_y, exp_z = angelica_hv_average
-        mean_x = df['X'].mean()
+        mean_x = df["X"].mean()
         assert np.isclose(mean_x, exp_x)
-        mean_y = df['Y'].mean()
+        mean_y = df["Y"].mean()
         assert np.isclose(mean_y, exp_y)
-        mean_z = df['Z'].mean()
+        mean_z = df["Z"].mean()
         assert np.isclose(mean_z, exp_z)
 
-    def test_col_average_forcepl_last_5000(self, full_data_forcepl_2,
-                                           forcepl2_average):
+    def test_col_average_forcepl_last_5000(self, full_data_forcepl_2, forcepl2_average):
         df = full_data_forcepl_2.df
         for (col, exp_average) in zip(df, forcepl2_average):
             last_5000 = df[col].iloc[-5000:]

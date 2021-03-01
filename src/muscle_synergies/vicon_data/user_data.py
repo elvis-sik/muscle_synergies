@@ -2,9 +2,23 @@ import abc
 from collections import defaultdict
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import (List, Set, Dict, Tuple, Optional, Sequence, Callable, Any,
-                    Mapping, Iterator, Generic, TypeVar, NewType, Union,
-                    Iterable)
+from typing import (
+    List,
+    Set,
+    Dict,
+    Tuple,
+    Optional,
+    Sequence,
+    Callable,
+    Any,
+    Mapping,
+    Iterator,
+    Generic,
+    TypeVar,
+    NewType,
+    Union,
+    Iterable,
+)
 
 import numpy as np
 import pandas as pd
@@ -24,39 +38,39 @@ from .definitions import (
 
 @dataclass
 class ViconNexusData:
-    forcepl: Sequence['DeviceData']
-    emg: 'DeviceData'
-    traj: Sequence['DeviceData']
+    forcepl: Sequence["DeviceData"]
+    emg: "DeviceData"
+    traj: Sequence["DeviceData"]
 
     def describe(self):
-        emg_str = self._amount_str(self._num_muscles(self.emg), 'muscle')
-        forcepl_len_str = self._amount_str(len(self.forcepl), 'device')
+        emg_str = self._amount_str(self._num_muscles(self.emg), "muscle")
+        forcepl_len_str = self._amount_str(len(self.forcepl), "device")
         forcepl_members_str = self._stringify_list(self.forcepl)
-        traj_len_str = self._amount_str(len(self.traj), 'device')
+        traj_len_str = self._amount_str(len(self.traj), "device")
         traj_members_str = self._stringify_list(self.traj)
-        return f'''ViconNexusData:
+        return f"""ViconNexusData:
 + emg: {emg_str}
 + forcepl ({forcepl_len_str}): {forcepl_members_str}
-+ traj ({traj_len_str}): {traj_members_str}'''
++ traj ({traj_len_str}): {traj_members_str}"""
 
     @staticmethod
-    def _num_muscles(emg_dev: 'DeviceData') -> int:
+    def _num_muscles(emg_dev: "DeviceData") -> int:
         return len(emg_dev.df.columns)
 
     @staticmethod
     def _amount_str(x: Sequence, noun: str) -> str:
         if x == 1:
-            s = ''
+            s = ""
         else:
-            s = 's'
-        return f'{x} {noun}{s}'
+            s = "s"
+        return f"{x} {noun}{s}"
 
     @staticmethod
     def _stringify_list(x: Sequence) -> str:
         x = list(x)
         if len(x) > 2:
-            x = [x[0]] + ['...'] + [x[-1]]
-        return ', '.join(map(str, x))
+            x = [x[0]] + ["..."] + [x[-1]]
+        return ", ".join(map(str, x))
 
 
 class Builder:
@@ -78,65 +92,67 @@ class Builder:
         return self._vicon_nexus_data(self._simplify_emg(devices_by_type))
 
     def _build_device(
-            self, device_agg: DeviceAggregator,
-            frame_tracker: Tuple['ForcesEMGFrameTracker', 'TrajFrameTracker']
-    ) -> 'DeviceData':
+        self,
+        device_agg: DeviceAggregator,
+        frame_tracker: Tuple["ForcesEMGFrameTracker", "TrajFrameTracker"],
+    ) -> "DeviceData":
         params_dict = self._params_device_data(device_agg, frame_tracker)
         return self._instantiate_device(**params_dict)
 
     def _params_device_data(
-            self, device_agg: DeviceAggregator,
-            frame_tracker: Tuple['ForcesEMGFrameTracker', 'TrajFrameTracker']
-    ) -> Mapping[str, Union[str, DeviceType, '_SectionFrameTracker', pd.
-                            DataFrame]]:
+        self,
+        device_agg: DeviceAggregator,
+        frame_tracker: Tuple["ForcesEMGFrameTracker", "TrajFrameTracker"],
+    ) -> Mapping[str, Union[str, DeviceType, "_SectionFrameTracker", pd.DataFrame]]:
         return {
-            'device_name': self._device_agg_name(device_agg),
-            'device_type': self._device_agg_type(device_agg),
-            'units': self._device_agg_units(device_agg),
-            'frame_tracker':
-            self._choose_frame_tracker(device_agg, *frame_tracker),
-            'dataframe': self._extract_dataframe(device_agg)
+            "device_name": self._device_agg_name(device_agg),
+            "device_type": self._device_agg_type(device_agg),
+            "units": self._device_agg_units(device_agg),
+            "frame_tracker": self._choose_frame_tracker(device_agg, *frame_tracker),
+            "dataframe": self._extract_dataframe(device_agg),
         }
 
     def _build_frame_tracker(
-            self, aggregator: Aggregator
-    ) -> Tuple['ForcesEMGFrameTracker', 'TrajFrameTracker']:
+        self, aggregator: Aggregator
+    ) -> Tuple["ForcesEMGFrameTracker", "TrajFrameTracker"]:
         sampling_freq = self._aggregator_sampling_freq(aggregator)
-        return (ForcesEMGFrameTracker(sampling_freq),
-                TrajFrameTracker(sampling_freq))
+        return (ForcesEMGFrameTracker(sampling_freq), TrajFrameTracker(sampling_freq))
 
     @staticmethod
-    def _instantiate_device(device_name: str, device_type: DeviceType,
-                            units: List[str],
-                            frame_tracker: '_SectionFrameTracker',
-                            dataframe: pd.DataFrame) -> 'DeviceData':
-        return DeviceData(device_name=device_name,
-                          device_type=device_type,
-                          units=units,
-                          frame_tracker=frame_tracker,
-                          dataframe=dataframe)
+    def _instantiate_device(
+        device_name: str,
+        device_type: DeviceType,
+        units: List[str],
+        frame_tracker: "_SectionFrameTracker",
+        dataframe: pd.DataFrame,
+    ) -> "DeviceData":
+        return DeviceData(
+            device_name=device_name,
+            device_type=device_type,
+            units=units,
+            frame_tracker=frame_tracker,
+            dataframe=dataframe,
+        )
 
     @classmethod
-    def _extract_dataframe(cls, device_aggregator: DeviceAggregator
-                           ) -> pd.DataFrame:
+    def _extract_dataframe(cls, device_aggregator: DeviceAggregator) -> pd.DataFrame:
         data = cls._device_agg_data(device_aggregator)
         header = cls._device_agg_coords(device_aggregator)
         return pd.DataFrame(data, columns=header, dtype=float)
 
     def _simplify_emg(
-            self, devices_by_type: Mapping[DeviceType, List['DeviceData']]
-    ) -> Mapping[DeviceType, Union['DeviceData', List['DeviceData']]]:
+        self, devices_by_type: Mapping[DeviceType, List["DeviceData"]]
+    ) -> Mapping[DeviceType, Union["DeviceData", List["DeviceData"]]]:
         devices_by_type = dict(devices_by_type)
-        emg: List['DeviceData'] = devices_by_type[DeviceType.EMG]
+        emg: List["DeviceData"] = devices_by_type[DeviceType.EMG]
         if len(emg) != 1:
-            raise ValueError(f'found {len(emg)} EMG devices - expected one')
+            raise ValueError(f"found {len(emg)} EMG devices - expected one")
         devices_by_type[DeviceType.EMG] = emg[0]
         return devices_by_type
 
     def _vicon_nexus_data(
-            self,
-            devices_by_type: Mapping[DeviceType,
-                                     Union['DeviceData', List['DeviceData']]]
+        self,
+        devices_by_type: Mapping[DeviceType, Union["DeviceData", List["DeviceData"]]],
     ) -> ViconNexusData:
 
         return ViconNexusData(
@@ -148,10 +164,12 @@ class Builder:
     def _devices(self, aggregator: Aggregator) -> Iterator[DeviceAggregator]:
         yield from aggregator.get_devices()
 
-    def _choose_frame_tracker(self, device_agg: DeviceAggregator,
-                              forces_emg_tracker: 'ForcesEMGFrameTracker',
-                              traj_tracker: 'TrajFrameTracker'
-                              ) -> '_SectionFrameTracker':
+    def _choose_frame_tracker(
+        self,
+        device_agg: DeviceAggregator,
+        forces_emg_tracker: "ForcesEMGFrameTracker",
+        traj_tracker: "TrajFrameTracker",
+    ) -> "_SectionFrameTracker":
         forces_emg = {DeviceType.FORCE_PLATE, DeviceType.EMG}
         if self._device_agg_type(device_agg) in forces_emg:
             return forces_emg_tracker
@@ -174,12 +192,11 @@ class Builder:
         return device_aggregator.coords
 
     @staticmethod
-    def _device_agg_data(device_aggregator: DeviceAggregator
-                         ) -> List[List[float]]:
+    def _device_agg_data(device_aggregator: DeviceAggregator) -> List[List[float]]:
         return device_aggregator.data_rows
 
     @staticmethod
-    def _aggregator_sampling_freq(aggregator: Aggregator) -> 'SamplingFreq':
+    def _aggregator_sampling_freq(aggregator: Aggregator) -> "SamplingFreq":
         return aggregator.get_sampling_freq()
 
 
@@ -223,14 +240,13 @@ class _SectionFrameTracker(abc.ABC):
 
     def _validate_index_arg(self, index: int):
         if index not in range(self.final_index + 1):
-            raise ValueError(
-                f'index {index} out of bounds (max is self.final_index)')
+            raise ValueError(f"index {index} out of bounds (max is self.final_index)")
 
     def _validate_frame_tracker_args(self, frame: int, subframe: int):
         if frame not in range(1, self.num_frames + 1):
-            raise ValueError(f'frame {frame} is out of bounds')
+            raise ValueError(f"frame {frame} is out of bounds")
         if subframe not in range(self.num_subframes):
-            raise ValueError(f'subframe {subframe} out of range')
+            raise ValueError(f"subframe {subframe} out of range")
 
     def time_seq(self) -> pd.Series:
         return self._time_seq(self.sampling_frequency, self.final_index + 1)
@@ -282,12 +298,12 @@ class TrajFrameTracker(_SectionFrameTracker):
 
 class DeviceData:
     def __init__(
-            self,
-            device_name: str,
-            device_type: DeviceType,
-            units: List[str],
-            frame_tracker: _SectionFrameTracker,
-            dataframe: pd.DataFrame,
+        self,
+        device_name: str,
+        device_type: DeviceType,
+        units: List[str],
+        frame_tracker: _SectionFrameTracker,
+        dataframe: pd.DataFrame,
     ):
         self.name = device_name
         self.dev_type = device_type
@@ -305,16 +321,20 @@ class DeviceData:
     def iloc(self, frame: int, subframe: int) -> int:
         return self.df.iloc[self._convert_key(frame, subframe)]
 
-    def ilocr(self,
-              stop: Tuple[int, int],
-              start: Optional[Tuple[int, int]] = None,
-              step: Optional[int] = None):
+    def ilocr(
+        self,
+        stop: Tuple[int, int],
+        start: Optional[Tuple[int, int]] = None,
+        step: Optional[int] = None,
+    ):
         return self.df[self._key_slice_frame_subframe(stop, start, step)]
 
-    def _key_slice_frame_subframe(self,
-                                  stop: Tuple[int, int],
-                                  start: Optional[Tuple[int, int]] = None,
-                                  step: Optional[int] = None) -> slice:
+    def _key_slice_frame_subframe(
+        self,
+        stop: Tuple[int, int],
+        start: Optional[Tuple[int, int]] = None,
+        step: Optional[int] = None,
+    ) -> slice:
         stop_index = self._convert_key(*stop)
         if start is None:
             return slice(stop_index)
@@ -334,11 +354,15 @@ class DeviceData:
         return self._frame_tracker.index(frame, subframe)
 
     def __eq__(self, other) -> bool:
-        return (self.name == other.name and self.dev_type == other.dev_type
-                and self.units == other.units and self.df.equals(other.df))
+        return (
+            self.name == other.name
+            and self.dev_type == other.dev_type
+            and self.units == other.units
+            and self.df.equals(other.df)
+        )
 
     def __str__(self):
         return f'DeviceData("{self.name}")'
 
     def __repr__(self):
-        return f'<{str(self)}>'
+        return f"<{str(self)}>"

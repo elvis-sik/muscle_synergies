@@ -3,13 +3,13 @@ from enum import Enum
 from typing import TypeVar, List, NewType
 
 # type variables used to define generic types
-T = TypeVar('T')
-X = TypeVar('X')
-Y = TypeVar('Y')
+T = TypeVar("T")
+X = TypeVar("X")
+Y = TypeVar("Y")
 
 # a row from the CSV file is simply a list of strings,
 # corresponding to different values
-Row = NewType('Row', List[str])
+Row = NewType("Row", List[str])
 
 
 class SectionType(Enum):
@@ -28,6 +28,7 @@ class SectionType(Enum):
     + TRAJECTORIES refers to a section that begins with the single word
       "Trajectories" and contains kinemetric measurements of joint position.
     """
+
     FORCES_EMG = 1
     TRAJECTORIES = 2
 
@@ -58,6 +59,7 @@ class ViconCSVLines(Enum):
 
     + BLANK_LINE is a line happenening between sections.
     """
+
     SECTION_TYPE_LINE = 1
     SAMPLING_FREQUENCY_LINE = 2
     DEVICE_NAMES_LINE = 3
@@ -102,6 +104,7 @@ class DeviceType(Enum):
 
     + TRAJECTORY_MARKER is a trajectory marker used with kinemetry.
     """
+
     FORCE_PLATE = 1
     EMG = 2
     TRAJECTORY_MARKER = 3

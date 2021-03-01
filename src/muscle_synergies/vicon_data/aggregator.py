@@ -1,7 +1,7 @@
 """Types that help the Reader build a representation of Vicon Nexus data."""
 
 import abc
-from typing import (List, Optional, Sequence, Any)
+from typing import List, Optional, Sequence, Any
 
 from .definitions import (
     SectionType,
@@ -29,6 +29,7 @@ class DeviceAggregator:
         device_aggregator: the DeviceHeaderAggregator object, which must
             refer to the same device header as `device_cols`
     """
+
     name: str
     device_type: DeviceType
     first_col: int
@@ -40,11 +41,13 @@ class DeviceAggregator:
 
     _num_cols: Optional[int]
 
-    def __init__(self,
-                 name: str,
-                 device_type: DeviceType,
-                 first_col: int,
-                 last_col: Optional[int] = None):
+    def __init__(
+        self,
+        name: str,
+        device_type: DeviceType,
+        first_col: int,
+        last_col: Optional[int] = None,
+    ):
         self.name = name
         self.device_type = device_type
         self.first_col = first_col
@@ -111,19 +114,24 @@ class _SectionAggregator(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def transition(self, aggregator: 'Aggregator'):
+    def transition(self, aggregator: "Aggregator"):
         self._finished = True
 
     @property
     def finished(self) -> bool:
         return self._finished
 
-    def add_device(self, name: str, device_type: DeviceType, first_col: int,
-                   last_col: Optional[int]):
+    def add_device(
+        self,
+        name: str,
+        device_type: DeviceType,
+        first_col: int,
+        last_col: Optional[int],
+    ):
         self._raise_if_finished()
         self.devices.append(
-            self._instantiate_device_aggregator(name, device_type, first_col,
-                                                last_col))
+            self._instantiate_device_aggregator(name, device_type, first_col, last_col)
+        )
 
     def add_frequency(self, frequency: int):
         self._raise_if_finished()
@@ -147,22 +155,24 @@ class _SectionAggregator(abc.ABC):
         for device in self.devices:
             device.add_data(data)
 
-    def _instantiate_device_aggregator(self, name: str,
-                                       device_type: DeviceType, first_col: int,
-                                       last_col: Optional[int]
-                                       ) -> DeviceAggregator:
+    def _instantiate_device_aggregator(
+        self,
+        name: str,
+        device_type: DeviceType,
+        first_col: int,
+        last_col: Optional[int],
+    ) -> DeviceAggregator:
         return DeviceAggregator(name, device_type, first_col, last_col)
 
     def _raise_if_finished(self):
         if self.finished:
-            raise TypeError(
-                'tried to add something to a finished _SectionAggregator')
+            raise TypeError("tried to add something to a finished _SectionAggregator")
 
 
 class ForcesEMGAggregator(_SectionAggregator):
     section_type = SectionType.FORCES_EMG
 
-    def transition(self, aggregator: 'Aggregator'):
+    def transition(self, aggregator: "Aggregator"):
         super().transition(aggregator)
         aggregator.set_current_section(SectionType.TRAJECTORIES)
 
@@ -181,7 +191,7 @@ class TrajAggregator(_SectionAggregator):
     def get_num_rows(self) -> int:
         return self._num_rows
 
-    def transition(self, aggregator: 'Aggregator'):
+    def transition(self, aggregator: "Aggregator"):
         super().transition(aggregator)
         aggregator.set_current_section(None)
 
@@ -191,9 +201,11 @@ class Aggregator:
     _traj_aggregator: TrajAggregator
     _current_aggregator: Optional[_SectionAggregator]
 
-    def __init__(self,
-                 forces_emg_agg: Optional[_SectionAggregator] = None,
-                 trajs_agg: Optional[_SectionAggregator] = None):
+    def __init__(
+        self,
+        forces_emg_agg: Optional[_SectionAggregator] = None,
+        trajs_agg: Optional[_SectionAggregator] = None,
+    ):
         if forces_emg_agg is None:
             forces_emg_agg = ForcesEMGAggregator()
         if trajs_agg is None:
@@ -206,9 +218,9 @@ class Aggregator:
     @property
     def finished(self):
         force_emg_finished = self._get_section_aggregator(
-            SectionType.FORCES_EMG).finished
-        traj_finished = self._get_section_aggregator(
-            SectionType.TRAJECTORIES).finished
+            SectionType.FORCES_EMG
+        ).finished
+        traj_finished = self._get_section_aggregator(SectionType.TRAJECTORIES).finished
         return force_emg_finished and traj_finished
 
     def get_sampling_freq(self) -> SamplingFreq:
@@ -221,14 +233,13 @@ class Aggregator:
         return SamplingFreq(freq_forces_emg, freq_traj, num_frames)
 
     def get_devices(self) -> Sequence[DeviceAggregator]:
-        forces_emg = self._get_section_aggregator(
-            SectionType.FORCES_EMG).devices
+        forces_emg = self._get_section_aggregator(SectionType.FORCES_EMG).devices
         traj = self._get_section_aggregator(SectionType.TRAJECTORIES).devices
         return forces_emg + traj
 
-    def _get_section_aggregator(self,
-                                section_type: Optional[SectionType] = None
-                                ) -> _SectionAggregator:
+    def _get_section_aggregator(
+        self, section_type: Optional[SectionType] = None
+    ) -> _SectionAggregator:
         if section_type is None:
             return self._current_aggregator
         if section_type is SectionType.FORCES_EMG:
@@ -241,8 +252,7 @@ class Aggregator:
         if section_type is None:
             self._current_aggregator = None
         else:
-            self._current_aggregator = self._get_section_aggregator(
-                section_type)
+            self._current_aggregator = self._get_section_aggregator(section_type)
 
     def get_section_type(self) -> SectionType:
         return self._get_section_aggregator().section_type
@@ -262,7 +272,13 @@ class Aggregator:
     def add_data(self, data: List[float]):
         self._get_section_aggregator().add_data(data)
 
-    def add_device(self, name: str, device_type: DeviceType, first_col: int,
-                   last_col: Optional[int]):
-        self._get_section_aggregator().add_device(name, device_type, first_col,
-                                                  last_col)
+    def add_device(
+        self,
+        name: str,
+        device_type: DeviceType,
+        first_col: int,
+        last_col: Optional[int],
+    ):
+        self._get_section_aggregator().add_device(
+            name, device_type, first_col, last_col
+        )

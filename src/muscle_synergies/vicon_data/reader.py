@@ -1,7 +1,16 @@
 import abc
 from dataclasses import dataclass
-from typing import (List, Tuple, Optional, Callable, Any, Mapping, Iterator,
-                    Union, Generic)
+from typing import (
+    List,
+    Tuple,
+    Optional,
+    Callable,
+    Any,
+    Mapping,
+    Iterator,
+    Union,
+    Generic,
+)
 
 from .definitions import (
     T,
@@ -18,18 +27,18 @@ class Reader:
 
     Initialize it
     """
-    _state: '_ReaderState'
+
+    _state: "_ReaderState"
     _aggregator: Aggregator
 
-    def __init__(self, section_type_state: 'SectionTypeState',
-                 aggregator: Aggregator):
+    def __init__(self, section_type_state: "SectionTypeState", aggregator: Aggregator):
         self._state = section_type_state
         self._aggregator = aggregator
 
     def feed_row(self, row: Row):
         self._state.feed_row(row, reader=self)
 
-    def set_state(self, new_state: '_ReaderState'):
+    def set_state(self, new_state: "_ReaderState"):
         self._state = new_state
 
     def get_aggregator(self):
@@ -41,7 +50,7 @@ class Reader:
 
 class _ReaderState(abc.ABC):
     @abc.abstractmethod
-    def feed_row(self, row: Row, *, reader: 'Reader'):
+    def feed_row(self, row: Row, *, reader: "Reader"):
         pass
 
     @abc.abstractproperty
@@ -58,7 +67,7 @@ class _ReaderState(abc.ABC):
     def _reader_aggregator(self, reader: Reader) -> Aggregator:
         return reader.get_aggregator()
 
-    def _reader_set_state(self, reader: Reader, new_state: '_ReaderState'):
+    def _reader_set_state(self, reader: Reader, new_state: "_ReaderState"):
         reader.set_state(new_state)
 
     def _reader_section_type(self, reader: Reader) -> SectionType:
@@ -82,25 +91,25 @@ class _HasSingleColMixin:
     def _validate_row_has_single_col(self, row: Row):
         if row[1:]:
             raise ValueError(
-                'first row of a section should contain nothing outside its first column'
+                "first row of a section should contain nothing outside its first column"
             )
 
 
 class _AggregateDataMixin:
     @abc.abstractmethod
-    def _get_data_aggregate_method(self, aggregator: Aggregator
-                                   ) -> Callable[[Any], None]:
+    def _get_data_aggregate_method(
+        self, aggregator: Aggregator
+    ) -> Callable[[Any], None]:
         pass
 
     def _aggregate_data(self, data: Any, reader: Reader):
-        method = self._get_data_aggregate_method(
-            self._reader_aggregator(reader))
+        method = self._get_data_aggregate_method(self._reader_aggregator(reader))
         method(data)
 
 
 class _FixedNumColsMixin:
     def _preprocess_row(self, row: Row) -> Row:
-        return row[0:self.num_cols]
+        return row[0 : self.num_cols]
 
     @abc.abstractproperty
     def num_cols(self) -> int:
@@ -113,6 +122,7 @@ class SectionTypeState(_UpdateStateMixin, _HasSingleColMixin, _ReaderState):
     For an explanation of what are the different lines of the CSV input, see
     the docs for :py:class:ViconCSVLines.
     """
+
     @property
     def line(self) -> ViconCSVLines:
         return ViconCSVLines.SECTION_TYPE_LINE
@@ -129,7 +139,7 @@ class SectionTypeState(_UpdateStateMixin, _HasSingleColMixin, _ReaderState):
         self._update_state(reader)
 
     def _validate_row_valid_values(self, row: Row):
-        if row[0] not in {'Devices', 'Trajectories'}:
+        if row[0] not in {"Devices", "Trajectories"}:
             raise ValueError(
                 'first row in a section should contain "Devices" or "Trajectories" in its first column'
             )
@@ -137,26 +147,28 @@ class SectionTypeState(_UpdateStateMixin, _HasSingleColMixin, _ReaderState):
     def _parse_section_type(self, row: Row) -> SectionType:
         section_type_str = row[0]
 
-        if section_type_str == 'Devices':
+        if section_type_str == "Devices":
             return SectionType.FORCES_EMG
-        elif section_type_str == 'Trajectories':
+        elif section_type_str == "Trajectories":
             return SectionType.TRAJECTORIES
 
     def _validate_section_type(self, parsed_type: SectionType, reader: Reader):
         current_type = self._reader_section_type(reader)
         if current_type is not parsed_type:
             raise ValueError(
-                f'row implies current section is {parsed_type} but expected {current_type}'
+                f"row implies current section is {parsed_type} but expected {current_type}"
             )
 
 
-class SamplingFrequencyState(_UpdateStateMixin, _AggregateDataMixin,
-                             _HasSingleColMixin, _ReaderState):
+class SamplingFrequencyState(
+    _UpdateStateMixin, _AggregateDataMixin, _HasSingleColMixin, _ReaderState
+):
     """The state of a reader that is expecting the sampling frequency line.
 
     For an explanation of what are the different lines of the CSV input, see
     the docs for :py:class:ViconCSVLines.
     """
+
     @property
     def line(self) -> ViconCSVLines:
         return ViconCSVLines.SAMPLING_FREQUENCY_LINE
@@ -166,8 +178,9 @@ class SamplingFrequencyState(_UpdateStateMixin, _AggregateDataMixin,
             return ForcesEMGDevicesState
         return TrajDevicesState
 
-    def _get_data_aggregate_method(self, aggregator: Aggregator
-                                   ) -> Callable[[int], None]:
+    def _get_data_aggregate_method(
+        self, aggregator: Aggregator
+    ) -> Callable[[int], None]:
         return aggregator.add_frequency
 
     def feed_row(self, row: Row, reader: Reader):
@@ -197,6 +210,7 @@ class ColOfHeader:
 
         header_str: the exact string occurring in that column.
     """
+
     col_index: int
     header_str: str
 
@@ -216,8 +230,10 @@ class DevicesHeaderFinder:
 
     def _validate_row_values_in_correct_cols(self, row: Row):
         def error():
-            raise ValueError('this line should contain two blank columns ' +
-                             'then one device name every 3 columns')
+            raise ValueError(
+                "this line should contain two blank columns "
+                + "then one device name every 3 columns"
+            )
 
         if row[0] or row[1]:
             error()
@@ -243,8 +259,9 @@ class ForcePlateGrouper:
             grouped_headers.append(self._rename_force_plate(header))
         return grouped_headers
 
-    def _filter_individual_force_plates(self, headers: List[ColOfHeader]
-                                        ) -> Iterator[ColOfHeader]:
+    def _filter_individual_force_plates(
+        self, headers: List[ColOfHeader]
+    ) -> Iterator[ColOfHeader]:
         for i, head in enumerate(headers):
             if i % 3 == 0:
                 yield head
@@ -256,7 +273,7 @@ class ForcePlateGrouper:
         return self._col_of_header(new_name, first_col)
 
     def _force_plate_name(self, header_str: str):
-        force_plate_name, measurement_name = header_str.split('-')
+        force_plate_name, measurement_name = header_str.split("-")
         return force_plate_name[:-1]
 
     def _col_of_header_header_str(self, header: ColOfHeader) -> str:
@@ -288,34 +305,40 @@ class _DevicesState(_UpdateStateMixin, _ReaderState):
         self._send_headers_to_aggregator(headers, reader)
         self._update_state(reader)
 
-    def _add_device(self, reader: Reader, header: ColOfHeader,
-                    device_type: DeviceType):
+    def _add_device(self, reader: Reader, header: ColOfHeader, device_type: DeviceType):
         self._aggregator_add_device(
             self._reader_aggregator(reader),
-            **self._build_add_device_params_dict(header, device_type))
+            **self._build_add_device_params_dict(header, device_type),
+        )
 
-    def _aggregator_add_device(self, aggregator: Aggregator, name: str,
-                               device_type: DeviceType, first_col: int,
-                               last_col: int):
-        aggregator.add_device(name=name,
-                              device_type=device_type,
-                              first_col=first_col,
-                              last_col=last_col)
+    def _aggregator_add_device(
+        self,
+        aggregator: Aggregator,
+        name: str,
+        device_type: DeviceType,
+        first_col: int,
+        last_col: int,
+    ):
+        aggregator.add_device(
+            name=name, device_type=device_type, first_col=first_col, last_col=last_col
+        )
 
     def _next_state_type(self, reader: Reader):
         return CoordinatesState
 
-    def _build_add_device_params_dict(self, header: ColOfHeader,
-                                      device_type: DeviceType):
+    def _build_add_device_params_dict(
+        self, header: ColOfHeader, device_type: DeviceType
+    ):
         unpacked = self._unpack_col_of_header(header)
-        unpacked['device_type'] = device_type
-        first_col = unpacked['first_col']
-        unpacked['last_col'] = self._last_col(device_type, first_col)
+        unpacked["device_type"] = device_type
+        first_col = unpacked["first_col"]
+        unpacked["last_col"] = self._last_col(device_type, first_col)
         return unpacked
 
-    def _unpack_col_of_header(self, header: ColOfHeader
-                              ) -> Mapping[str, Union[str, int]]:
-        return {'first_col': header.col_index, 'name': header.header_str}
+    def _unpack_col_of_header(
+        self, header: ColOfHeader
+    ) -> Mapping[str, Union[str, int]]:
+        return {"first_col": header.col_index, "name": header.header_str}
 
     def _find_headers(self, row: Row):
         return self.finder(row)
@@ -324,8 +347,7 @@ class _DevicesState(_UpdateStateMixin, _ReaderState):
         return DevicesHeaderFinder()
 
     @abc.abstractmethod
-    def _send_headers_to_aggregator(self, headers: List[ColOfHeader],
-                                    reader: Reader):
+    def _send_headers_to_aggregator(self, headers: List[ColOfHeader], reader: Reader):
         pass
 
     @abc.abstractmethod
@@ -336,16 +358,17 @@ class _DevicesState(_UpdateStateMixin, _ReaderState):
 class ForcesEMGDevicesState(_DevicesState):
     grouper: ForcePlateGrouper
 
-    def __init__(self,
-                 finder: Optional[DevicesHeaderFinder] = None,
-                 grouper: Optional[ForcePlateGrouper] = None):
+    def __init__(
+        self,
+        finder: Optional[DevicesHeaderFinder] = None,
+        grouper: Optional[ForcePlateGrouper] = None,
+    ):
         super().__init__(finder)
         if grouper is None:
             grouper = self._instantiate_grouper()
         self.grouper = grouper
 
-    def _send_headers_to_aggregator(self, headers: List[ColOfHeader],
-                                    reader: Reader):
+    def _send_headers_to_aggregator(self, headers: List[ColOfHeader], reader: Reader):
         force_plates_headers, emg = self._separate_headers(headers)
         grouped_force_plates = self._group_force_plates(force_plates_headers)
         for header in grouped_force_plates:
@@ -358,21 +381,20 @@ class ForcesEMGDevicesState(_DevicesState):
     def _add_force_plate(self, header: ColOfHeader, reader: Reader):
         self._add_device(reader, header, DeviceType.FORCE_PLATE)
 
-    def _separate_headers(self, headers: List[ColOfHeader]
-                          ) -> Tuple[List[ColOfHeader], ColOfHeader]:
+    def _separate_headers(
+        self, headers: List[ColOfHeader]
+    ) -> Tuple[List[ColOfHeader], ColOfHeader]:
         force_plates_headers = headers[:-1]
         emg_header = headers[-1]
         return force_plates_headers, emg_header
 
-    def _group_force_plates(self,
-                            headers: List[ColOfHeader]) -> List[ColOfHeader]:
+    def _group_force_plates(self, headers: List[ColOfHeader]) -> List[ColOfHeader]:
         return self.grouper.group(headers)
 
     def _instantiate_grouper(self):
         return ForcePlateGrouper()
 
-    def _last_col(self, device_type: DeviceType,
-                  first_col: int) -> Optional[int]:
+    def _last_col(self, device_type: DeviceType, first_col: int) -> Optional[int]:
         assert device_type is not DeviceType.TRAJECTORY_MARKER
 
         if device_type is DeviceType.EMG:
@@ -388,8 +410,7 @@ class ForcesEMGDevicesState(_DevicesState):
 
 
 class TrajDevicesState(_DevicesState):
-    def _send_headers_to_aggregator(self, headers: List[ColOfHeader],
-                                    reader: Reader):
+    def _send_headers_to_aggregator(self, headers: List[ColOfHeader], reader: Reader):
         for header in headers:
             self._add_device(reader, header, DeviceType.TRAJECTORY_MARKER)
 
@@ -408,8 +429,9 @@ class CoordinatesState(_AggregateDataMixin, _ReaderState):
         self._aggregate_data(row, reader)
         self._update_state(reader, num_cols)
 
-    def _get_data_aggregate_method(self, aggregator: Aggregator
-                                   ) -> Callable[[List[str]], None]:
+    def _get_data_aggregate_method(
+        self, aggregator: Aggregator
+    ) -> Callable[[List[str]], None]:
         return aggregator.add_coordinates
 
     def _update_state(self, reader: Reader, num_cols: int):
@@ -437,8 +459,9 @@ class UnitsState(_FixedNumColsMixin, _AggregateDataMixin, _ReaderState):
         self._aggregate_data(units, reader)
         self._update_state(reader)
 
-    def _get_data_aggregate_method(self, aggregator: Aggregator
-                                   ) -> Callable[[List[str]], None]:
+    def _get_data_aggregate_method(
+        self, aggregator: Aggregator
+    ) -> Callable[[List[str]], None]:
         return aggregator.add_units
 
     def _update_state(self, reader: Reader):
@@ -454,10 +477,10 @@ class GettingMeasurementsState(_ReaderState):
         return ViconCSVLines.DATA_LINE
 
     def __init__(
-            self,
-            data_state: Optional['DataState'] = None,
-            blank_state: Optional['BlankState'] = None,
-            num_cols: Optional[int] = None,
+        self,
+        data_state: Optional["DataState"] = None,
+        blank_state: Optional["BlankState"] = None,
+        num_cols: Optional[int] = None,
     ):
         if data_state is None:
             self.data_state = DataState(num_cols)
@@ -501,8 +524,8 @@ class DataState(_FixedNumColsMixin, _AggregateDataMixin, _ReaderState):
         return float(row_entry)
 
     def _get_data_aggregate_method(
-            self,
-            aggregator: Aggregator) -> Callable[[List[Optional[float]]], None]:
+        self, aggregator: Aggregator
+    ) -> Callable[[List[Optional[float]]], None]:
         return aggregator.add_data
 
 

@@ -4,8 +4,9 @@ from typing import Iterator
 
 from .definitions import Row
 from .aggregator import (
-    Aggregator, )
-from .reader import (Reader, SectionTypeState)
+    Aggregator,
+)
+from .reader import Reader, SectionTypeState
 from .user_data import (
     Builder,
     ViconNexusData,
@@ -37,7 +38,7 @@ def create_reader(initial_state=None, aggregator=None):
     if initial_state is None:
         initial_state = _initialize_reader_section_type_state()
     if aggregator is None:
-        aggregator = _initialize_aggregator(),
+        aggregator = (_initialize_aggregator(),)
     return Reader(section_type_state=initial_state, aggregator=aggregator)
 
 
@@ -68,6 +69,6 @@ def load_vicon_file(csv_filename: str) -> ViconNexusData:
             loading_run.reader.feed_row(row)
         except Exception as exception:
             raise RuntimeError(
-                f'error parsing line {i} of file {csv_filename}: ' +
-                str(exception)) from exception
+                f"error parsing line {i} of file {csv_filename}: " + str(exception)
+            ) from exception
     return loading_run.builder.build()

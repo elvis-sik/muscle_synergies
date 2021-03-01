@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import pytest as pt
 from pytest_cases import fixture_ref, parametrize
@@ -54,29 +55,20 @@ class TestAbridgedData:
 
 class TestFullData:
     """Tests on a realistic dataset."""
-    """
-
-    NEXT the tests I thought about are the following ones
-    + shape of pandas arrays
-    + number of devices
-    + sampling frequency
-
-    The hardest part to implement is the fixtures.
-
-    """
     def test_correct_num_force_plates(self, full_data):
-        assert len(full_data.force_plates) == 2
+        assert len(full_data.forcepl) == 2
 
     def test_there_is_emg(self, full_data):
         assert full_data.emg is not None
 
     def test_correct_num_traj(self, full_data):
-        assert len(full_data.trajectory_markers) == 40
+        assert len(full_data.traj) == 40
 
     @parametrize('devices, exp_names', [
         (fixture_ref('full_data_forcep'),
          fixture_ref('full_data_forcep_names')),
-        (fixture_ref('full_data_emg'), fixture_ref('full_data_emg_names')),
+        (fixture_ref('full_data_emg_list'),
+         fixture_ref('full_data_emg_names')),
         (fixture_ref('full_data_traj'), fixture_ref('full_data_traj_names')),
     ])
     def test_load_correct_names(self, devices, exp_names):
@@ -85,7 +77,7 @@ class TestFullData:
 
     @parametrize('devices, exp_cols', [
         (fixture_ref('full_data_forcep'), fixture_ref('forcep_cols')),
-        (fixture_ref('full_data_emg'), fixture_ref('emg_cols')),
+        (fixture_ref('full_data_emg_list'), fixture_ref('emg_cols')),
         (fixture_ref('full_data_traj'), fixture_ref('traj_cols')),
     ])
     def test_correct_cols(self, devices, exp_cols):
@@ -95,7 +87,7 @@ class TestFullData:
 
     @parametrize('devices, exp_units', [
         (fixture_ref('full_data_forcep'), fixture_ref('forcep_units')),
-        (fixture_ref('full_data_emg'), fixture_ref('emg_units')),
+        (fixture_ref('full_data_emg_list'), fixture_ref('emg_units')),
         (fixture_ref('full_data_traj'), fixture_ref('traj_units')),
     ])
     def test_correct_units(self, devices, exp_units):
@@ -114,24 +106,29 @@ class TestFullData:
     @parametrize('devices, exp_shape', [
         (fixture_ref('full_data_forcep'),
          fixture_ref('full_data_forcep_shape')),
-        (fixture_ref('full_data_emg'), fixture_ref('full_data_emg_shape')),
+        (fixture_ref('full_data_emg_list'),
+         fixture_ref('full_data_emg_shape')),
         (fixture_ref('full_data_traj'), fixture_ref('full_data_traj_shape')),
     ])
     def test_traj_data_shape(self, devices, exp_shape):
         for dev in devices:
             assert dev.df.shape == exp_shape
 
-    @parametrize('cols_dev, exp_means',
-                 [(fixture_ref('full_data_forces_emg_series'),
-                   fixture_ref('full_data_forces_emg_means')),
-                  (fixture_ref('full_data_traj_series'),
-                   fixture_ref('full_data_traj_means'))])
-    def test_col_means_correct(self, cols_dev, exp_means):
-        # TODO libreoffice fooled me giving me wrong means
-        for ((col, dev), exp_mean) in zip(cols_dev, exp_means):
-            loaded_mean = col.mean()
-            if exp_mean is None:
-                assert loaded_mean is pd.NaN
-                continue
-            relative_err = abs(loaded_mean - exp_mean) / (abs(exp_mean) + 1)
-            assert relative_err <= .01
+    def test_col_average_traj(self, full_data_angelica_hv,
+                              angelica_hv_average):
+        df = full_data_angelica_hv.df
+        exp_x, exp_y, exp_z = angelica_hv_average
+        mean_x = df['X'].mean()
+        assert np.isclose(mean_x, exp_x)
+        mean_y = df['Y'].mean()
+        assert np.isclose(mean_y, exp_y)
+        mean_z = df['Z'].mean()
+        assert np.isclose(mean_z, exp_z)
+
+    def test_col_average_forcepl_last_5000(self, full_data_forcepl_2,
+                                           forcepl2_average):
+        df = full_data_forcepl_2.df
+        for (col, exp_average) in zip(df, forcepl2_average):
+            last_5000 = df[col].iloc[-5000:]
+            mean = last_5000.mean()
+            assert np.isclose(mean, exp_average)

@@ -1,25 +1,19 @@
 import abc
 from dataclasses import dataclass
 from typing import (
-    List,
-    Tuple,
-    Optional,
-    Callable,
     Any,
-    Mapping,
-    Iterator,
-    Union,
+    Callable,
     Generic,
+    Iterator,
+    List,
+    Mapping,
+    Optional,
+    Tuple,
+    Union,
 )
 
-from .definitions import (
-    T,
-    Row,
-    SectionType,
-    ViconCSVLines,
-    DeviceType,
-)
 from .aggregator import Aggregator
+from .definitions import DeviceType, Row, SectionType, T, ViconCSVLines
 
 
 class Reader:

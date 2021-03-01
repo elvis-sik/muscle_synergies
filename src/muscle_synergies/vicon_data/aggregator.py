@@ -1,13 +1,9 @@
 """Types that help the Reader build a representation of Vicon Nexus data."""
 
 import abc
-from typing import List, Optional, Sequence, Any
+from typing import Any, List, Optional, Sequence
 
-from .definitions import (
-    SectionType,
-    DeviceType,
-    SamplingFreq,
-)
+from .definitions import DeviceType, SamplingFreq, SectionType
 
 
 class DeviceAggregator:

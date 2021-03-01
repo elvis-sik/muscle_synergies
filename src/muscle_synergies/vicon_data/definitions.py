@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import TypeVar, List, NewType
+from typing import List, NewType, TypeVar
 
 # type variables used to define generic types
 T = TypeVar("T")

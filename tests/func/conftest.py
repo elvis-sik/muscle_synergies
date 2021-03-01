@@ -1,5 +1,5 @@
-from itertools import chain
 import pathlib
+from itertools import chain
 
 import pandas as pd
 import pytest as pt

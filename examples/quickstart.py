@@ -7,9 +7,7 @@ import muscle_synergies
 
 
 def main():
-    print(
-        f"muscle_synergies version: {muscle_synergies.__version__}"
-    )
+    print(f"muscle_synergies version: {muscle_synergies.__version__}")
 
 
 if __name__ == "__main__":

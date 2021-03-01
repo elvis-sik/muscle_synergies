@@ -3,21 +3,21 @@ from collections import defaultdict
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import (
-    List,
-    Set,
+    Any,
+    Callable,
     Dict,
-    Tuple,
+    Generic,
+    Iterable,
+    Iterator,
+    List,
+    Mapping,
+    NewType,
     Optional,
     Sequence,
-    Callable,
-    Any,
-    Mapping,
-    Iterator,
-    Generic,
+    Set,
+    Tuple,
     TypeVar,
-    NewType,
     Union,
-    Iterable,
 )
 
 import numpy as np
@@ -25,15 +25,11 @@ import pandas as pd
 
 from .aggregator import (
     Aggregator,
+    DeviceAggregator,
     ForcesEMGAggregator,
     TrajAggregator,
-    DeviceAggregator,
 )
-from .definitions import (
-    DeviceType,
-    SectionType,
-    SamplingFreq,
-)
+from .definitions import DeviceType, SamplingFreq, SectionType
 
 
 @dataclass

@@ -2,15 +2,10 @@ import csv
 from dataclasses import dataclass
 from typing import Iterator
 
+from .aggregator import Aggregator
 from .definitions import Row
-from .aggregator import (
-    Aggregator,
-)
 from .reader import Reader, SectionTypeState
-from .user_data import (
-    Builder,
-    ViconNexusData,
-)
+from .user_data import Builder, ViconNexusData
 
 
 def csv_row_stream(filename) -> Iterator[Row]:

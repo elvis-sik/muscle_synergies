@@ -62,6 +62,10 @@ format:
 check-format:
 	@black --check src/muscle_synergies tests examples
 
+# help: clean-imports                  - remove unused imports
+.PHONY: clean-imports
+clean-imports:
+	@autoflake --recursive --in-place --remove-unused-variables src/muscle_synergies tests examples
 
 # help: sort-imports                   - apply import sort ordering
 .PHONY: sort-imports

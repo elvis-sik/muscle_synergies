@@ -12,14 +12,12 @@ Extract muscle synergies from experimental data obtained using Vicon Nexus.
 
 ## Project status
 
-Currently, loading the data from the CSV file is being worked on.  There are
-some tests implemented using `pytest` but the internal API was changed a bit and
-the tests will need to be refactored.  Also because I'm still finishing the
-implementation of this functionality, the docstrings are incomplete.
-
-After that first part of the project is finished, the EMG analysis based on
-non-negative matrix factorisation, a method recently shown to be superior to
-alternatives [[1]](#1), will be implemented.
+The project is being actively developed. Currently, loading the data from the
+CSV file is possible as demonstrated in an [example notebook](examples/1.
+Loading and plotting data.ipynb). The goal now is to analyse the EMG data to
+determine muscle synergies using the method in [[1]](#1). I'll also simultaneously
+fill the docstrings (most are missing) and work on general code and repo
+quality.
 
 ## Acknowledgements
 

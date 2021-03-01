@@ -13,14 +13,12 @@ Vicon Nexus.
 
 ## Status do projeto
 
-No momento, estou trabalhando no código que carrega os dados do arquivo CSV.
-Tem testes implementados usando `pytest` mas a API interna mudou um pouco e os
-testes precisam ser refatorados.  Também pelo fato de ainda estar terminando de
-implementar essa funcionalidade, as docstrings estão incompletas.
-
-Depois que essa primeira parte do projeto estiver terminada, a análise de EMG
-baseada em fatoração de matrizes não-negatives, método que foi recentemente
-demonstrado superior a outros [[1]](#1), será implementada.
+O projeto está sendo ativamente desenvolvido. No momento, carregar os dados do
+arquivo CSV é possível conforme demonstrado em um  [notebook de
+exemplo](examples/1. Loading and plotting data.ipynb).  O objetivo agora é
+analisar os dados EMG para determinar as sinergias musculares usando o método em
+[[1]](#1). Vou também simultaneamente preencher as docstrings (a maioria está
+faltando) e trabalhar de forma geral na qualidade do código e do repo.
 
 ## Agradecimentos
 

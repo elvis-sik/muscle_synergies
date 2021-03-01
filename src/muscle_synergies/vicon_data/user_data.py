@@ -1,10 +1,12 @@
 import abc
 from collections import defaultdict
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import (List, Set, Dict, Tuple, Optional, Sequence, Callable, Any,
                     Mapping, Iterator, Generic, TypeVar, NewType, Union,
                     Iterable)
 
+import numpy as np
 import pandas as pd
 
 from .aggregator import (
@@ -22,9 +24,39 @@ from .definitions import (
 
 @dataclass
 class ViconNexusData:
-    force_plates: Sequence['DeviceData']
+    forcepl: Sequence['DeviceData']
     emg: 'DeviceData'
-    trajectory_markers: Sequence['DeviceData']
+    traj: Sequence['DeviceData']
+
+    def describe(self):
+        emg_str = self._amount_str(self._num_muscles(self.emg), 'muscle')
+        forcepl_len_str = self._amount_str(len(self.forcepl), 'device')
+        forcepl_members_str = self._stringify_list(self.forcepl)
+        traj_len_str = self._amount_str(len(self.traj), 'device')
+        traj_members_str = self._stringify_list(self.traj)
+        return f'''ViconNexusData:
++ emg: {emg_str}
++ forcepl ({forcepl_len_str}): {forcepl_members_str}
++ traj ({traj_len_str}): {traj_members_str}'''
+
+    @staticmethod
+    def _num_muscles(emg_dev: 'DeviceData') -> int:
+        return len(emg_dev.df.columns)
+
+    @staticmethod
+    def _amount_str(x: Sequence, noun: str) -> str:
+        if x == 1:
+            s = ''
+        else:
+            s = 's'
+        return f'{x} {noun}{s}'
+
+    @staticmethod
+    def _stringify_list(x: Sequence) -> str:
+        x = list(x)
+        if len(x) > 2:
+            x = [x[0]] + ['...'] + [x[-1]]
+        return ', '.join(map(str, x))
 
 
 class Builder:
@@ -108,9 +140,9 @@ class Builder:
     ) -> ViconNexusData:
 
         return ViconNexusData(
-            force_plates=devices_by_type[DeviceType.FORCE_PLATE],
+            forcepl=devices_by_type[DeviceType.FORCE_PLATE],
             emg=devices_by_type[DeviceType.EMG],
-            trajectory_markers=devices_by_type[DeviceType.TRAJECTORY_MARKER],
+            traj=devices_by_type[DeviceType.TRAJECTORY_MARKER],
         )
 
     def _devices(self, aggregator: Aggregator) -> Iterator[DeviceAggregator]:
@@ -200,6 +232,15 @@ class _SectionFrameTracker(abc.ABC):
         if subframe not in range(self.num_subframes):
             raise ValueError(f'subframe {subframe} out of range')
 
+    def time_seq(self) -> pd.Series:
+        return self._time_seq(self.sampling_frequency, self.final_index + 1)
+
+    @staticmethod
+    @lru_cache(maxsize=2)
+    def _time_seq(sampling_frequency: int, num_measurements: int) -> pd.Series:
+        period = 1 / sampling_frequency
+        return pd.Series(period * np.arange(1, num_measurements + 1, 1))
+
 
 class ForcesEMGFrameTracker(_SectionFrameTracker):
     @property
@@ -254,13 +295,12 @@ class DeviceData:
         self.df = dataframe
         self._frame_tracker = frame_tracker
 
-    def __eq__(self, other) -> bool:
-        return (self.name == other.name and self.dev_type == other.dev_type
-                and self.units == other.units and self.df.equals(other.df))
-
     @property
     def sampling_frequency(self) -> int:
         return self._frame_tracker.sampling_frequency
+
+    def time_seq(self) -> pd.Series:
+        return self._frame_tracker.time_seq()
 
     def iloc(self, frame: int, subframe: int) -> int:
         return self.df.iloc[self._convert_key(frame, subframe)]
@@ -292,3 +332,13 @@ class DeviceData:
 
     def _frame_tracker_index(self, frame: int, subframe: int) -> int:
         return self._frame_tracker.index(frame, subframe)
+
+    def __eq__(self, other) -> bool:
+        return (self.name == other.name and self.dev_type == other.dev_type
+                and self.units == other.units and self.df.equals(other.df))
+
+    def __str__(self):
+        return f'DeviceData("{self.name}")'
+
+    def __repr__(self):
+        return f'<{str(self)}>'

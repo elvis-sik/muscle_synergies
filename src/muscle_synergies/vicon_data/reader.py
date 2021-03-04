@@ -1,15 +1,6 @@
 import abc
 from dataclasses import dataclass
-from typing import (
-    Any,
-    Callable,
-    Iterator,
-    List,
-    Mapping,
-    Optional,
-    Tuple,
-    Union,
-)
+from typing import Any, Callable, Iterator, List, Mapping, Optional, Tuple, Union
 
 from .aggregator import Aggregator
 from .definitions import DeviceType, Row, SectionType, T, ViconCSVLines

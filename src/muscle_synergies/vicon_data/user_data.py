@@ -2,15 +2,7 @@ import abc
 from collections import defaultdict
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import (
-    Iterator,
-    List,
-    Mapping,
-    Optional,
-    Sequence,
-    Tuple,
-    Union,
-)
+from typing import Iterator, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd

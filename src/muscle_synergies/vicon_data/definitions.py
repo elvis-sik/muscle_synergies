@@ -118,13 +118,6 @@ class DeviceType(Enum):
 
 
 @dataclass
-class ForcePlateMeasurement:
-    FORCE = 1
-    MOMENT = 2
-    COP = 3
-
-
-@dataclass
 class SamplingFreq:
     freq_forces_emg: int
     freq_traj: int

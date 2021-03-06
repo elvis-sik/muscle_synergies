@@ -1,6 +1,4 @@
 import numpy as np
-import pandas as pd
-import pytest as pt
 from pytest_cases import fixture_ref, parametrize
 
 

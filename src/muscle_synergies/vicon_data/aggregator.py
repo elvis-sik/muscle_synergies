@@ -235,7 +235,7 @@ class Aggregator:
 
     def _get_section_aggregator(
         self, section_type: Optional[SectionType] = None
-    ) -> _SectionAggregator:
+    ) -> Optional[_SectionAggregator]:
         if section_type is None:
             return self._current_aggregator
         if section_type is SectionType.FORCES_EMG:

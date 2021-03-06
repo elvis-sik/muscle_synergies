@@ -45,11 +45,11 @@ class _ReaderState(abc.ABC):
         pass
 
     def _preprocess_row(self, row: Row) -> Row:
-        row = list(entry.strip() for entry in row)
+        processed = list(entry.strip() for entry in row)
 
-        while row and not row[-1]:
-            row.pop()
-        return Row(row)
+        while processed and not processed[-1]:
+            processed.pop()
+        return Row(processed)
 
     def _reader_aggregator(self, reader: Reader) -> Aggregator:
         return reader.get_aggregator()

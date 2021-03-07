@@ -301,8 +301,8 @@ class _DevicesState(_UpdateStateMixin, _ReaderState):
             **self._build_add_device_params_dict(header, device_type),
         )
 
+    @staticmethod
     def _aggregator_add_device(
-        self,
         aggregator: Aggregator,
         name: str,
         device_type: DeviceType,

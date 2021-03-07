@@ -378,12 +378,6 @@ class ForcesEMGDevicesState(_DevicesState):
         emg_header = headers[-1]
         return force_plates_headers, emg_header
 
-    def _group_force_plates(self, headers: List[ColOfHeader]) -> List[ColOfHeader]:
-        return self.grouper.group(headers)
-
-    def _instantiate_grouper(self):
-        return ForcePlateGrouper()
-
     def _last_col(self, device_type: DeviceType, first_col: int) -> Optional[int]:
         assert device_type is not DeviceType.TRAJECTORY_MARKER
 
@@ -395,8 +389,8 @@ class ForcesEMGDevicesState(_DevicesState):
     def _last_col_of_force_plate(self, first_col: int) -> int:
         return first_col + 9 - 1
 
-    def _last_col_of_emg(self, first_col: int) -> None:
-        return None
+    def _instantiate_grouper(self):
+        return ForcePlateGrouper()
 
 
 class TrajDevicesState(_DevicesState):

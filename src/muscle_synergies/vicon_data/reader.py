@@ -1,12 +1,14 @@
 import abc
 from dataclasses import dataclass
-from typing import (Any, Callable, Iterator, List, Mapping, Optional, Tuple,
-                    Union)
+from typing import Any, Callable, Iterator, List, Mapping, Optional, Tuple, Union
 
 from muscle_synergies.vicon_data.aggregator import Aggregator
-from muscle_synergies.vicon_data.definitions import (DeviceType, Row,
-                                                     SectionType,
-                                                     ViconCSVLines)
+from muscle_synergies.vicon_data.definitions import (
+    DeviceType,
+    Row,
+    SectionType,
+    ViconCSVLines,
+)
 
 
 class Reader:

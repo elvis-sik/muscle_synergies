@@ -7,13 +7,8 @@ from typing import Iterator, List, Mapping, Optional, Sequence, Tuple, Union
 import numpy as np
 import pandas as pd
 
-from .aggregator import (
-    Aggregator,
-    DeviceAggregator,
-    ForcesEMGAggregator,
-    TrajAggregator,
-)
-from .definitions import DeviceType, SamplingFreq, SectionType
+from .aggregator import Aggregator, DeviceAggregator
+from .definitions import DeviceType, SamplingFreq
 
 
 @dataclass

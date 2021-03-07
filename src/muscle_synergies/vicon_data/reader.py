@@ -258,7 +258,12 @@ class ForcePlateGrouper:
         return self._col_of_header(new_name, first_col)
 
     def _force_plate_name(self, header_str: str):
-        force_plate_name, measurement_name = header_str.split("-")
+        """Find the name of the force plate from the text in the column header.
+
+        For example, "Imported AMTI OR6 Series Force Plate #1 - Force" becomes
+        "Imported AMTI OR6 Series Force Plate #1".
+        """
+        force_plate_name, _ = header_str.split("-")
         return force_plate_name[:-1]
 
     def _col_of_header_header_str(self, header: ColOfHeader) -> str:

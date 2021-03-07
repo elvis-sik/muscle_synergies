@@ -199,8 +199,8 @@ class Aggregator:
 
     def __init__(
         self,
-        forces_emg_agg: Optional[_SectionAggregator] = None,
-        trajs_agg: Optional[_SectionAggregator] = None,
+        forces_emg_agg: Optional[ForcesEMGAggregator] = None,
+        trajs_agg: Optional[TrajAggregator] = None,
     ):
         if forces_emg_agg is None:
             forces_emg_agg = ForcesEMGAggregator()

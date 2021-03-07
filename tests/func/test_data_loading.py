@@ -50,7 +50,7 @@ class TestAbridgedData:
         expected_row = [209.475, 1219.82, 1780.88]
         assert loaded_row == expected_row
 
-    def test_forces_emg_loads_correct_sampling_freq(
+    def test_forces_emg_invalid_frame_subframe(
         self, all_loaded, invalid_frame_subframe_seq
     ):
         device_data = all_loaded

@@ -361,15 +361,10 @@ class ForcesEMGDevicesState(_DevicesState):
     def _send_headers_to_aggregator(self, headers: List[ColOfHeader], reader: Reader):
         force_plates_headers, emg = self._separate_headers(headers)
         grouped_force_plates = self._group_force_plates(force_plates_headers)
+
         for header in grouped_force_plates:
-            self._add_force_plate(header, reader)
-        self._add_emg(emg, reader)
-
-    def _add_emg(self, header: ColOfHeader, reader: Reader):
-        self._add_device(reader, header, DeviceType.EMG)
-
-    def _add_force_plate(self, header: ColOfHeader, reader: Reader):
-        self._add_device(reader, header, DeviceType.FORCE_PLATE)
+            self._add_device(reader, header, DeviceType.FORCE_PLATE)
+        self._add_device(reader, emg, DeviceType.EMG)
 
     def _separate_headers(
         self, headers: List[ColOfHeader]
@@ -382,12 +377,13 @@ class ForcesEMGDevicesState(_DevicesState):
         assert device_type is not DeviceType.TRAJECTORY_MARKER
 
         if device_type is DeviceType.EMG:
-            return self._last_col_of_emg(first_col)
+            return first_col + 9 - 1
         if device_type is DeviceType.FORCE_PLATE:
-            return self._last_col_of_force_plate(first_col)
+            return None
+        raise ValueError(f"device type not understood: {device_type}")
 
-    def _last_col_of_force_plate(self, first_col: int) -> int:
-        return first_col + 9 - 1
+    def _group_force_plates(self, headers: List[ColOfHeader]) -> List[ColOfHeader]:
+        return self.grouper.group(headers)
 
     def _instantiate_grouper(self):
         return ForcePlateGrouper()

@@ -119,7 +119,7 @@ class SectionTypeState(_UpdateStateMixin, _HasSingleColMixin, _ReaderState):
     def _next_state_type(self, reader: Reader):
         return SamplingFrequencyState
 
-    def feed_row(self, row: Row, reader: Reader):
+    def feed_row(self, row: Row, *, reader: Reader):
         row = self._preprocess_row(row)
         self._validate_row_valid_values(row)
         self._validate_row_has_single_col(row)
@@ -172,7 +172,7 @@ class SamplingFrequencyState(
     ) -> Callable[[int], None]:
         return aggregator.add_frequency
 
-    def feed_row(self, row: Row, reader: Reader):
+    def feed_row(self, row: Row, *, reader: Reader):
         row = self._preprocess_row(row)
         self._validate_row_has_single_col(row)
         freq = self._parse_freq(row)
@@ -288,7 +288,7 @@ class _DevicesState(_UpdateStateMixin, _ReaderState):
             finder = self._instantiate_finder()
         self.finder = finder
 
-    def feed_row(self, row: Row, reader: Reader):
+    def feed_row(self, row: Row, *, reader: Reader):
         row = self._preprocess_row(row)
         headers = self._find_headers(row)
         self._send_headers_to_aggregator(headers, reader)
@@ -412,7 +412,7 @@ class CoordinatesState(_AggregateDataMixin, _ReaderState):
     def line(self) -> ViconCSVLines:
         return ViconCSVLines.COORDINATES_LINE
 
-    def feed_row(self, row: Row, reader: Reader):
+    def feed_row(self, row: Row, *, reader: Reader):
         row = self._preprocess_row(row)
         num_cols = len(row)
         self._aggregate_data(row, reader)
@@ -443,7 +443,7 @@ class UnitsState(_FixedNumColsMixin, _AggregateDataMixin, _ReaderState):
     def num_cols(self) -> int:
         return self._num_cols
 
-    def feed_row(self, row: Row, reader: Reader):
+    def feed_row(self, row: Row, *, reader: Reader):
         units = self._preprocess_row(row)
         self._aggregate_data(units, reader)
         self._update_state(reader)
@@ -476,11 +476,11 @@ class GettingMeasurementsState(_ReaderState):
         if blank_state is None:
             self.blank_state = BlankState()
 
-    def feed_row(self, row: Row, reader: Reader):
+    def feed_row(self, row: Row, *, reader: Reader):
         if self._is_blank_line(row):
-            self.data_state.feed_row(row, reader)
+            self.data_state.feed_row(row, reader=reader)
         else:
-            self.blank_state.feed_row(row, reader)
+            self.blank_state.feed_row(row, reader=reader)
 
     def _is_blank_line(self, row: Row) -> bool:
         return bool(self._preprocess_row(row))
@@ -499,7 +499,7 @@ class DataState(_FixedNumColsMixin, _AggregateDataMixin, _ReaderState):
     def num_cols(self) -> int:
         return self._num_cols
 
-    def feed_row(self, row: Row, reader: Reader):
+    def feed_row(self, row: Row, *, reader: Reader):
         row = self._preprocess_row(row)
         floats = self._parse_row(row)
         self._aggregate_data(floats, reader)
@@ -523,7 +523,7 @@ class BlankState(_UpdateStateMixin, _ReaderState):
     def line(self) -> ViconCSVLines:
         return ViconCSVLines.BLANK_LINE
 
-    def feed_row(self, row: Row, reader: Reader):
+    def feed_row(self, row: Row, *, reader: Reader):
         row = self._preprocess_row(row)
         self._aggregator_transition(self._reader_aggregator(reader))
         self._update_state(reader)

@@ -236,12 +236,11 @@ class Aggregator:
     def _get_section_aggregator(
         self, section_type: Optional[SectionType] = None
     ) -> Optional[_SectionAggregator]:
-        if section_type is None:
-            return self._current_aggregator
         if section_type is SectionType.FORCES_EMG:
             return self._force_emg_aggregator
         if section_type is SectionType.TRAJECTORIES:
             return self._traj_aggregator
+        return self._current_aggregator
 
     def set_current_section(self, section_type: Optional[SectionType]):
         assert (section_type in SectionType) or (section_type is None)

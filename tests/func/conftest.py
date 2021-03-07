@@ -1,3 +1,7 @@
+# pylint: disable=redefined-outer-name
+# pylint: disable=missing-class-docstring
+# pylint: disable=missing-module-docstring
+# pylint: disable=missing-function-docstring
 import pathlib
 
 import pandas as pd

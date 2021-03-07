@@ -33,19 +33,19 @@ class ViconNexusData:
         return len(emg_dev.df.columns)
 
     @staticmethod
-    def _amount_str(x: Sequence, noun: str) -> str:
-        if x == 1:
-            s = ""
+    def _amount_str(num: int, noun: str) -> str:
+        if num == 1:
+            plural_s = ""
         else:
-            s = "s"
-        return f"{x} {noun}{s}"
+            plural_s = "s"
+        return f"{num} {noun}{plural_s}"
 
     @staticmethod
-    def _stringify_list(x: Sequence) -> str:
-        x = list(x)
-        if len(x) > 2:
-            x = [x[0]] + ["..."] + [x[-1]]
-        return ", ".join(map(str, x))
+    def _stringify_list(seq: Sequence) -> str:
+        seq = list(seq)
+        if len(seq) > 2:
+            seq = [seq[0]] + ["..."] + [seq[-1]]
+        return ", ".join(map(str, seq))
 
 
 class Builder:
@@ -322,8 +322,8 @@ class DeviceData:
     def _convert_key(self, frame: int, subframe: int) -> int:
         try:
             return self._frame_tracker_index(frame, subframe)
-        except ValueError as e:
-            raise KeyError from e
+        except ValueError as err:
+            raise KeyError from err
 
     def _frame_tracker_index(self, frame: int, subframe: int) -> int:
         return self._frame_tracker.index(frame, subframe)

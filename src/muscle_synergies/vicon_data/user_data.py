@@ -18,7 +18,7 @@ class ViconNexusData:
     traj: Sequence["DeviceData"]
 
     def describe(self):
-        emg_str = self._amount_str(self._num_muscles(self.emg), "muscle")
+        emg_str = self._amount_str(self._num_cols(self.emg), "column")
         forcepl_len_str = self._amount_str(len(self.forcepl), "device")
         forcepl_members_str = self._stringify_list(self.forcepl)
         traj_len_str = self._amount_str(len(self.traj), "device")
@@ -29,8 +29,8 @@ class ViconNexusData:
 + traj ({traj_len_str}): {traj_members_str}"""
 
     @staticmethod
-    def _num_muscles(emg_dev: "DeviceData") -> int:
-        return len(emg_dev.df.columns)
+    def _num_cols(dev: "DeviceData") -> int:
+        return len(dev.df.columns)
 
     @staticmethod
     def _amount_str(num: int, noun: str) -> str:

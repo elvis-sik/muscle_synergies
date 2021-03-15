@@ -64,6 +64,13 @@ class Builder:
             device_type = self._device_agg_type(device_agg)
             devices_by_type[device_type].append(device_data)
 
+        # TODO fix a typing mess below like this:
+        # 1. make _vicon_nexus_data get 3 parameters corresponding to device
+        #    type lists instead of a dict
+        # 2. _simplify_emg now gets an emg_list and returns an emg_dev,
+        #    checking if the list has too many entries
+        # done.
+
         return self._vicon_nexus_data(self._simplify_emg(devices_by_type))
 
     def _build_device(
@@ -118,12 +125,13 @@ class Builder:
     def _simplify_emg(
         self, devices_by_type: Mapping[DeviceType, List["DeviceData"]]
     ) -> Mapping[DeviceType, Union["DeviceData", List["DeviceData"]]]:
-        devices_by_type = dict(devices_by_type)
-        emg: List["DeviceData"] = devices_by_type[DeviceType.EMG]
-        if len(emg) != 1:
-            raise ValueError(f"found {len(emg)} EMG devices - expected one")
-        devices_by_type[DeviceType.EMG] = emg[0]
-        return devices_by_type
+        new_devices_dict = dict(devices_by_type)
+        emg_list = devices_by_type[DeviceType.EMG]
+        if len(emg_list) != 1:
+            raise ValueError(f"found {len(emg_list)} EMG devices - expected one")
+        emg_dev = emg_list[0]
+        new_devices_dict[DeviceType.EMG] = emg_dev
+        return new_devices_dict
 
     def _vicon_nexus_data(
         self,

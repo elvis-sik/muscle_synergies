@@ -135,8 +135,8 @@ def nnmf(matrix_df, num_components, *, max_iter=100_000, tol=1e-6):
 
 
 def vaf(original_df, transformed_df, components):
-    square_error = (original_df - transformed_df @ components) ** 2
-    return 1 - np.linalg.norm(square_error) / np.linalg.norm(original_df)**2
+    error = original_df - transformed_df @ components
+    return 1 - np.linalg.norm(error, ord=2) / np.linalg.norm(original_df, ord=2)
 
 
 def find_synergies(

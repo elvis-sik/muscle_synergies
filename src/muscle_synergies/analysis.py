@@ -105,29 +105,6 @@ def _filter_coeffs(
     )
 
 
-def butterworth_filter(
-    data, critical_freqs, sampling_freq, order, filter_type="lowpass", zero_lag=True
-):
-    """Apply Butterworth filter to the data."""
-    filter_coeffs = _filter_coeffs(order, sampling_freq, critical_freqs, filter_type)
-
-    if zero_lag:
-        filt_func = signal.sosfiltfilt
-    else:
-        filt_func = signal.sosfilt
-
-    return filt_func(filter_coeffs, data, axis=0)
-
-
-def _filter_coeffs(
-    order: int, sampling_freq: int, critical_freqs, filter_type="lowpass"
-):
-    """Determine Butterworth filter coefficients."""
-    return signal.butter(
-        order, critical_freqs, btype=filter_type, output="sos", fs=sampling_freq
-    )
-
-
 def nnmf(matrix_df, num_components, *, max_iter=100_000, tol=1e-6):
     """Factor matrix into non-negative factors."""
     model = NMF(max_iter=100000, tol=1e-6, n_components=num_components)

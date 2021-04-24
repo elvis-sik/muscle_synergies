@@ -129,12 +129,14 @@ def _filter_coeffs(
 
 
 def nnmf(matrix_df, num_components, *, max_iter=100_000, tol=1e-6):
+    """Factor matrix into non-negative factors."""
     model = NMF(max_iter=100000, tol=1e-6, n_components=num_components)
     transformed_emg_signal = model.fit_transform(matrix_df)
     return transformed_emg_signal, model.components_, model.n_iter_
 
 
 def vaf(original_df, transformed_df, components):
+    """Calculate VAF between reconstructed and original signal."""
     error = original_df - transformed_df @ components
     return 1 - np.linalg.norm(error, ord=2) / np.linalg.norm(original_df, ord=2)
 
@@ -142,6 +144,7 @@ def vaf(original_df, transformed_df, components):
 def find_synergies(
     processed_emg_df, min_components=2, max_components=None, max_iter=100_000, tol=1e-6
 ):
+    """Find synergy components in processed EMG signal."""
     num_features = len(processed_emg_df.columns)
 
     assert num_features > 0
@@ -169,6 +172,7 @@ def find_synergies(
 
 
 def synergy_heatmap(components, columns):
+    """Plot synergy heatmap."""
     num_synergies = components.shape[0]
     synergy_names = [f"synergy {i}" for i in range(1, num_synergies + 1)]
     synergies = pandas.DataFrame(components, index=synergy_names, columns=columns)

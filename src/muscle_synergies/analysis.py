@@ -170,7 +170,7 @@ def find_synergies(
 
 def synergy_heatmap(components, columns):
     num_synergies = components.shape[0]
-    synergy_names = [f'synergy {i}' for i in range(1, num_synergies + 1)]
+    synergy_names = [f"synergy {i}" for i in range(1, num_synergies + 1)]
     synergies = pandas.DataFrame(components, index=synergy_names, columns=columns)
     sns.heatmap(synergies, annot=True, fmt=".2f")
     plt.title("Heatmap of muscle synergies")

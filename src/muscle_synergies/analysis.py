@@ -43,7 +43,7 @@ def plot_emg_signal(
 
 
 def positive_spectrum(signal_df, sampling_frequency):
-    """Find the spectrum corresponding to frequencies."""
+    """Find the spectrum corresponding to positive frequencies."""
     signal_df = pandas.DataFrame(signal_df)
     num_samples = signal_df.shape[0]
     sample_spacing = 1.0 / sampling_frequency

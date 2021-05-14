@@ -5,6 +5,7 @@ works.
 """
 
 from collections import defaultdict
+import functools
 import matplotlib.pyplot as plt
 
 plt.style.use("bmh")
@@ -104,6 +105,22 @@ def _filter_coeffs(
         order, critical_freqs, btype=filter_type, output="sos", fs=sampling_freq
     )
 
+def _single_channel_rms(signal: np.ndarray, window_size: int):
+    """Find the RMS of a 1D digital signal.
+
+    Inspired by this example: https://stackoverflow.com/questions/8245687/numpy-root-mean-squared-rms-smoothing-of-a-signal
+    """
+    square = signal ** 2
+    window_mean_factor = 1 / float(window_size)
+    window = window_mean_factor * np.ones(window_size)
+    return np.sqrt(np.convolve(square, window, 'same'))
+
+def rms_envelope(emg_signal, window_size: int, inplace=False):
+    """Find the RMS of a signal composed of multiple 1D channels."""
+    emg_signal = pandas.DataFrame(emg_signal, copy=not inplace)
+    fixed_window_rms = functools.partial(_single_channel_rms, window_size=window_size)
+    emg_signal[:] = np.apply_along_axis(fixed_window_rms, 0, emg_signal)
+    return emg_signal
 
 def nnmf(matrix_df, num_components, *, max_iter=100_000, tol=1e-6):
     """Factor matrix into non-negative factors."""

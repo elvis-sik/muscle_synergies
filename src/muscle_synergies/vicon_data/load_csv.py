@@ -57,6 +57,7 @@ def create_loading_run() -> _LoadingRun:
 
 
 def load_vicon_file(csv_filename: str) -> ViconNexusData:
+    """Load data from Vicon Nexus CSV file."""
     loading_run = create_loading_run()
 
     for i, row in enumerate(csv_row_stream(csv_filename), start=1):

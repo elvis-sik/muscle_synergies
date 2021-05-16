@@ -1,3 +1,8 @@
+"""
+
+Refer to the documentation for `__init__.py` for more on how `Aggregator` fits
+together with the other classes used for reading the data from disk.
+"""
 import abc
 from collections import defaultdict
 from dataclasses import dataclass

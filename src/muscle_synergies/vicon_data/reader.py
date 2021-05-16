@@ -1,3 +1,8 @@
+"""
+
+Refer to the documentation for `__init__.py` for more on how `Aggregator` fits
+together with the other classes used for reading the data from disk.
+"""
 import abc
 from dataclasses import dataclass
 from typing import Any, Callable, Iterator, List, Mapping, Optional, Tuple, Union
@@ -104,7 +109,7 @@ class SectionTypeState(_UpdateStateMixin, _HasSingleColMixin, _ReaderState):
     """The state of a reader that is expecting the section type line.
 
     For an explanation of what are the different lines of the CSV input, see
-    the docs for :py:class:ViconCSVLines.
+    the docs for :py:class:`ViconCSVLines`.
     """
 
     @property
@@ -150,7 +155,7 @@ class SamplingFrequencyState(
     """The state of a reader that is expecting the sampling frequency line.
 
     For an explanation of what are the different lines of the CSV input, see
-    the docs for :py:class:ViconCSVLines.
+    the docs for :py:class:`ViconCSVLines`.
     """
 
     @property
@@ -184,9 +189,9 @@ class ColOfHeader:
     """The string describing a device and the column in which it occurs.
 
     This is used as an intermediate representation of the data being read in
-    the device names line (see :py:class:ViconCSVLines). The structure of that
-    line is complex, so the logic of its parsing is split into several classes.
-    ColOfHeader is used for communication between them.
+    the device names line (see :py:class:`ViconCSVLines`). The structure of
+    that line is complex, so the logic of its parsing is split into several
+    classes.  ColOfHeader is used for communication between them.
 
     Args:
         col_index: the index of the column in the CSV file in which the

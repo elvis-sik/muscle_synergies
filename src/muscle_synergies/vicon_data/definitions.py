@@ -145,6 +145,17 @@ class SamplingFreq:
         freq_traj: the sampling rate of the `TRAJECTORIES` section.
 
         num_frames: the number of frames.
+
+    Attributes
+        num_subframes: the number of subframes contained in every frame.
+    """
+
     freq_forces_emg: int
     freq_traj: int
     num_frames: int
+
+    @property
+    def num_subframes(self) -> int:
+        num_subframes = self.freq_forces_emg / self.freq_traj
+        assert num_subframes == int(num_subframes)
+        return int(num_subframes)

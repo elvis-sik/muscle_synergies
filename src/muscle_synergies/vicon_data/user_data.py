@@ -211,9 +211,7 @@ class _SectionFrameTracker(abc.ABC):
 
     @property
     def num_subframes(self) -> int:
-        num_subframes = self._freq_forces_emg / self._freq_traj
-        assert num_subframes == int(num_subframes)
-        return int(num_subframes)
+        return self._sampling_freq.num_subframes
 
     @property
     def _freq_forces_emg(self) -> int:

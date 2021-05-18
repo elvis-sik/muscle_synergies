@@ -12,9 +12,9 @@ T = TypeVar("T")
 X = TypeVar("X")
 Y = TypeVar("Y")
 
-# a row from the CSV file is simply a list of strings,
-# corresponding to different values
 Row = NewType("Row", List[str])
+"""a row from the CSV file is simply a list of strings, corresponding to
+different values"""
 
 
 class SectionType(Enum):

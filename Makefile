@@ -46,7 +46,7 @@ test:
 .PHONY: coverage
 coverage:
 	@coverage erase
-	@PYTHONPATH=src coverage run -m unittest discover -s tests -v
+	@PYTHONPATH=src coverage run -m pytest
 	@coverage html
 	@coverage report
 

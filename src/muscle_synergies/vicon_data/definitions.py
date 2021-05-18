@@ -24,7 +24,7 @@ class SectionType(Enum):
     different types of data. The sections are separated by a single blank line.
     Each section contains a header plus several rows of measurements. The
     header spans 5 lines including, among other things, an identification of
-    its type See the docs for :py:class:`ViconCSVLines` for a full description
+    its type. See the docs for :py:class:`ViconCSVLines` for a full description
     of the meaning of the different lines.
     """
 
@@ -56,7 +56,10 @@ class ViconCSVLines(Enum):
     )
     DEVICE_NAMES_LINE = (
         "the third line in a section, which contains the "
-        + 'names of measuring devices (such as "Angelica:HV").'
+        + 'names of measuring devices (such as "Angelica:HV"). '
+        + "The exact strings occurring in this line are referred to as "
+        + '"device headers". A single force plate can be represented as '
+        + "several device headers."
     )
 
     COORDINATES_LINE = (
@@ -79,9 +82,10 @@ class DeviceType(Enum):
     """Type of a measurement device.
 
     Measurement devices are named in the third line of each section of the CSV
-    file outputted by Vicon Nexus. Each name is included in a single column,
-    but the data for each device in the following lines usually span more than
-    1 column:
+    file outputted by Vicon Nexus. Each of the nonempty strings occurring in
+    that line is referred to as a "device header". Each device header by
+    definition spans a single column, but the data for each device in the
+    following lines usually span more than 1 column:
 
     + one column per muscle in the case of EMG data.
     + 3 columns (1 per spatial coordinate) in the case of trajectory markers.
@@ -104,7 +108,7 @@ class ForcePlateMeasurement:
 
     If we define a "measurement device" as a non-blank entry in the
     `DevicesLine` (see :py:class:`ViconCSVLines`), a single force plate is
-    actually represented as 3 different devices, for example:
+    actually represented as 3 different device headers, for example:
 
     + Imported AMTI OR6 Series Force Plate #1 - Force
     + Imported AMTI OR6 Series Force Plate #1 - Moment

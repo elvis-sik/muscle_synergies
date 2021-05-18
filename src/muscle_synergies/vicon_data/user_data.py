@@ -1,7 +1,9 @@
 """
 
-Refer to the documentation for `__init__.py` for more on how `Aggregator` fits
-together with the other classes used for reading the data from disk.
+Refer to the documentation for
+:py:mod:`~muscle_synergies.vicon_data.__init__.py` for more on how
+:py:class:`Builder` fits together with the other classes used for reading the
+data from disk.
 """
 import abc
 from collections import defaultdict

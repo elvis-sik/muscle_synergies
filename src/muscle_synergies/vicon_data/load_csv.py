@@ -2,8 +2,8 @@
 
 The main function in this module is :py:func:`load_vicon_file`, which uses
 :py:func:`csv_row_stream` to get a stream of lines which it feeds to
-:py:class:`muscle_synergies.vicon_data.reader.Reader`. When the stream ends,
-the function uses :py:class:`muscle_synergies.vicon_data.user_data.Builder` to
+:py:class:`~muscle_synergies.vicon_data.reader.Reader`. When the stream ends,
+the function uses :py:class:`~muscle_synergies.vicon_data.user_data.Builder` to
 build the final representation of the data which is delivered to the user.  The
 other functions in this module are just used to initialize the different
 objects using to parse the data.
@@ -46,14 +46,14 @@ def create_reader(initial_state=None, aggregator=None) -> Reader:
 
     Args:
         initial_state: if provided, this is used as the
-            :py:class:`muscle_synergies.vicon_data.reader.Reader`'s state
+            :py:class:`~muscle_synergies.vicon_data.reader.Reader`'s state
             otherwise a fresh
-            :py:class:`muscle_synergies.vicon_data.definitions.SectionTypeState`
+            :py:class:`~muscle_synergies.vicon_data.definitions.SectionTypeState`
             instance is created.
 
         aggregator: if provided, this is used as the
-            :py:class:`muscle_synergies.vicon_data.reader.Reader`'s
-            :py:class:`muscle_synergies.vicon_data.aggregator.Aggregator`
+            :py:class:`~muscle_synergies.vicon_data.reader.Reader`'s
+            :py:class:`~muscle_synergies.vicon_data.aggregator.Aggregator`
             otherwise a fresh instance is created.
     """
     if initial_state is None:
@@ -68,8 +68,8 @@ def create_builder(aggregator=None) -> Builder:
 
     Args:
         aggregator: if provided, this is used as the
-            :py:class:`muscle_synergies.vicon_data.user_data.Builder`'s
-            :py:class:`muscle_synergies.vicon_data.aggregator.Aggregator`
+            :py:class:`~muscle_synergies.vicon_data.user_data.Builder`'s
+            :py:class:`~muscle_synergies.vicon_data.aggregator.Aggregator`
             otherwise a fresh instance is created.
     """
     if aggregator is None:

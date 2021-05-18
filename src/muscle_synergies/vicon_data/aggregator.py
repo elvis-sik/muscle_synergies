@@ -6,7 +6,7 @@ to the data being read and pass them forward to instances of other classes
 those values.  The different classes are organized as a tree.
 
 The CSV file has 2 sections (see
-:py:class:`muscle_synergies.vicon_data.definitions.SectionType`) the data in
+:py:class:`~muscle_synergies.vicon_data.definitions.SectionType`) the data in
 which is similar and has to be processed similarly but there are some
 differences between them. For this reason, there are 2 children of the
 :py:class:`_SectionAggregator` ABC.
@@ -16,7 +16,7 @@ for that reason there is a :py:class:`DeviceAggregator`, which keeps track of
 which columns belong to each device and stores that data as it is being read.
 
 Refer to the documentation for
-:py:mod:`muscle_synergies.vicon_data.__init__.py` for more on how `Aggregator`
+:py:mod:`~muscle_synergies.vicon_data.__init__.py` for more on how `Aggregator`
 fits together with the other classes used for reading the data from disk.
 """
 

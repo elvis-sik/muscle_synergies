@@ -15,8 +15,8 @@ The data in the CSV file is classified according to the measuring device and
 for that reason there is a :py:class:`DeviceAggregator`, which keeps track of
 which columns belong to each device and stores that data as it is being read.
 
-Refer to the documentation for
-:py:mod:`~muscle_synergies.vicon_data.__init__.py` for more on how `Aggregator`
+Refer to the documentation for the package
+:py:mod:`muscle_synergies.vicon_data` for more on how `Aggregator`
 fits together with the other classes used for reading the data from disk.
 """
 

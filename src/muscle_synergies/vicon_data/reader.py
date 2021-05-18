@@ -481,6 +481,8 @@ class ForcePlateGrouper:
             grouped_headers.append(self._rename_force_plate(header))
         return grouped_headers
 
+    __call__ = group
+
     def _filter_individual_force_plates(
         self, headers: List[ColOfHeader]
     ) -> Iterator[ColOfHeader]:

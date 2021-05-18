@@ -888,13 +888,13 @@ class GettingMeasurementsState(_ReaderState):
         fed to :py:attr:`~GettingMeasurementsState.data_state`.
         """
         if self._is_blank_line(row):
-            self.data_state.feed_row(row, reader)
+            self.blank_state.feed_row(row, reader=reader)
         else:
-            self.blank_state.feed_row(row, reader)
+            self.data_state.feed_row(row, reader=reader)
 
     def _is_blank_line(self, row: Row) -> bool:
-        return bool(self._preprocess_row(row))
         """Determine if a row has no data."""
+        return not bool(self._preprocess_row(row))
 
 
 class DataState(_FixedNumColsMixin, _AggregateDataMixin, _ReaderState):

@@ -14,13 +14,8 @@ from typing import Iterator, List, Mapping, Optional, Sequence, Tuple, Union
 import numpy as np
 import pandas as pd
 
-from .aggregator import (
-    Aggregator,
-    DeviceAggregator,
-    ForcesEMGAggregator,
-    TrajAggregator,
-)
-from .definitions import DeviceType, SamplingFreq, SectionType
+from .aggregator import Aggregator, DeviceAggregator
+from .definitions import DeviceType, SamplingFreq
 
 
 @dataclass
@@ -30,7 +25,7 @@ class ViconNexusData:
     traj: Sequence["DeviceData"]
 
     def describe(self):
-        emg_str = self._amount_str(self._num_muscles(self.emg), "muscle")
+        emg_str = self._amount_str(self._num_cols(self.emg), "column")
         forcepl_len_str = self._amount_str(len(self.forcepl), "device")
         forcepl_members_str = self._stringify_list(self.forcepl)
         traj_len_str = self._amount_str(len(self.traj), "device")
@@ -41,23 +36,23 @@ class ViconNexusData:
 + traj ({traj_len_str}): {traj_members_str}"""
 
     @staticmethod
-    def _num_muscles(emg_dev: "DeviceData") -> int:
-        return len(emg_dev.df.columns)
+    def _num_cols(dev: "DeviceData") -> int:
+        return len(dev.df.columns)
 
     @staticmethod
-    def _amount_str(x: Sequence, noun: str) -> str:
-        if x == 1:
-            s = ""
+    def _amount_str(num: int, noun: str) -> str:
+        if num == 1:
+            plural_s = ""
         else:
-            s = "s"
-        return f"{x} {noun}{s}"
+            plural_s = "s"
+        return f"{num} {noun}{plural_s}"
 
     @staticmethod
-    def _stringify_list(x: Sequence) -> str:
-        x = list(x)
-        if len(x) > 2:
-            x = [x[0]] + ["..."] + [x[-1]]
-        return ", ".join(map(str, x))
+    def _stringify_list(seq: Sequence) -> str:
+        seq = list(seq)
+        if len(seq) > 2:
+            seq = [seq[0]] + ["..."] + [seq[-1]]
+        return ", ".join(map(str, seq))
 
 
 class Builder:
@@ -75,6 +70,13 @@ class Builder:
             device_data = self._build_device(device_agg, frame_tracker)
             device_type = self._device_agg_type(device_agg)
             devices_by_type[device_type].append(device_data)
+
+        # TODO fix a typing mess below like this:
+        # 1. make _vicon_nexus_data get 3 parameters corresponding to device
+        #    type lists instead of a dict
+        # 2. _simplify_emg now gets an emg_list and returns an emg_dev,
+        #    checking if the list has too many entries
+        # done.
 
         return self._vicon_nexus_data(self._simplify_emg(devices_by_type))
 
@@ -130,12 +132,13 @@ class Builder:
     def _simplify_emg(
         self, devices_by_type: Mapping[DeviceType, List["DeviceData"]]
     ) -> Mapping[DeviceType, Union["DeviceData", List["DeviceData"]]]:
-        devices_by_type = dict(devices_by_type)
-        emg: List["DeviceData"] = devices_by_type[DeviceType.EMG]
-        if len(emg) != 1:
-            raise ValueError(f"found {len(emg)} EMG devices - expected one")
-        devices_by_type[DeviceType.EMG] = emg[0]
-        return devices_by_type
+        new_devices_dict = dict(devices_by_type)
+        emg_list = devices_by_type[DeviceType.EMG]
+        if len(emg_list) != 1:
+            raise ValueError(f"found {len(emg_list)} EMG devices - expected one")
+        emg_dev = emg_list[0]
+        new_devices_dict[DeviceType.EMG] = emg_dev
+        return new_devices_dict
 
     def _vicon_nexus_data(
         self,
@@ -332,8 +335,8 @@ class DeviceData:
     def _convert_key(self, frame: int, subframe: int) -> int:
         try:
             return self._frame_tracker_index(frame, subframe)
-        except ValueError as e:
-            raise KeyError from e
+        except ValueError as err:
+            raise KeyError from err
 
     def _frame_tracker_index(self, frame: int, subframe: int) -> int:
         return self._frame_tracker.index(frame, subframe)

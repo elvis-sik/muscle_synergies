@@ -8,9 +8,11 @@ from enum import Enum
 from typing import List, NewType, TypeVar
 
 # type variables used to define generic types
+# pylint: disable=invalid-name
 T = TypeVar("T")
 X = TypeVar("X")
 Y = TypeVar("Y")
+# pylint: enable=invalid-name
 
 Row = NewType("Row", List[str])
 """a row from the CSV file is simply a list of strings, corresponding to

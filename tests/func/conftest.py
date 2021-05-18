@@ -1,5 +1,8 @@
+# pylint: disable=redefined-outer-name
+# pylint: disable=missing-class-docstring
+# pylint: disable=missing-module-docstring
+# pylint: disable=missing-function-docstring
 import pathlib
-from itertools import chain
 
 import pandas as pd
 import pytest as pt

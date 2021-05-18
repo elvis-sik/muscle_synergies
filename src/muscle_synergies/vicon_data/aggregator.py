@@ -316,8 +316,8 @@ class Aggregator:
 
     def __init__(
         self,
-        forces_emg_agg: Optional[_SectionAggregator] = None,
-        trajs_agg: Optional[_SectionAggregator] = None,
+        forces_emg_agg: Optional[ForcesEMGAggregator] = None,
+        trajs_agg: Optional[TrajAggregator] = None,
     ):
         if forces_emg_agg is None:
             forces_emg_agg = ForcesEMGAggregator()
@@ -358,7 +358,7 @@ class Aggregator:
 
     def _get_section_aggregator(
         self, section_type: Optional[SectionType] = None
-    ) -> _SectionAggregator:
+    ) -> Optional[_SectionAggregator]:
         """Get current section aggregator or the specified one.
 
         Args:
@@ -372,6 +372,7 @@ class Aggregator:
             return self._force_emg_aggregator
         if section_type is SectionType.TRAJECTORIES:
             return self._traj_aggregator
+        return self._current_aggregator
 
     def set_current_section(self, section_type: Optional[SectionType]):
         """Set the current section aggregator to have the specified type.

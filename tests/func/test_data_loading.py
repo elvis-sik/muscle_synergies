@@ -1,5 +1,7 @@
+# pylint: disable=missing-class-docstring
+# pylint: disable=missing-module-docstring
+# pylint: disable=missing-function-docstring
 import numpy as np
-import pandas as pd
 import pytest as pt
 from pytest_cases import fixture_ref, parametrize
 
@@ -48,7 +50,7 @@ class TestAbridgedData:
         expected_row = [209.475, 1219.82, 1780.88]
         assert loaded_row == expected_row
 
-    def test_forces_emg_loads_correct_sampling_freq(
+    def test_forces_emg_invalid_frame_subframe(
         self, all_loaded, invalid_frame_subframe_seq
     ):
         device_data = all_loaded
@@ -128,18 +130,18 @@ class TestFullData:
             assert dev.df.shape == exp_shape
 
     def test_col_average_traj(self, full_data_angelica_hv, angelica_hv_average):
-        df = full_data_angelica_hv.df
+        datafr = full_data_angelica_hv.df
         exp_x, exp_y, exp_z = angelica_hv_average
-        mean_x = df["X"].mean()
+        mean_x = datafr["X"].mean()
         assert np.isclose(mean_x, exp_x)
-        mean_y = df["Y"].mean()
+        mean_y = datafr["Y"].mean()
         assert np.isclose(mean_y, exp_y)
-        mean_z = df["Z"].mean()
+        mean_z = datafr["Z"].mean()
         assert np.isclose(mean_z, exp_z)
 
     def test_col_average_forcepl_last_5000(self, full_data_forcepl_2, forcepl2_average):
-        df = full_data_forcepl_2.df
-        for (col, exp_average) in zip(df, forcepl2_average):
-            last_5000 = df[col].iloc[-5000:]
+        datafr = full_data_forcepl_2.df
+        for (col, exp_average) in zip(datafr, forcepl2_average):
+            last_5000 = datafr[col].iloc[-5000:]
             mean = last_5000.mean()
             assert np.isclose(mean, exp_average)

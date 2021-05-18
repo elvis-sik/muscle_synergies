@@ -18,8 +18,13 @@ import abc
 from dataclasses import dataclass
 from typing import Any, Callable, Iterator, List, Mapping, Optional, Tuple, Union
 
-from .aggregator import Aggregator
-from .definitions import DeviceType, Row, SectionType, T, ViconCSVLines
+from muscle_synergies.vicon_data.aggregator import Aggregator
+from muscle_synergies.vicon_data.definitions import (
+    DeviceType,
+    Row,
+    SectionType,
+    ViconCSVLines,
+)
 
 
 class Reader:
@@ -120,11 +125,11 @@ class _ReaderState(abc.ABC):
         The operation is *not* done in-place, a new
         :py:class:`~muscle_synergies.vicon_data.definitions.Row` is returned.
         """
-        row = list(entry.strip() for entry in row)
+        processed = list(entry.strip() for entry in row)
 
-        while row and not row[-1]:
-            row.pop()
-        return Row(row)
+        while processed and not processed[-1]:
+            processed.pop()
+        return Row(processed)
 
     def _reader_aggregator(self, reader: Reader) -> Aggregator:
         """Get the Aggregator associated with the Reader."""
@@ -273,7 +278,6 @@ class SectionTypeState(_UpdateStateMixin, _HasSingleColMixin, _ReaderState):
             + The parsed section type doesn't match the :py:class:`Reader`'s.
         """
         row = self._preprocess_row(row)
-        self._validate_row_valid_values(row)
         self._validate_row_has_single_col(row)
         section_type = self._parse_section_type(row)
         self._validate_section_type(section_type, reader)
@@ -292,8 +296,11 @@ class SectionTypeState(_UpdateStateMixin, _HasSingleColMixin, _ReaderState):
 
         if section_type_str == "Devices":
             return SectionType.FORCES_EMG
-        elif section_type_str == "Trajectories":
+        if section_type_str == "Trajectories":
             return SectionType.TRAJECTORIES
+        raise ValueError(
+            'first row in a section should contain "Devices" or "Trajectories" in its first column'
+        )
 
     def _validate_section_type(self, parsed_type: SectionType, reader: Reader):
         """Raise exception if the parsed section type is wrong."""
@@ -385,7 +392,7 @@ class DevicesHeaderFinder:
         >>> devices_line = ['', '', 'Device_1', '', '', 'Device_2', '', '']
         >>> finder = DevicesHeaderFinder()
         >>> finder(devices_line)
-        [ColOfHeader(2, 'Device_1'), ColOfHeader(5, 'Device_2')]
+        [ColOfHeader(col_index=2, header_str='Device_1'), ColOfHeader(col_index=5, header_str='Device_2')]
     """
 
     def find_headers(self, row: Row) -> List[ColOfHeader]:
@@ -503,7 +510,11 @@ class ForcePlateGrouper:
         return self._col_of_header(new_name, first_col)
 
     def _force_plate_name(self, header_str: str):
-        """Determine the name of a force plate from a device header."""
+        """Find the name of the force plate from the text in the column header.
+
+        For example, "Imported AMTI OR6 Series Force Plate #1 - Force" becomes
+        "Imported AMTI OR6 Series Force Plate #1".
+        """
         force_plate_name, measurement_name = header_str.split("-")
         return force_plate_name[:-1]
 
@@ -571,8 +582,8 @@ class _DevicesState(_UpdateStateMixin, _ReaderState):
             **self._build_add_device_params_dict(header, device_type),
         )
 
+    @staticmethod
     def _aggregator_add_device(
-        self,
         aggregator: Aggregator,
         name: str,
         device_type: DeviceType,
@@ -691,16 +702,8 @@ class ForcesEMGDevicesState(_DevicesState):
         force_plates_headers, emg = self._separate_headers(headers)
         grouped_force_plates = self._group_force_plates(force_plates_headers)
         for header in grouped_force_plates:
-            self._add_force_plate(header, reader)
-        self._add_emg(emg, reader)
-
-    def _add_emg(self, header: ColOfHeader, reader: Reader):
-        """Add new EMG device to the Aggregator."""
-        self._add_device(reader, header, DeviceType.EMG)
-
-    def _add_force_plate(self, header: ColOfHeader, reader: Reader):
-        """Add new force plate device to the Aggregator."""
-        self._add_device(reader, header, DeviceType.FORCE_PLATE)
+            self._add_device(reader, header, DeviceType.FORCE_PLATE)
+        self._add_device(reader, emg, DeviceType.EMG)
 
     def _separate_headers(
         self, headers: List[ColOfHeader]

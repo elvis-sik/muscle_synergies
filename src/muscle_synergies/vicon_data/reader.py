@@ -395,11 +395,11 @@ class DevicesHeaderFinder:
             ValueError: if the row does not conform to the expected structure.
         """
         self._validate_row_values_in_correct_cols(row)
-        return self._find_headers_unsafe(row)
+        return self._list_col_of_headers(row)
 
     __call__ = find_headers
 
-    def _find_headers_unsafe(self, row: Row) -> List[ColOfHeader]:
+    def _list_col_of_headers(self, row: Row) -> List[ColOfHeader]:
         """Build a ColOfHeader for each expected device name.
 
         This method creates a :py:class:`ColOfHeader` object for every 3

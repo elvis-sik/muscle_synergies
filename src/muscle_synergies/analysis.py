@@ -1,7 +1,13 @@
-"""Signal analysis functions.
+"""Functions to analyze the EMG signal and compute muscle synergies.
 
-Very hacky for the time being because I'm still figuring out how this analysis
-works.
+All functions work with :py:class:`pandas.DataFrame`. Each column of the
+:py:class:`~pandas.DataFrame` is assumed to be a different 1D signal.  For
+example, each column could correspond to the electromyogram of a single muscle.
+
+The functions in this file should be thought of as a thin layer on top of
+standard functions in the Python scientific ecosystem. More complex use cases
+will benefit from using those directly. Hopefully in those cases the
+functions present here can be an useful starting point.
 """
 
 from collections import defaultdict

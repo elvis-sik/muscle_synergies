@@ -43,8 +43,27 @@ def plot_emg_signal(
     plt.show()
 
 
-def positive_spectrum(signal_df, sampling_frequency):
-    """Find the spectrum corresponding to positive frequencies."""
+def fft_spectrum(
+    signal_df: pandas.DataFrame, sampling_frequency: int
+) -> pandas.DataFrame:
+    """Find the spectrum corresponding to positive frequencies.
+
+    More complex use cases should use :py:mod:`scipy.fft` directly.
+
+    Args:
+        signal_df: a :py:class:`~pandas.DataFrame` with a different
+            discrete-time signal in each of its columns.
+
+        sampling_frequency: the sampling rate with which measurements were
+            made.
+
+    Returns:
+        a new :py:class:`~pandas.DataFrame`. Each of its columns contain the
+            spectrum of the corresponding column in `signal_df`. The
+            frequencies are given as its :py:attr:`~pandas.DataFrame.index`.
+            These frequencies are given in the same units as
+            `sampling_frequency`.
+    """
     signal_df = pandas.DataFrame(signal_df)
     num_samples = signal_df.shape[0]
     sample_spacing = 1.0 / sampling_frequency

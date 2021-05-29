@@ -97,32 +97,118 @@ def plot_spectrum(
     )
 
 
-def butterworth_filter(
-    data, critical_freqs, sampling_freq, order, filter_type="lowpass", zero_lag=True
-):
-    """Apply Butterworth filter to the data.
+def digital_filter(
+    signal_df: pandas.DataFrame,
+    critical_freqs: Union[float, Sequence[float]],
+    sampling_frequency: float,
+    order: int,
+    filter_type: str = "butter",
+    band_type: str = "lowpass",
+    zero_lag: bool = True,
+    cheby_param: Optional[float] = None,
+) -> pandas.DataFrame:
+    """Apply digital filter to signal.
 
-    Modified from this example
-    https://scipy-cookbook.readthedocs.io/items/ButterworthBandpass.html
+    This function implements Butterworth filters as well as Chebyshev (both
+    type I and type II) ones. The filters can be high-pass, low-pass,
+    band-pass or band-stop and of any order.
+
+    For more complex use cases, refer to :py:mod:`scipy.signal`.
+
+    Args:
+        signal_df: a :py:class:`~pandas.DataFrame` with a different
+            discrete-time signal in each of its columns.
+
+        order: the order of the filter.
+
+        critical_freqs: the critical frequency. Either a sequence of 2 values
+            (if `band_type` is either `"bandpass"` or `"bandstop"`) or a single
+            value (if `band_type` is either `"highpass"` or `"lowpass"`).
+            Assumed to have the same units as `sampling_frequency`.
+
+        filter_type: one of `"butter"` (Butterworth filter), `"cheby1"`
+            (Chebyshev type I filter) or `"cheby2"` (Chebyshev type II filter).
+
+        band_type: one of `"lowpass"`, `"highpass"`, `"bandpass"` or
+            `"bandstop"`.
+
+        sampling_frequency: the sampling rate with which measurements were
+            made.
+
+        zero_lag: if `True`, apply the filter both forward and backward along
+            the signal. Otherwise, apply it forward only.
+
+        cheby_param: the maximum ripple allowed below unity gain in the
+            passband if `filter_type` is `"cheby1"`.  If it is `"cheby2"`, the
+            minimum attenuation required in the stop band.  In both cases, this
+            should be given in decibels as a positive number.  If `filter_type`
+            is `"butter"` this argument is ignored.
+
+    Returns:
+        a new :py:class:`~pandas.DataFrame` holding the result of the filter
+        application. This :py:class:`~pandas.DataFrame` will have the same
+        columns and index as the original one.
     """
 
-    filter_coeffs = _filter_coeffs(order, sampling_freq, critical_freqs, filter_type)
+    def filter_coeffs(
+        filter_type: str,
+        order: int,
+        sampling_frequency: int,
+        critical_freqs: Union[Sequence[float], float],
+        band_type: str = "lowpass",
+        cheby_param: Optional[float] = None,
+    ) -> np.ndarray:
+        """Determine filter coefficients."""
+        if filter_type == "butter":
+            return signal.butter(
+                order,
+                critical_freqs,
+                btype=band_type,
+                output="sos",
+                fs=sampling_frequency,
+            )
+        elif filter_type == "cheby1":
+            coeff_func = signal.cheby1
+        elif filter_type == "cheby2":
+            coeff_func = signal.cheby2
+        return coeff_func(
+            order,
+            cheby_param,
+            critical_freqs,
+            btype=band_type,
+            output="sos",
+            fs=sampling_frequency,
+        )
 
-    if zero_lag:
-        filt_func = signal.sosfiltfilt
-    else:
-        filt_func = signal.sosfilt
+    def apply_filter(
+        signal_df: pandas.DataFrame, coeffs: np.ndarray, zero_lag: bool
+    ) -> pandas.DataFrame:
+        """Apply digital filter to signal."""
+        if zero_lag:
+            filt_func = signal.sosfiltfilt
+        else:
+            filt_func = signal.sosfilt
 
-    return filt_func(filter_coeffs, data, axis=0)
+        signal_arr = signal_df.to_numpy()
+        filtered_arr = filt_func(coeffs, signal_arr, axis=0)
+        return pandas.DataFrame(
+            filtered_arr, columns=signal_df.columns, index=signal_df.index
+        )
 
+    if filter_type not in {"butter", "cheby1", "cheby2"}:
+        raise ValueError("filter type not understood.")
 
-def _filter_coeffs(
-    order: int, sampling_freq: int, critical_freqs, filter_type="lowpass"
-):
-    """Determine Butterworth filter coefficients."""
-    return signal.butter(
-        order, critical_freqs, btype=filter_type, output="sos", fs=sampling_freq
+    coeffs = filter_coeffs(
+        filter_type,
+        order,
+        sampling_frequency,
+        critical_freqs,
+        band_type,
+        cheby_param,
     )
+
+    return apply_filter(signal_df, coeffs, zero_lag)
+
 
 def _single_channel_rms(signal: np.ndarray, window_size: int):
     """Find the RMS of a 1D digital signal.

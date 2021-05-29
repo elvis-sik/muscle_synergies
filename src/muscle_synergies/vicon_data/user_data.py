@@ -42,6 +42,7 @@ class ViconNexusData:
         traj: a sequence of :py:class:`DeviceData` corresponding to the
             different trajectory devices.
     """
+
     forcepl: Sequence["DeviceData"]
     emg: "DeviceData"
     traj: Sequence["DeviceData"]
@@ -95,6 +96,7 @@ class ViconNexusData:
 
 class Builder:
     """Build a ViconNexusData using the data stored in an Aggregator."""
+
     def build(self, aggregator: Optional[Aggregator] = None) -> ViconNexusData:
         """Build a ViconNexusData using the data stored in an Aggregator.
 
@@ -285,6 +287,7 @@ class _SectionFrameTracker(abc.ABC):
     + :py:meth:`~_SectionFrameTracker.frame_tracker`: convert an array index to
       the corresponding frame and subframe.
     """
+
     def __init__(self, sampling_freq=SamplingFreq):
         self._sampling_freq = sampling_freq
 
@@ -417,10 +420,12 @@ class DeviceData:
         dev_type: the type of the device (can be a force plate, trajectory
             marker or EMG device).
     """
+
     name: str
     dev_type: DeviceType
     units: List[str]
     df: pd.DataFrame
+
     def __init__(
         self,
         device_name: str,

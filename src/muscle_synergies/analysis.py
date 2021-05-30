@@ -216,22 +216,75 @@ def digital_filter(
     return apply_filter(signal_df, coeffs, zero_lag)
 
 
-def _single_channel_rms(signal: np.ndarray, window_size: int):
-    """Find the RMS of a 1D digital signal.
+def rms(
+    signal_df: pandas.DataFrame,
+    window_size: Union[int, float],
+    inplace: bool = False,
+    sampling_frequency: Optional[int] = None,
+) -> pandas.DataFrame:
+    """Find the RMS of a signal.
 
-    Inspired by this example: https://stackoverflow.com/questions/8245687/numpy-root-mean-squared-rms-smoothing-of-a-signal
+    The RMS of a signal is given by sliding a window across it and taking its
+    RMS (square root of the mean of the squares). The i-th entry of the output
+    will be given by the RMS of the i-th window. This function only supports a
+    stride of exactly 1 and will always output a signal with the same shape as
+    the original one.
+
+    Args:
+        signal_df: a :py:class:`~pandas.DataFrame` with a different
+            discrete-time signal in each of its columns.
+
+        window_size: if `sampling_frequency` is not provided, the window size
+            is the number of adjacent measurements that will be used to obtain
+            a single entry in the output. If `sampling_frequency` is provided,
+            the window size should be given in units of time. The number of
+            elements in each window will then be `window_size *
+            sampling_frequency`. For example, if the given sampling rate is
+            `10` Hz, the period will be 0.1 s. If the window size is `1` s,
+            each window will contain 10 array entries.
+
+        inplace: if `True`, the data in the original
+            :py:class:`~pandas.DataFrame` will be modified directly. If
+            `False`, the RMS will be applied to a copy of the data.
+
+        sampling_frequency: the sampling rate with which measurements were
+            made.
+
+    Returns:
+        a new signal with the same shape, column labels and index as the
+        original one containing its RMS.
     """
-    square = signal ** 2
-    window_mean_factor = 1 / float(window_size)
-    window = window_mean_factor * np.ones(window_size)
-    return np.sqrt(np.convolve(square, window, 'same'))
 
-def rms_envelope(emg_signal, window_size: int, inplace=False):
-    """Find the RMS of a signal composed of multiple 1D channels."""
-    emg_signal = pandas.DataFrame(emg_signal, copy=not inplace)
-    fixed_window_rms = functools.partial(_single_channel_rms, window_size=window_size)
-    emg_signal[:] = np.apply_along_axis(fixed_window_rms, 0, emg_signal)
-    return emg_signal
+    def single_channel_rms(signal_arr: np.ndarray, window_size: int) -> np.ndarray:
+        """Find the RMS of a 1D digital signal.
+
+        Args:
+            signal_arr: a 1D array with successive measurements.
+
+            window_size: the number of adjacent elements that should go into
+                each window.
+        """
+        # inspiration
+        # https://stackoverflow.com/questions/8245687/numpy-root-mean-squared-rms-smoothing-of-a-signal
+        square = signal_arr ** 2
+        window_mean_factor = 1 / float(window_size)
+        window = window_mean_factor * np.ones(window_size)
+        return np.sqrt(np.convolve(square, window, "same"))
+
+    def window_size_in_num_entries(
+        window_size: Union[int, float], sampling_frequency: Optional[int]
+    ) -> int:
+        """Ensure window size is given in units of number of array elements."""
+        if sampling_frequency is not None:
+            return window_size * sampling_frequency
+        return window_size
+
+    window_size = window_size_in_num_entries(window_size, sampling_frequency)
+    signal_df = pandas.DataFrame(signal_df, copy=not inplace)
+    fixed_window_rms = functools.partial(single_channel_rms, window_size=window_size)
+    signal_df[:] = np.apply_along_axis(fixed_window_rms, 0, signal_df)
+    return signal_df
+
 
 def nnmf(matrix_df, num_components, *, max_iter=100_000, tol=1e-6):
     """Factor matrix into non-negative factors."""

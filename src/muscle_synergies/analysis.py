@@ -106,7 +106,7 @@ def plot_spectrum(
 def digital_filter(
     signal_df: pandas.DataFrame,
     critical_freqs: Union[float, Sequence[float]],
-    sampling_frequency: float,
+    sampling_frequency: int,
     order: int,
     filter_type: str = "butter",
     band_type: str = "lowpass",

@@ -293,10 +293,46 @@ def nnmf(matrix_df, num_components, *, max_iter=100_000, tol=1e-6):
     return transformed_emg_signal, model.components_, model.n_iter_
 
 
-def vaf(original_df, transformed_df, components):
-    """Calculate VAF between reconstructed and original signal."""
+def vaf(
+    original_df: pandas.DataFrame,
+    transformed_df: pandas.DataFrame,
+    components: pandas.DataFrame,
+    axis=None,
+) -> Union[float, np.ndarray]:
+    """Calculate VAF between reconstructed and original signal.
+
+    The VAF ("variance accounted for") is given by:
+
+    :math::`\text{VAF} = 1 - \frac{ \| (x - x_r) \|^2}{\| x \|^2}`
+
+    Where the norm is the Frobenius norm, :math:`x` is the original signal and
+    :math:`x_r` is the version of the signal reconstructed using the synergy
+    components. In the case of this function, :math:`x_r` will be given by
+    `transformed_df @ components`.
+
+    Args:
+        original_df: a :py:class:`~pandas.DataFrame` of shape
+            `(num_measurements, num_muscles)`. This is the original version of
+            the signal (the already processed EMG signal) which was used to
+            find the synergies.
+
+        transformed_df: a :py:class:`~pandas.DataFrame` of shape
+            `(num_measurements, num_synergies)`. This is the version of
+            the signal expressed in terms of the synergy components.
+
+        components: a :py:class:`~pandas.DataFrame` of shape
+            `(num_synergies, num_muscles)`. These are the synergy components.
+
+        axis: the axis along which to compute the VAF. This works as in NumPy.
+            If it is `None`, the VAF will be computed for all signals (muscles)
+            at once. If it equals `1`, each
+    """
+
+    def norm_square(arr, axis):
+        return np.sum(arr ** 2, axis=axis)
+
     error = original_df - transformed_df @ components
-    return 1 - np.linalg.norm(error, ord=2) / np.linalg.norm(original_df, ord=2)
+    return 1 - norm_square(error, axis) / norm_square(original_df, axis=axis)
 
 
 def find_synergies(

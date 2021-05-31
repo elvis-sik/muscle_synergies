@@ -10,12 +10,16 @@ will benefit from using those directly. Hopefully in those cases the
 functions present here can be an useful starting point.
 """
 
-from collections import defaultdict
+from collections import OrderedDict
+from dataclasses import dataclass
 import functools
+from typing import Tuple, Sequence, Union, Optional, Mapping
+
 import matplotlib.pyplot as plt
 
 plt.style.use("bmh")
 import numpy as np
+from numpy.typing import ArrayLike
 import pandas
 from scipy.fftpack import fft, fftfreq
 import scipy.signal as signal
@@ -23,30 +27,72 @@ import seaborn as sns
 from sklearn.decomposition import NMF
 
 
-def plot_emg_signal(
-    emg_df,
+def plot_signal(
+    signal_df: pandas.DataFrame,
+    *,
+    title="Raw EMG signal",
+    xlabel="time (s)",
+    ylabel="Volts",
+    columns=None,
+    plot_dims=None,
+    xticks_off=False,
+    figsize=(18, 10),
+    suptitle_fontsize=20,
+) -> Tuple[plt.Figure, plt.Axes]:
+    """Plot a signal."""
+    if isinstance(columns, str):
+        pass
+    if columns is None:
+        columns = signal_df.columns
+    if len(columns) > 1:
+        return plot_columns(
+            signal_df[columns],
+            title=title,
+            plot_dims=plot_dims,
+            xlabel=xlabel,
+            ylabel=ylabel,
+            xticks_off=xticks_off,
+            figsize=figsize,
+            suptitle_fontsize=suptitle_fontsize,
+        )
+
+
+def plot_columns(
+    signal_df,
+    *,
     title,
-    plot_dims=(2, 4),
+    plot_dims,
     xlabel="time (s)",
     ylabel="Volts",
     xticks_off=False,
     figsize=(18, 10),
+    suptitle_fontsize=20,
 ):
     """Plot EMG DataFrame with 8 columns."""
-    assert len(emg_df.columns) == np.prod(plot_dims)
+    assert len(signal_df.columns) == np.prod(plot_dims)
     fig, axs = plt.subplots(plot_dims[0], plot_dims[1], figsize=figsize)
     if len(axs.shape) == 1:
         axs = np.expand_dims(axs, axis=1)
-    for (ax, col) in zip(axs.flat, emg_df.columns):
-        emg_df[col].plot(ax=ax)
+    for (ax, col) in zip(axs.flat, signal_df.columns):
+        signal_df[col].plot(ax=ax)
         ax.set_title(col)
         if xticks_off:
             ax.set_xticks([], [])
         ax.set(xlabel=xlabel)
-    fig.suptitle(title, fontsize=20)
+    fig.suptitle(title, fontsize=suptitle_fontsize)
     axs[0, 0].set_ylabel(ylabel)
     axs[1, 0].set_ylabel(ylabel)
     plt.show()
+
+
+def synergy_heatmap(components, columns):
+    """Plot synergy heatmap."""
+    num_synergies = components.shape[0]
+    synergy_names = [f"synergy {i}" for i in range(1, num_synergies + 1)]
+    synergies = pandas.DataFrame(components, index=synergy_names, columns=columns)
+    sns.heatmap(synergies, annot=True, fmt=".2f")
+    plt.title("Heatmap of muscle synergies")
+    return plt.gca()
 
 
 def fft_spectrum(
@@ -81,7 +127,7 @@ def fft_spectrum(
     return pandas.DataFrame(fft_ampls_arr, index=fft_freqs, columns=signal_df.columns)
 
 
-def plot_spectrum(
+def plot_fft(
     signal_df,
     sampling_frequency,
     plot_dims=(2, 4),
@@ -91,7 +137,7 @@ def plot_spectrum(
     figsize=(18, 10),
 ):
     """Plot spectrum of signal"""
-    spectrum_df = positive_spectrum(signal_df, sampling_frequency)
+    spectrum_df = fft_spectrum(signal_df, sampling_frequency)
     plot_emg_signal(
         spectrum_df,
         plot_dims=plot_dims,
@@ -286,19 +332,12 @@ def rms(
     return signal_df
 
 
-def nnmf(matrix_df, num_components, *, max_iter=100_000, tol=1e-6):
-    """Factor matrix into non-negative factors."""
-    model = NMF(max_iter=100000, tol=1e-6, n_components=num_components)
-    transformed_emg_signal = model.fit_transform(matrix_df)
-    return transformed_emg_signal, model.components_, model.n_iter_
-
-
 def vaf(
     original_df: pandas.DataFrame,
-    transformed_df: pandas.DataFrame,
-    components: pandas.DataFrame,
-    axis=None,
-) -> Union[float, np.ndarray]:
+    transformed_signal: Optional[ArrayLike] = None,
+    components: Optional[ArrayLike] = None,
+    reconstructed_signal: Optional[ArrayLike] = None,
+) -> pandas.DataFrame:
     """Calculate VAF between reconstructed and original signal.
 
     The VAF ("variance accounted for") is given by:
@@ -311,65 +350,274 @@ def vaf(
     `transformed_df @ components`.
 
     Args:
-        original_df: a :py:class:`~pandas.DataFrame` of shape
-            `(num_measurements, num_muscles)`. This is the original version of
+        original_df: an array of shape `(num_measurements, num_muscles)`.  Must
+            be a :py:class:`~pandas.DataFrame` because that's where the column
+            labels for the output come form. This is the original version of
             the signal (the already processed EMG signal) which was used to
             find the synergies.
 
-        transformed_df: a :py:class:`~pandas.DataFrame` of shape
-            `(num_measurements, num_synergies)`. This is the version of
-            the signal expressed in terms of the synergy components.
+        transformed_signal: an array of shape `(num_measurements,
+            num_synergies)`. This is the version of the signal expressed in
+            terms of the synergy components. If provided, then `components`
+            should also be and `reconstructed_signal` must not be present.
 
-        components: a :py:class:`~pandas.DataFrame` of shape
-            `(num_synergies, num_muscles)`. These are the synergy components.
+        components: a :py:class:`~pandas.DataFrame` of shape `(num_synergies,
+            num_muscles)`. These are the synergy components. If provided, then
+            `transformed_signal` should also be and `reconstructed_signal` must
+            not be present.
 
-        axis: the axis along which to compute the VAF. This works as in NumPy.
-            If it is `None`, the VAF will be computed for all signals (muscles)
-            at once. If it equals `1`, each
+        reconstructed_signal: the reconstructed signal :math:`x_r`. If
+            provided, then none of `transformed_signal` and `components` should
+            be present.
+
+    Returns:
+        a :py:class:`~pandas.DataFrame` with shape `(1, 1 + num_muscles)`. The
+        first column contains the VAF with respect to the whole signal and the
+        other columns contain the VAF for individual columns (muscles).
     """
 
-    def norm_square(arr, axis):
+    def sum_of_squares(arr: ArrayLike, axis: Optional[int]) -> Union[float, np.ndarray]:
+        """Compute the sum of squares of an array."""
         return np.sum(arr ** 2, axis=axis)
 
-    error = original_df - transformed_df @ components
-    return 1 - norm_square(error, axis) / norm_square(original_df, axis=axis)
+    def vaf_along_axis(
+        original_signal: ArrayLike, error: ArrayLike, axis: Optional[int]
+    ) -> Union[float, np.ndarray]:
+        """Find the VAF along a given axis."""
+        return 1 - sum_of_squares(error, axis) / sum_of_squares(
+            original_signal, axis=axis
+        )
+
+    if reconstructed_signal is None:
+        reconstructed_signal = transformed_signal @ components
+    error = original_df - reconstructed_signal
+    vaf_all_signals = vaf_along_axis(original_df, error, axis=None)
+    vaf_per_column = vaf_along_axis(original_df, error, axis=1)
+    vaf_values = [vaf_all_signals] + list(vaf_per_column.reshape(-1))
+    column_labels = ["All signals"] + original_df.columns
+    return pandas.DataFrame(vaf_values, columns=column_labels)
+
+
+@dataclass
+class SynergyRunResult:
+    """The result of a synergy run.
+
+    :py:class:`SynergyRunResult` holds the result of matrix factorizations
+    performed to find muscle synergies. When finding muscle synergies, one of
+    the key parameters is the number of synergy components to look for. For
+    that reason, an user may want to factor the matrix using, say, both 2 and 3
+    synergy components and compare their VAFs to see how well they explain the
+    variance in the original signal. So this class can either hold the results
+    of a run with a single fixed number of synergy components, like 2, or the
+    results of one with several possible number of components.
+
+    Attributes:
+        vaf_values: the VAF for all muscles as well as for each individual one.
+            If several runs are made with different number of components in
+            each, then each row will correspond to a different number of
+            components. The number of components will be the index of the
+            :py:class:`~pandas.DataFrame`.
+
+        components: the synergy components, one per row. Each column correspond
+            to a different muscle. If several runs are made each with a
+            different number of components, then this will be a `dict` mapping
+            from the `int` number of components to its corresponding
+            :py:class:`~pandas.DataFrame`.
+
+        model: the :py:class:`sklearn.decomposition.NMF` used to decompose the
+            matrix. If several runs are made each with a different number of
+            components, then this will be a `dict` mapping from the `int`
+            number of components to its corresponding
+            :py:class:`~pandas.DataFrame`.
+    """
+
+    vaf_values: pandas.DataFrame
+    components: Union[pandas.DataFrame, Mapping[int, pandas.DataFrame]]
+    model: Union[NMF, Mapping[int, NMF]]
 
 
 def find_synergies(
-    processed_emg_df, min_components=2, max_components=None, max_iter=100_000, tol=1e-6
-):
-    """Find synergy components in processed EMG signal."""
-    num_features = len(processed_emg_df.columns)
+    processed_emg_df: pandas.DataFrame,
+    n_components: int,
+    max_components: Optional[int] = None,
+    *,
+    max_iter: int = 100_000,
+    tol: float = 1e-6,
+    **sklearn_kwargs,
+) -> SynergyRunResult:
+    """Find spatial synergy components in processed EMG signal.
 
-    assert num_features > 0
-    if max_components is None:
-        max_components = num_features
-    assert max_components >= 1 and max_components <= num_features
-    assert min_components <= max_components and min_components >= 1
+    Find synergy components that explain well the variance in the processed EMG
+    signal (given by `processed_emg_df`). The method used is non-negative
+    matrix factorization (specifically the implementation in
+    :py:class:`sklearn.decomposition.NMF`). This method factorizes a
+    non-negative matrix into non-negative factors. So the `processed_emg_df`
+    argument may contain no negative entries. The non-negative factors are
+    found through optimization and there is no guarantee that 2 different runs
+    will yield the same synergy components unless the random seed is specified
+    (though this doesn't seem to be a problem in practice).
 
-    vaf_df = defaultdict(list)
-    components_dict = {}
+    The implementation here follows the notation in
+    :py:class:`sklearn.decomposition.NMF`, which differs from the one used in
+    many papers (but not all) which use this method to find muscle synergies.
+    :py:func:`find_synergies` expects one muscle per column. In particular:
+    + the `processed_emg_signal` has shape `(num_measurements, num_muscles)`.
+    + the `transformed_signal` has shape `(num_measurements, num_components)`.
+    + the `synergy_components` have shape `(num_components, num_muscles)`.
 
-    for num_components in range(min_components, max_components + 1):
-        transformed_df, components, n_iter = nnmf(
-            processed_emg_df, num_components, max_iter=max_iter, tol=tol
+    The original `processed_emg_signal` is approximated by the
+    `reconstructed_signal`, which is obtained by the matrix product
+    `transformed_signal @ synergy_components`. The synergy components are the
+    rows of `synergy_components`.
+
+    This function supports 2 use cases:
+    + looking for a specific number of synergy components. In this case,
+      `n_components` should contain that number and `max_components` should be
+      `None`.
+    + Looking for a range of synergy components. This may be useful when
+      looking for the minimum number required to achieve a desired VAF. In this
+      case, `n_components` should be the minimum number of components and
+      `max_components` should be the maximum number.
+
+    The other arguments to this function are passed along to
+    :py:class:`sklearn.decomposition.NMF` as keyword arguments, including
+    `max_iter` and `tol`. Except for those 2, the user should look refer
+    directly to the documentation for :py:class:`sklearn.decomposition.NMF` to
+    understand what arguments are available and what they do.  One
+    :py:class:`sklearn.decomposition.NMF` is created for each solution. That
+    is, there will be 1 if `max_components is None` and more otherwise.  Each
+    of these :py:class:`~sklearn.decomposition.NMF` instances is returned to
+    the user and can be inspected to investigate the convergence of the fit.
+    The VAFs and the synergy components are also returned.
+
+    Args:
+        processed_emg_df: a `(num_measurements, num_muscles)` array with the
+            signal from which to determine the synergy components.
+
+        n_components: if `max_components` is provided, the minimum number of
+            components to be solved for. Otherwise, the number of components to
+            be solved for.
+
+        max_components: if not `None`, the maximum number of components to be
+            solved for. If this is `None`, a single solution containing exactly
+            `n_components` will be searched.
+
+        max_iter: the maximum number of iterations to be used in the
+            optimization process.
+
+        tol: the tolerance of the stopping condition of the optimization
+            process. With the default :py:class:`sklearn.decomposition.NMF`
+            settings, the objective function is :math:`\frac{1}{2} \| x - x_r
+            \|^2`. The norm is the Frobenius norm, :math:`x` is the original
+            signal (`processed_emg_signal`) and :math:`x_r` is the
+            reconstructed signal.
+
+        sklearn_kwargs: keyword arguments passed along to each created instance
+            of :py:class:`sklearn.decomposition.NMF`.
+
+    Raises:
+        ValueError if the number of synergies fall outside their given range.
+        `num_features >= max_components >= n_components >= 1`.  If
+        `max_components is None`, then the requirement simplifies to
+        `num_features >= n_components >= 1`. `num_features` in these equations
+        is simply the number of muscles, determined as the number of columns of
+        `processed_emg_df`.
+
+    Returns:
+        a :py:class:`SynergyRunResult`. In case `max_components` was not
+        provided, its `model` member will hold the
+        :py:class:`~sklearn.decomposition.NMF` model and its `components`
+        member will contain a :py:class:`~pandas.DataFrame` with one synergy
+        component per row. Its column labels will be the same as the ones of
+        `processed_emg_df`.
+
+        In case `max_components` is provided, both members will instead be
+        `dicts` mapping from the number of components to the different
+        :py:class:`~sklearn.decomposition.NMF` models and
+        :py:class:`~pandas.DataFrame`s with synergy components.
+
+        The `vaf_values` member will contain a :py:class:`~pandas.DataFrame` in
+        both cases and the number of rows will correspond to the number of
+        synergy runs. For example, if `n_components == 2` and `max_components`
+        was not provided, it will have a single row. If `max_components == 3`,
+        it will have 2 rows, the first one containing the VAFs of the
+        decomposition with 2 synergy components and the second one the ones for
+        3 components. The columns of this :py:class:`~pandas.DataFrame` are the
+        ones returned by :py:func:`vaf`.
+    """
+
+    def validate_num_components(
+        processed_emg_df: pandas.DataFrame,
+        n_components: int,
+        max_components: Optional[int],
+    ):
+        """Validate the number of synergy components."""
+        if processed_emg_df.empty:
+            raise ValueError("empty EMG DataFrame")
+
+        num_features = len(processed_emg_df.columns)
+
+        error_msg = "invalid number of components"
+        if n_components < 1 or n_components > num_features:
+            raise ValueError(error_msg)
+
+        if max_components is not None:
+            if max_components < n_components or max_components > num_features:
+                raise ValueError(error_msg)
+
+    def nnmf(
+        matrix: ArrayLike,
+        n_components: int,
+        **sklearn_kwargs,
+    ) -> Tuple[np.ndarray, NMF]:
+        """Factorize non-negative matrix into non-negative factors.
+
+        Returns:
+             a tuple `(reconstructed_signal, model)` with the version of the
+             original signal at each instant expressed as a linear combination
+             of the synergy components and the
+             :py:class:`sklearn.decomposition.NMF` model used to look for the
+             components.
+        """
+        model = NMF(n_components=n_components, **sklearn_kwargs)
+        reconstructed_signal = model.fit_transform(matrix)
+        return reconstructed_signal, model
+
+    def single_synergy_run(
+        processed_emg_df: pandas.DataFrame, n_components: int, **sklearn_kwargs
+    ) -> SynergyRunResult:
+        """Find synergies and determine their VAF."""
+        reconstructed_signal, model = nnmf(
+            processed_emg_df, n_components, **sklearn_kwargs
         )
-        synergies_vaf = vaf(processed_emg_df, transformed_df, components)
-        vaf_df["num_components"].append(num_components)
-        vaf_df["vaf"].append(synergies_vaf)
-        vaf_df["n_iter"].append(n_iter)
-        components_dict[num_components] = components
+        vaf_values = vaf(processed_emg_df, reconstructed_signal=reconstructed_signal)
+        comps = pandas.DataFrame(
+            model.components_, columns=processed_emg_df.columns, index=[n_components]
+        )
+        return SynergyRunResult(vaf_values, comps, model)
 
-    vaf_df = pandas.DataFrame(vaf_df)
-    vaf_df = vaf_df.set_index("num_components")
-    return vaf_df, components_dict
+    def merge_run_results(
+        run_results: Mapping[int, SynergyRunResult]
+    ) -> SynergyRunResult:
+        """Merge different SynergyRunResult objects into a single one."""
+        vaf_values = pandas.concat([res.vaf_values for res in run_results.values()])
+        vaf_values.set_index(run_results.keys())
+        comps = {n_comp: res.components for (n_comp, res) in run_results.items()}
+        models = {n_comp: res.model for (n_comp, res) in run_results.items()}
+        return SynergyRunResult(vaf_values, comps, models)
 
+    validate_num_components(processed_emg_df, n_components, max_components)
 
-def synergy_heatmap(components, columns):
-    """Plot synergy heatmap."""
-    num_synergies = components.shape[0]
-    synergy_names = [f"synergy {i}" for i in range(1, num_synergies + 1)]
-    synergies = pandas.DataFrame(components, index=synergy_names, columns=columns)
-    sns.heatmap(synergies, annot=True, fmt=".2f")
-    plt.title("Heatmap of muscle synergies")
-    return plt.gca()
+    if max_components is None:
+        return single_synergy_run(
+            processed_emg_df, n_components, max_iter=max_iter, tol=tol, **sklearn_kwargs
+        )
+
+    run_results = OrderedDict()
+
+    for n in range(n_components, max_components + 1):
+        run_results[n] = single_synergy_run(
+            processed_emg_df, n, max_iter=max_iter, tol=tol, **sklearn_kwargs
+        )
+
+    return merge_run_results(run_results)

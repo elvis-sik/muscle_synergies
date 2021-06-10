@@ -13,18 +13,20 @@ functions present here can be an useful starting point.
 from collections import OrderedDict
 from dataclasses import dataclass
 import functools
-from typing import Tuple, Sequence, Union, Optional, Mapping
+from typing import Tuple, Sequence, Union, Optional, Mapping, Any
 
 import matplotlib.pyplot as plt
 
 plt.style.use("bmh")
 import numpy as np
-from numpy.typing import ArrayLike
 import pandas
 from scipy.fftpack import fft, fftfreq
 import scipy.signal as signal
 import seaborn as sns
 from sklearn.decomposition import NMF
+
+_NUMPY_ARRAY_LIKE = Any
+"""An object that can be cast to a NumPy array of a numeric type."""
 
 
 def plot_signal(
@@ -334,9 +336,9 @@ def rms(
 
 def vaf(
     original_df: pandas.DataFrame,
-    transformed_signal: Optional[ArrayLike] = None,
-    components: Optional[ArrayLike] = None,
-    reconstructed_signal: Optional[ArrayLike] = None,
+    transformed_signal: Optional[_NUMPY_ARRAY_LIKE] = None,
+    components: Optional[_NUMPY_ARRAY_LIKE] = None,
+    reconstructed_signal: Optional[_NUMPY_ARRAY_LIKE] = None,
 ) -> pandas.DataFrame:
     """Calculate VAF between reconstructed and original signal.
 
@@ -376,12 +378,14 @@ def vaf(
         other columns contain the VAF for individual columns (muscles).
     """
 
-    def sum_of_squares(arr: ArrayLike, axis: Optional[int]) -> Union[float, np.ndarray]:
+    def sum_of_squares(
+        arr: _NUMPY_ARRAY_LIKE, axis: Optional[int]
+    ) -> Union[float, np.ndarray]:
         """Compute the sum of squares of an array."""
         return np.sum(arr ** 2, axis=axis)
 
     def vaf_along_axis(
-        original_signal: ArrayLike, error: ArrayLike, axis: Optional[int]
+        original_signal: _NUMPY_ARRAY_LIKE, error: _NUMPY_ARRAY_LIKE, axis: Optional[int]
     ) -> Union[float, np.ndarray]:
         """Find the VAF along a given axis."""
         return 1 - sum_of_squares(error, axis) / sum_of_squares(
@@ -566,7 +570,7 @@ def find_synergies(
                 raise ValueError(error_msg)
 
     def nnmf(
-        matrix: ArrayLike,
+        matrix: _NUMPY_ARRAY_LIKE,
         n_components: int,
         **sklearn_kwargs,
     ) -> Tuple[np.ndarray, NMF]:

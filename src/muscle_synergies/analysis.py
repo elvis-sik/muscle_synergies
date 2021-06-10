@@ -151,6 +151,31 @@ def plot_fft(
     )
 
 
+def _recreate_signal(
+    signal_df: pandas.DataFrame, inplace: bool = False, with_array: Optional[_NUMPY_ARRAY_LIKE] = None
+) -> pandas.DataFrame:
+    """Create new DataFrame if needed.
+
+    This is mainly a helper for other functions that want to support both
+    in-place and pure transformations.
+
+    Args:
+        signal_df: a :py:class:`~pandas.DataFrame` with a different
+            discrete-time signal in each of its columns.
+
+        inplace: if `True`, the original
+            :py:class:`~pandas.DataFrame` will be returned. If
+            `False`, a new one will be.
+
+        with_array: if provided, should be an array-like object that will be
+            used to replace the data of `signal_df` or of its copy (depending on
+            the value of `inplace`).
+    """
+    if inplace is False:
+        signal_df = pandas.DataFrame(signal_df, copy=True)
+    if with_array is not None:
+        signal_df[:] = with_array
+    return signal_df
 def digital_filter(
     signal_df: pandas.DataFrame,
     critical_freqs: Union[float, Sequence[float]],
@@ -160,6 +185,7 @@ def digital_filter(
     band_type: str = "lowpass",
     zero_lag: bool = True,
     cheby_param: Optional[float] = None,
+    inplace: bool = False,
 ) -> pandas.DataFrame:
     """Apply digital filter to signal.
 

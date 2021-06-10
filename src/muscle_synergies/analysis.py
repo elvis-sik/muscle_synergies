@@ -195,6 +195,69 @@ def zero_center(signal_df: pandas.DataFrame, inplace: bool = False) -> pandas.Da
             `False`, the transformation will be applied to a copy of the data.
     """
     return _recreate_signal(signal_df, inplace) - signal_df.mean()
+
+
+def linear_envelope(
+    signal_df: pandas.DataFrame,
+    critical_freqs: Union[float, Sequence[float]],
+    sampling_frequency: int,
+    order: int,
+    filter_type: str = "butter",
+    zero_lag: bool = True,
+    cheby_param: Optional[float] = None,
+    zero_center_: bool = True,
+    inplace: bool = False,
+) -> pandas.DataFrame:
+    """Find the linear envelope of a signal.
+
+    This function finds the linear envelope of the raw EMG signal by:
+    1. (optionally) zero-centering each signal.
+    2. Taking the `abs` of each value (full-wave rectification).
+    3. Low-pass filtering the signal.
+
+    Args:
+        signal_df: a :py:class:`~pandas.DataFrame` with a different
+            discrete-time signal in each of its columns.
+
+        critical_freqs: passed along to :py:func:`digital_filter`.
+
+        sampling_frequency: passed along to :py:func:`digital_filter`.
+
+        order: passed along to :py:func:`digital_filter`.
+
+        filter_type: passed along to :py:func:`digital_filter`.
+
+        zero_lag: passed along to :py:func:`digital_filter`.
+
+        cheby_param: passed along to :py:func:`digital_filter`.
+
+        zero_center_: if `True`, zero-center the data before taking its
+            absolute value.
+
+        inplace: if `True`, the data in the original
+            :py:class:`~pandas.DataFrame` will be modified directly. If
+            `False`, the transformations will be applied to a copy of the data.
+    """
+    if zero_center_:
+        signal_df = zero_center(signal_df, inplace=inplace)
+    if inplace:
+        signal_df[:] = signal_df.abs()
+    else:
+        signal_df = signal_df.abs()
+
+    return digital_filter(
+        signal_df=signal_df,
+        critical_freqs=critical_freqs,
+        sampling_frequency=sampling_frequency,
+        order=order,
+        filter_type=filter_type,
+        band_type="lowpass",
+        zero_lag=zero_lag,
+        cheby_param=cheby_param,
+        inplace=inplace,
+    )
+
+
 def digital_filter(
     signal_df: pandas.DataFrame,
     critical_freqs: Union[float, Sequence[float]],

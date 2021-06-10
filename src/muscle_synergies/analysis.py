@@ -176,6 +176,25 @@ def _recreate_signal(
     if with_array is not None:
         signal_df[:] = with_array
     return signal_df
+
+
+def zero_center(signal_df: pandas.DataFrame, inplace: bool = False) -> pandas.DataFrame:
+    """Subtract the mean of each column from it.
+
+    This is used to make the mean the signal corresponding to each muscle
+    exactly 0. The EMG signal in theory has 0 mean but in practice the
+    different muscles will commonly have different non-zero but very small
+    means.
+
+    Args:
+        signal_df: a :py:class:`~pandas.DataFrame` with a different
+            discrete-time signal in each of its columns.
+
+        inplace: if `True`, the data in the original
+            :py:class:`~pandas.DataFrame` will be modified directly. If
+            `False`, the transformation will be applied to a copy of the data.
+    """
+    return _recreate_signal(signal_df, inplace) - signal_df.mean()
 def digital_filter(
     signal_df: pandas.DataFrame,
     critical_freqs: Union[float, Sequence[float]],

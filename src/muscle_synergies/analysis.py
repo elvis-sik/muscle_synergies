@@ -22,6 +22,7 @@ import numpy as np
 import pandas
 from scipy.fftpack import fft, fftfreq
 import scipy.signal as signal
+import scipy.interpolate as interpolate
 import seaborn as sns
 from sklearn.decomposition import NMF
 
@@ -476,6 +477,47 @@ def subsample(
         :py:func:`time_normalize`
     """
     return signal_df.iloc[0:keep_every:, ...]
+
+
+def time_normalize(
+    signal_df: pandas.DataFrame,
+    reduce_to: int,
+    kind: Optional[Union[int, str]] = "linear",
+    fill_value="extrapolate",
+) -> pandas.DataFrame:
+    """Express signal in terms of normalized time.
+
+    Args:
+        signal_df: a :py:class:`~pandas.DataFrame` with a different
+            discrete-time signal in each of its columns.
+
+        reduce_to: the desired number of rows in the output signal.
+
+        kind: determines the kind of interpolation to be performed. Passed
+            directly to :py:func:`scipy.interpolate.interp1d`.
+
+        fill_value: determines how values outside of the signal should be
+            handled. This would only be relevant in case `reduce_to` is bigger
+            than the number of rows of `signal_df`. Passed directly to
+            :py:func:`scipy.interpolate.interp1d`.
+
+    Returns:
+        a new :py:class:`~pandas.DataFrame` with the time-normalized data. Its
+        column labels are the same as the original one, its index is a linear
+        range from 0 to 1 with `reduce_to` values.
+
+    See also:
+        :py:func:`subsample`
+    """
+    signal_len = signal_df.shape[0]
+    percent_domain = np.linspace(0, 1, signal_len)
+    interp_func = interpolate.interp1d(
+        percent_domain, signal_df, copy=False, kind=kind, fill_value=fill_value
+    )
+    desired_domain = np.linspace(0, 1, reduce_to)
+    return pandas.DataFrame(
+        interp_func(signal_df), index=desired_domain, columns=signal_df.columns
+    )
 
 
 def vaf(

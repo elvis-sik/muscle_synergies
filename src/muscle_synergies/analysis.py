@@ -455,6 +455,27 @@ def normalize(signal_df: pandas.DataFrame, inplace: bool = False) -> pandas.Data
     return signal_df / abs(signal_df).max()
 
 
+def subsample(
+    signal_df: pandas.DataFrame,
+    keep_every: Optional[int] = None,
+) -> pandas.DataFrame:
+    """Reduce number of measurements by keeping only subset of measurements.
+
+    Args:
+        signal_df: a :py:class:`~pandas.DataFrame` with a different
+            discrete-time signal in each of its columns.
+
+        keep_every: every i-th frame is kept, where i is given by this
+            parameter.
+
+    Returns:
+        a new :py:class:`~pandas.DataFrame` containing only every `keep_every`
+        row.
+
+    See also:
+        :py:func:`time_normalize`
+    """
+    return signal_df.iloc[0:keep_every:, ...]
 
 
 def vaf(

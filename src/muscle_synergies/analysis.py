@@ -440,6 +440,21 @@ def rms(
     fixed_window_rms = functools.partial(single_channel_rms, window_size=window_size)
     signal_df[:] = np.apply_along_axis(fixed_window_rms, 0, signal_df)
     return signal_df
+def normalize(signal_df: pandas.DataFrame, inplace: bool = False) -> pandas.DataFrame:
+    """Divide each column by its max absolute value.
+
+    Args:
+        signal_df: a :py:class:`~pandas.DataFrame` with a different
+            discrete-time signal in each of its columns.
+
+        inplace: if `True`, the data in the original
+            :py:class:`~pandas.DataFrame` will be modified directly. If
+            `False`, the transformation will be applied to a copy of the data.
+    """
+    signal_df = _recreate_signal(signal_df, inplace)
+    return signal_df / abs(signal_df).max()
+
+
 
 
 def vaf(

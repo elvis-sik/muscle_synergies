@@ -307,10 +307,16 @@ def digital_filter(
             should be given in decibels as a positive number.  If `filter_type`
             is `"butter"` this argument is ignored.
 
+        inplace: if `True`, the data in the original
+            :py:class:`~pandas.DataFrame` will be modified directly. If
+            `False`, the transformation will be applied to a copy of the data.
+
     Returns:
         a new :py:class:`~pandas.DataFrame` holding the result of the filter
         application. This :py:class:`~pandas.DataFrame` will have the same
-        columns and index as the original one.
+        columns and index as the original one. If `inplace` is True, the
+        original :py:class:`~pandas.DataFrame` will be returned with its data
+        modified.
     """
 
     def filter_coeffs(
@@ -344,7 +350,7 @@ def digital_filter(
         )
 
     def apply_filter(
-        signal_df: pandas.DataFrame, coeffs: np.ndarray, zero_lag: bool
+        signal_df: pandas.DataFrame, coeffs: np.ndarray, zero_lag: bool, inplace: bool
     ) -> pandas.DataFrame:
         """Apply digital filter to signal."""
         if zero_lag:
@@ -354,9 +360,7 @@ def digital_filter(
 
         signal_arr = signal_df.to_numpy()
         filtered_arr = filt_func(coeffs, signal_arr, axis=0)
-        return pandas.DataFrame(
-            filtered_arr, columns=signal_df.columns, index=signal_df.index
-        )
+        return _recreate_signal(signal_df, inplace, filtered_arr)
 
     if filter_type not in {"butter", "cheby1", "cheby2"}:
         raise ValueError("filter type not understood.")
@@ -370,7 +374,7 @@ def digital_filter(
         cheby_param,
     )
 
-    return apply_filter(signal_df, coeffs, zero_lag)
+    return apply_filter(signal_df, coeffs, zero_lag, inplace)
 
 
 def rms(
@@ -402,7 +406,7 @@ def rms(
 
         inplace: if `True`, the data in the original
             :py:class:`~pandas.DataFrame` will be modified directly. If
-            `False`, the RMS will be applied to a copy of the data.
+            `False`, a new array will be returned.
 
         sampling_frequency: the sampling rate with which measurements were
             made.
@@ -437,10 +441,11 @@ def rms(
         return window_size
 
     window_size = window_size_in_num_entries(window_size, sampling_frequency)
-    signal_df = pandas.DataFrame(signal_df, copy=not inplace)
     fixed_window_rms = functools.partial(single_channel_rms, window_size=window_size)
-    signal_df[:] = np.apply_along_axis(fixed_window_rms, 0, signal_df)
-    return signal_df
+    rms_arr = np.apply_along_axis(fixed_window_rms, 0, signal_df)
+    return _recreate_signal(signal_df, inplace, rms_arr)
+
+
 def normalize(signal_df: pandas.DataFrame, inplace: bool = False) -> pandas.DataFrame:
     """Divide each column by its max absolute value.
 

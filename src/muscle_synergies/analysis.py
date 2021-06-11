@@ -153,7 +153,9 @@ def plot_fft(
 
 
 def _recreate_signal(
-    signal_df: pandas.DataFrame, inplace: bool = False, with_array: Optional[_NUMPY_ARRAY_LIKE] = None
+    signal_df: pandas.DataFrame,
+    inplace: bool = False,
+    with_array: Optional[_NUMPY_ARRAY_LIKE] = None,
 ) -> pandas.DataFrame:
     """Create new DataFrame if needed.
 
@@ -576,7 +578,9 @@ def vaf(
         return np.sum(arr ** 2, axis=axis)
 
     def vaf_along_axis(
-        original_signal: _NUMPY_ARRAY_LIKE, error: _NUMPY_ARRAY_LIKE, axis: Optional[int]
+        original_signal: _NUMPY_ARRAY_LIKE,
+        error: _NUMPY_ARRAY_LIKE,
+        axis: Optional[int],
     ) -> Union[float, np.ndarray]:
         """Find the VAF along a given axis."""
         return 1 - sum_of_squares(error, axis) / sum_of_squares(

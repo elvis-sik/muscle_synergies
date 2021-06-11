@@ -98,7 +98,9 @@ def plot_signal(
 
 
 def synergy_heatmap(
-    components: pandas.DataFrame, columns=None, synergy_names: Sequence[str] = None
+    components: pandas.DataFrame,
+    columns=None,
+    synergy_names: Sequence[str] = None,
 ) -> Tuple[plt.Figure, plt.Axes]:
     """Plot synergy heatmap.
 
@@ -120,7 +122,11 @@ def synergy_heatmap(
     num_synergies = components.shape[0]
     if synergy_names is None:
         synergy_names = [f"synergy {i}" for i in range(1, num_synergies + 1)]
-    synergies = pandas.DataFrame(components, index=synergy_names, columns=columns)
+    synergies = pandas.DataFrame(
+        components,
+        index=synergy_names,
+        columns=columns,
+    )
     sns.heatmap(synergies, annot=True, fmt=".2f", ax=ax)
     plt.title("Heatmap of muscle synergies")
     return fig, ax
@@ -129,7 +135,7 @@ def synergy_heatmap(
 def plot_fft(
     signal_df,
     sampling_frequency,
-    **kwargs
+    **kwargs,
 ) -> Tuple[plt.Figure, plt.Axes]:
     """Plot spectrum of signal.
 
@@ -143,10 +149,8 @@ def plot_fft(
         kwargs: passed along to :py:func:`plot_signal`.
     """
     spectrum_df = fft_spectrum(signal_df, sampling_frequency)
-    return plot_signal(
-        spectrum_df,
-        **kwargs
-    )
+    return plot_signal(spectrum_df, **kwargs)
+
 
 def fft_spectrum(
     signal_df: pandas.DataFrame, sampling_frequency: int
@@ -177,9 +181,10 @@ def fft_spectrum(
     fft_freqs = fft_freqs[positive_freq_ind]
     fft_arr = fft(signal_df, axis=0)
     fft_ampls_arr = np.abs(fft_arr[positive_freq_ind])
-    return pandas.DataFrame(fft_ampls_arr, index=fft_freqs, columns=signal_df.columns)
-
-
+    return pandas.DataFrame(
+        fft_ampls_arr,
+        index=fft_freqs,
+        columns=signal_df.columns,
     )
 
 
@@ -212,7 +217,10 @@ def _recreate_signal(
     return signal_df
 
 
-def zero_center(signal_df: pandas.DataFrame, inplace: bool = False) -> pandas.DataFrame:
+def zero_center(
+    signal_df: pandas.DataFrame,
+    inplace: bool = False,
+) -> pandas.DataFrame:
     """Subtract the mean of each column from it.
 
     This is used to make the mean the signal corresponding to each muscle
@@ -383,7 +391,10 @@ def digital_filter(
         )
 
     def apply_filter(
-        signal_df: pandas.DataFrame, coeffs: np.ndarray, zero_lag: bool, inplace: bool
+        signal_df: pandas.DataFrame,
+        coeffs: np.ndarray,
+        zero_lag: bool,
+        inplace: bool,
     ) -> pandas.DataFrame:
         """Apply digital filter to signal."""
         if zero_lag:
@@ -449,7 +460,10 @@ def rms(
         original one containing its RMS.
     """
 
-    def single_channel_rms(signal_arr: np.ndarray, window_size: int) -> np.ndarray:
+    def single_channel_rms(
+        signal_arr: np.ndarray,
+        window_size: int,
+    ) -> np.ndarray:
         """Find the RMS of a 1D digital signal.
 
         Args:
@@ -474,12 +488,18 @@ def rms(
         return window_size
 
     window_size = window_size_in_num_entries(window_size, sampling_frequency)
-    fixed_window_rms = functools.partial(single_channel_rms, window_size=window_size)
+    fixed_window_rms = functools.partial(
+        single_channel_rms,
+        window_size=window_size,
+    )
     rms_arr = np.apply_along_axis(fixed_window_rms, 0, signal_df)
     return _recreate_signal(signal_df, inplace, rms_arr)
 
 
-def normalize(signal_df: pandas.DataFrame, inplace: bool = False) -> pandas.DataFrame:
+def normalize(
+    signal_df: pandas.DataFrame,
+    inplace: bool = False,
+) -> pandas.DataFrame:
     """Divide each column by its max absolute value.
 
     Args:
@@ -820,9 +840,14 @@ def find_synergies(
         reconstructed_signal, model = nnmf(
             processed_emg_df, n_components, **sklearn_kwargs
         )
-        vaf_values = vaf(processed_emg_df, reconstructed_signal=reconstructed_signal)
+        vaf_values = vaf(
+            processed_emg_df,
+            reconstructed_signal=reconstructed_signal,
+        )
         comps = pandas.DataFrame(
-            model.components_, columns=processed_emg_df.columns, index=[n_components]
+            model.components_,
+            columns=processed_emg_df.columns,
+            index=[n_components],
         )
         return SynergyRunResult(vaf_values, comps, model)
 
@@ -830,7 +855,9 @@ def find_synergies(
         run_results: Mapping[int, SynergyRunResult]
     ) -> SynergyRunResult:
         """Merge different SynergyRunResult objects into a single one."""
-        vaf_values = pandas.concat([res.vaf_values for res in run_results.values()])
+        vaf_values = pandas.concat(
+            [res.vaf_values for res in run_results.values()],
+        )
         vaf_values.set_index(run_results.keys())
         comps = {n_comp: res.components for (n_comp, res) in run_results.items()}
         models = {n_comp: res.model for (n_comp, res) in run_results.items()}
@@ -840,7 +867,11 @@ def find_synergies(
 
     if max_components is None:
         return single_synergy_run(
-            processed_emg_df, n_components, max_iter=max_iter, tol=tol, **sklearn_kwargs
+            processed_emg_df,
+            n_components,
+            max_iter=max_iter,
+            tol=tol,
+            **sklearn_kwargs,
         )
 
     run_results = OrderedDict()

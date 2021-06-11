@@ -10,20 +10,20 @@ will benefit from using those directly. Hopefully in those cases the
 functions present here can be an useful starting point.
 """
 
+import functools
 from collections import OrderedDict
 from dataclasses import dataclass
-import functools
-from typing import Tuple, Sequence, Union, Optional, Mapping, Any
+from typing import Any, Mapping, Optional, Sequence, Tuple, Union
 
 import matplotlib.pyplot as plt
 
 plt.style.use("bmh")
 import numpy as np
 import pandas
-from scipy.fftpack import fft, fftfreq
-import scipy.signal as signal
 import scipy.interpolate as interpolate
+import scipy.signal as signal
 import seaborn as sns
+from scipy.fftpack import fft, fftfreq
 from sklearn.decomposition import NMF
 
 _NUMPY_ARRAY_LIKE = Any

@@ -59,7 +59,7 @@ def create_reader(initial_state=None, aggregator=None) -> Reader:
     if initial_state is None:
         initial_state = _initialize_reader_section_type_state()
     if aggregator is None:
-        aggregator = (_initialize_aggregator())
+        aggregator = _initialize_aggregator()
     return Reader(section_type_state=initial_state, aggregator=aggregator)
 
 
@@ -80,6 +80,7 @@ def create_builder(aggregator=None) -> Builder:
 @dataclass
 class _LoadingRun:
     """The objects used to load the Vicon Nexus CSV file."""
+
     reader: Reader
     builder: Builder
 

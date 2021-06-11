@@ -686,6 +686,7 @@ class ForcesEMGDevicesState(_DevicesState):
             :py:class:`ForcePlateGrouper`, which will be used to unify the
             different headers referring to the same force plate.
     """
+
     grouper: ForcePlateGrouper
 
     def __init__(
@@ -768,6 +769,7 @@ class CoordinatesState(_AggregateDataMixin, _ReaderState):
     the docs for
     :py:class:`~muscle_synergies.vicon_data.definitions.ViconCSVLines`.
     """
+
     @property
     def line(self) -> ViconCSVLines:
         return ViconCSVLines.COORDINATES_LINE
@@ -807,6 +809,7 @@ class UnitsState(_FixedNumColsMixin, _AggregateDataMixin, _ReaderState):
     Args:
         num_cols: see :py:attr:`_AggregateDataMixin.num_cols`.
     """
+
     @property
     def line(self) -> ViconCSVLines:
         return ViconCSVLines.UNITS_LINE
@@ -869,6 +872,7 @@ class GettingMeasurementsState(_ReaderState):
             :py:class:`BlankState`, which will be used to handle an empty line
             marking the end of a section in the CSV file.
     """
+
     @property
     def line(self) -> ViconCSVLines:
         return ViconCSVLines.DATA_LINE
@@ -912,6 +916,7 @@ class DataState(_FixedNumColsMixin, _AggregateDataMixin, _ReaderState):
     Args:
         num_cols: see :py:attr:`_AggregateDataMixin.num_cols`.
     """
+
     @property
     def line(self) -> ViconCSVLines:
         return ViconCSVLines.DATA_LINE
@@ -963,6 +968,7 @@ class BlankState(_UpdateStateMixin, _ReaderState):
     Args:
         num_cols: see :py:attr:`_AggregateDataMixin.num_cols`.
     """
+
     @property
     def line(self) -> ViconCSVLines:
         return ViconCSVLines.BLANK_LINE

@@ -145,6 +145,7 @@ class _SectionAggregator(abc.ABC):
 
         frequency: stores the sampling frequency in Hz after it is read.
     """
+
     frequency: Optional[int]
     devices: List[DeviceAggregator]
 

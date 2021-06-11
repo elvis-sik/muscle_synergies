@@ -97,6 +97,9 @@ class ViconNexusData:
 class Builder:
     """Build a ViconNexusData using the data stored in an Aggregator."""
 
+    def __init__(self, aggregator: Optional[Aggregator] = None):
+        self.aggregator = aggregator
+
     def build(self, aggregator: Optional[Aggregator] = None) -> ViconNexusData:
         """Build a ViconNexusData using the data stored in an Aggregator.
 
@@ -407,24 +410,18 @@ class TrajFrameTracker(_SectionFrameTracker):
 
 
 class DeviceData:
-    """Data associated with a measurement device.
-
-    Attributes:
-        name: the name of the device, as it occurs on the CSV file.
-
-        df: the data associated with the device.
-
-        units: physical units of each column in the
-            :py:class:`~pandas.DataFrame`.
-
-        dev_type: the type of the device (can be a force plate, trajectory
-            marker or EMG device).
-    """
+    """Data associated with a measurement device."""
 
     name: str
+    """the name of the device, as it occurs on the CSV file. """
     dev_type: DeviceType
+    """the data associated with the device."""
     units: List[str]
+    """physical units of each column in the :py:class:`~pandas.DataFrame`."""
     df: pd.DataFrame
+    """the type of the device (can be a force plate, trajectory marker or EMG
+    device).
+    """
 
     def __init__(
         self,

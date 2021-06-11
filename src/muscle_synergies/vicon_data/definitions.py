@@ -30,15 +30,15 @@ class SectionType(Enum):
     of the meaning of the different lines.
     """
 
-    FORCES_EMG = (
-        "refers to a section that begins with the single word "
-        + '"Devices" and contains measurements from force plates and an EMG '
-        + "device."
-    )
-    TRAJECTORIES = (
-        'refers to a section that begins with the single word "Trajectories" '
-        + "and contains kinemetric measurements of joint position."
-    )
+    FORCES_EMG = 1
+    """a section that begins with the single word `Devices` and
+    contains measurements from force plates and an EMG device.
+    """
+
+    TRAJECTORIES = 2
+    """a section that begins with the single word `Trajectories` and
+    contains kinemetric measurements of joint position.
+    """
 
 
 class ViconCSVLines(Enum):
@@ -47,37 +47,42 @@ class ViconCSVLines(Enum):
     The members refer to lines in the CSV file.
     """
 
-    SECTION_TYPE_LINE = (
-        'the first line in a section, which contains either the word "Devices" '
-        + '(for the section with force plate and EMG data) or "Trajectories" '
-        + "(for the section with kinematic data)."
-    )
-    SAMPLING_FREQUENCY_LINE = (
-        "the second line in a section, which contains a single integer "
-        + "representing the sampling frequency."
-    )
-    DEVICE_NAMES_LINE = (
-        "the third line in a section, which contains the "
-        + 'names of measuring devices (such as "Angelica:HV"). '
-        + "The exact strings occurring in this line are referred to as "
-        + '"device headers". A single force plate can be represented as '
-        + "several device headers."
-    )
+    SECTION_TYPE_LINE = 1
+    """the first line in a section, which contains either the word `Devices`
+    for the section with force plate and EMG data) or `Trajectories` for the
+    section with kinematic data.
+    """
 
-    COORDINATES_LINE = (
-        "the fourth line in a section, which contains headers "
-        + 'like "X", "Y" and "Z" referring to the different coordinates of '
-        + "vector-valued measurements made by different devices."
-    )
-    UNITS_LINE = (
-        "the fifth line in a section, which describes the physical"
-        + "units of different measurements."
-    )
-    DATA_LINE = (
-        "lines from the sixth one until a blank line or EOF is found. "
-        + "They represent measurements over time."
-    )
-    BLANK_LINE = "a blank line that occurs between sections."
+    SAMPLING_FREQUENCY_LINE = 2
+    """the second line in a section, which contains a single integer
+    representing the sampling frequency.
+    """
+
+    DEVICE_NAMES_LINE = 3
+    """the third line in a section, which contains the names of measuring
+    devices (such as `Angelica:HV`). The exact strings occurring in this line
+    are referred to as "device headers". A single force plate can be
+    represented as several device headers.
+    """
+
+    COORDINATES_LINE = 4
+    """the fourth line in a section, which contains headers like `X`, `Y` and
+    `Z` referring to the different coordinates of vector-valued measurements
+    made by different devices.
+    """
+
+    UNITS_LINE = 5
+    """the fifth line in a section, which describes the physical units of
+    different measurements.
+    """
+
+    DATA_LINE = 6
+    """lines from the sixth one until a blank line or EOF is found. They
+    represent measurements over time.
+    """
+
+    BLANK_LINE = 7
+    """a blank line that occurs between sections."""
 
 
 class DeviceType(Enum):
@@ -94,11 +99,17 @@ class DeviceType(Enum):
     + 9 columns per force plate (see :py:class:`ForcePlateMeasurement`).
     """
 
-    FORCE_PLATE = "a force plate."
-    EMG = "EMG measurement."
-    TRAJECTORY_MARKER = "a trajectory marker."
+    FORCE_PLATE = 1
+    """a force plate."""
+
+    EMG = 2
+    """EMG measurements."""
+
+    TRAJECTORY_MARKER = 3
+    """a trajectory marker."""
 
     def section_type(self) -> SectionType:
+        """Section type in which device occurs"""
         if self in {DeviceType.EMG, DeviceType.FORCE_PLATE}:
             return SectionType.FORCES_EMG
         return SectionType.TRAJECTORIES
@@ -123,9 +134,14 @@ class ForcePlateMeasurement:
     of data.
     """
 
-    FORCE = "the forces measured by a force plate."
-    MOMENT = "the moment measured by a force plate."
-    COP = "the origin of the quantities measured by a force plate."
+    FORCE = 1
+    """the forces measured by a force plate."""
+
+    MOMENT = 2
+    """the moment measured by a force plate."""
+
+    COP = 3
+    """the origin of the quantities measured by a force plate."""
 
 
 @dataclass

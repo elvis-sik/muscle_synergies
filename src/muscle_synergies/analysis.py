@@ -588,7 +588,7 @@ def vaf(
 
     The VAF ("variance accounted for") is given by:
 
-    :math::`\text{VAF} = 1 - \frac{ \| (x - x_r) \|^2}{\| x \|^2}`
+    :math:`\\text{VAF} = 1 - \\frac{ \\| (x - x_r) \\|^2}{\\| x \\|^2}`
 
     Where the norm is the Frobenius norm, :math:`x` is the original signal and
     :math:`x_r` is the version of the signal reconstructed using the synergy
@@ -602,15 +602,16 @@ def vaf(
             the signal (the already processed EMG signal) which was used to
             find the synergies.
 
-        transformed_signal: an array of shape `(num_measurements,
-            num_synergies)`. This is the version of the signal expressed in
+        transformed_signal: an array of shape
+            `(num_measurements, num_synergies)`.
+            This is the version of the signal expressed in
             terms of the synergy components. If provided, then `components`
             should also be and `reconstructed_signal` must not be present.
 
-        components: a :py:class:`~pandas.DataFrame` of shape `(num_synergies,
-            num_muscles)`. These are the synergy components. If provided, then
-            `transformed_signal` should also be and `reconstructed_signal` must
-            not be present.
+        components: a :py:class:`~pandas.DataFrame` of shape
+            `(num_synergies, num_muscles)`. These are the synergy components.
+            If provided, then `transformed_signal` should also be and
+            `reconstructed_signal` must not be present.
 
         reconstructed_signal: the reconstructed signal :math:`x_r`. If
             provided, then none of `transformed_signal` and `components` should
@@ -660,30 +661,28 @@ class SynergyRunResult:
     variance in the original signal. So this class can either hold the results
     of a run with a single fixed number of synergy components, like 2, or the
     results of one with several possible number of components.
-
-    Attributes:
-        vaf_values: the VAF for all muscles as well as for each individual one.
-            If several runs are made with different number of components in
-            each, then each row will correspond to a different number of
-            components. The number of components will be the index of the
-            :py:class:`~pandas.DataFrame`.
-
-        components: the synergy components, one per row. Each column correspond
-            to a different muscle. If several runs are made each with a
-            different number of components, then this will be a `dict` mapping
-            from the `int` number of components to its corresponding
-            :py:class:`~pandas.DataFrame`.
-
-        model: the :py:class:`sklearn.decomposition.NMF` used to decompose the
-            matrix. If several runs are made each with a different number of
-            components, then this will be a `dict` mapping from the `int`
-            number of components to its corresponding
-            :py:class:`~pandas.DataFrame`.
     """
 
     vaf_values: pandas.DataFrame
+    """the VAF for all muscles as well as for each individual one. If several
+    runs are made with different number of components in each, then each row
+    will correspond to a different number of components. The number of
+    components will be the index of the :py:class:`~pandas.DataFrame`.
+    """
+
     components: Union[pandas.DataFrame, Mapping[int, pandas.DataFrame]]
+    """the synergy components, one per row. Each column correspond to a
+    different muscle. If several runs are made each with a different number of
+    components, then this will be a `dict` mapping from the `int` number of
+    components to its corresponding :py:class:`~pandas.DataFrame`.
+    """
+
     model: Union[NMF, Mapping[int, NMF]]
+    """the :py:class:`sklearn.decomposition.NMF` used to decompose the matrix.
+    If several runs are made each with a different number of components, then
+    this will be a `dict` mapping from the `int` number of components to its
+    corresponding :py:class:`~pandas.DataFrame`.
+    """
 
 
 def find_synergies(
@@ -711,6 +710,7 @@ def find_synergies(
     :py:class:`sklearn.decomposition.NMF`, which differs from the one used in
     many papers (but not all) which use this method to find muscle synergies.
     :py:func:`find_synergies` expects one muscle per column. In particular:
+
     + the `processed_emg_signal` has shape `(num_measurements, num_muscles)`.
     + the `transformed_signal` has shape `(num_measurements, num_components)`.
     + the `synergy_components` have shape `(num_components, num_muscles)`.
@@ -721,6 +721,7 @@ def find_synergies(
     rows of `synergy_components`.
 
     This function supports 2 use cases:
+
     + looking for a specific number of synergy components. In this case,
       `n_components` should contain that number and `max_components` should be
       `None`.
@@ -757,8 +758,9 @@ def find_synergies(
 
         tol: the tolerance of the stopping condition of the optimization
             process. With the default :py:class:`sklearn.decomposition.NMF`
-            settings, the objective function is :math:`\frac{1}{2} \| x - x_r
-            \|^2`. The norm is the Frobenius norm, :math:`x` is the original
+            settings, the objective function is
+            :math:`\\frac{1}{2} \\| x - x_r \\|^2`.
+            The norm is the Frobenius norm, :math:`x` is the original
             signal (`processed_emg_signal`) and :math:`x_r` is the
             reconstructed signal.
 
@@ -767,11 +769,11 @@ def find_synergies(
 
     Raises:
         ValueError if the number of synergies fall outside their given range.
-        `num_features >= max_components >= n_components >= 1`.  If
-        `max_components is None`, then the requirement simplifies to
-        `num_features >= n_components >= 1`. `num_features` in these equations
-        is simply the number of muscles, determined as the number of columns of
-        `processed_emg_df`.
+            `num_features >= max_components >= n_components >= 1`.  If
+            `max_components is None`, then the requirement simplifies to
+            `num_features >= n_components >= 1`. `num_features` in these
+            equations is simply the number of muscles, determined as the number
+            of columns of `processed_emg_df`.
 
     Returns:
         a :py:class:`SynergyRunResult`. In case `max_components` was not
@@ -784,7 +786,7 @@ def find_synergies(
         In case `max_components` is provided, both members will instead be
         `dicts` mapping from the number of components to the different
         :py:class:`~sklearn.decomposition.NMF` models and
-        :py:class:`~pandas.DataFrame`s with synergy components.
+        :py:class:`~pandas.DataFrame` with synergy components.
 
         The `vaf_values` member will contain a :py:class:`~pandas.DataFrame` in
         both cases and the number of rows will correspond to the number of

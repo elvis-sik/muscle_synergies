@@ -41,14 +41,6 @@ class DeviceAggregator:
             `first_col` belong to the device. In this case, the number of
             columns will be determined the first time data is fed to the device
             using one of the `add_` methods.
-
-    Attributes:
-        coords: the coordinates (like `['Fx', 'Fy', 'Fz']`) of the device data.
-
-        units: the physical units (like `['N', 'N', 'N']`) of the device data.
-
-        data_rows: the actual time series of measurements corresponding to the
-            device.
     """
 
     name: str
@@ -57,8 +49,13 @@ class DeviceAggregator:
     last_col: Optional[int]
 
     coords: Optional[List[str]]
+    """the coordinates (like `['Fx', 'Fy', 'Fz']`) of the device data."""
+
     units: Optional[List[str]]
+    """the physical units (like `['N', 'N', 'N']`) of the device data."""
+
     data_rows: List[List[float]]
+    """the actual time series of measurements corresponding to the device."""
 
     _num_cols: Optional[int]
 
@@ -306,9 +303,6 @@ class Aggregator:
 
         trajs_agg: if None, a new :py:class:`TrajAggregator` instance will be
             created
-
-    Attributes:
-        finished: True if both sections have ended.
     """
 
     _force_emg_aggregator: ForcesEMGAggregator
@@ -331,6 +325,7 @@ class Aggregator:
 
     @property
     def finished(self) -> bool:
+        """True if and only if both sections have ended"""
         force_emg_finished = self._get_section_aggregator(
             SectionType.FORCES_EMG
         ).finished

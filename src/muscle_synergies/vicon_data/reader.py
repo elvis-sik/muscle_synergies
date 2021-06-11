@@ -271,11 +271,13 @@ class SectionTypeState(_UpdateStateMixin, _HasSingleColMixin, _ReaderState):
         """Parse the section type line.
 
         Raises:
-            ValueError: in these cases:
+            ValueError in these cases
 
-            + the row contains data outside its first column.
-            + The first column is not one of `"Devices"` or `"Trajectories"`.
-            + The parsed section type doesn't match the :py:class:`Reader`'s.
+                + the row contains data outside its first column.
+                + The first column is not one of `"Devices"` or
+                  `"Trajectories"`.
+                + The parsed section type doesn't match the
+                  :py:class:`Reader`'s.
         """
         row = self._preprocess_row(row)
         self._validate_row_has_single_col(row)

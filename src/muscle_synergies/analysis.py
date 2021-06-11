@@ -33,51 +33,60 @@ _NUMPY_ARRAY_LIKE = Any
 def plot_signal(
     signal_df: pandas.DataFrame,
     *,
-    title="Raw EMG signal",
-    xlabel="time (s)",
-    ylabel="Volts",
-    columns=None,
-    plot_dims=None,
-    xticks_off=False,
-    figsize=(18, 10),
-    suptitle_fontsize=20,
+    title: str = "",
+    plot_dims: Optional[Tuple[int, int]] = None,
+    xlabel: str = "time (s)",
+    ylabel: str = "mV",
+    xticks_off: bool = False,
+    figsize: Tuple[int, int] = (18, 10),
+    suptitle_fontsize: int = 20,
+    **plot_kwargs,
 ) -> Tuple[plt.Figure, plt.Axes]:
-    """Plot a signal."""
-    if isinstance(columns, str):
-        pass
-    if columns is None:
-        columns = signal_df.columns
-    if len(columns) > 1:
-        return plot_columns(
-            signal_df[columns],
-            title=title,
-            plot_dims=plot_dims,
-            xlabel=xlabel,
-            ylabel=ylabel,
-            xticks_off=xticks_off,
-            figsize=figsize,
-            suptitle_fontsize=suptitle_fontsize,
-        )
+    """Plot EMG signal in the time domain.
 
+    This function will plot each column of `signal_df` as a different subplot.
+    To plot a subset of the columns or a single column, the user can pass just
+    those columns (`signal_df[['muscle1', 'muscle2']]`). In case several
+    columns are plotted, the dimensions of the subplot grid are given by
+    `plot_dims`. :py:func:`plot_signal` was intended to be a way to quickly
+    visualize signals while analyzing them.  The user is encouraged to use
+    :py:mod:`matplotlib` directly if more customization is wanted.
 
-def plot_columns(
-    signal_df,
-    *,
-    title,
-    plot_dims,
-    xlabel="time (s)",
-    ylabel="Volts",
-    xticks_off=False,
-    figsize=(18, 10),
-    suptitle_fontsize=20,
-):
-    """Plot EMG DataFrame with 8 columns."""
+    Args:
+        signal_df: a :py:class:`~pandas.DataFrame` with a different
+            discrete-time signal in each of its columns. Each column will be
+            plotted.
+
+        title: the (sub)title of entire plot (of all subplots if there are more
+            than 1).
+
+        plot_dims: the dimensions of the subplots. If `None`, it will be
+            `(num_columns, 1)`, where `num_columns` is the number of columns of
+            `signal_df`.
+
+        xlabel: the `str` to be used as the x-label of each row of the subplot
+            grid.
+
+        ylabel: the `str` to be used as the y-label of each row of the subplot
+            grid.
+
+        xticks_off: whether to hide the ticks of the x axis.
+
+        figsize: `(width, height)` in inches.
+
+        suptitle_fontsize: the size of the font of the title.
+
+        plot_kwargs: keyword-arguments passed along to
+            :py:class:`pandas.Series.plot`.
+    """
+    if plot_dims is None:
+        plot_dims = signal_df.shape[1], 1
     assert len(signal_df.columns) == np.prod(plot_dims)
     fig, axs = plt.subplots(plot_dims[0], plot_dims[1], figsize=figsize)
     if len(axs.shape) == 1:
         axs = np.expand_dims(axs, axis=1)
     for (ax, col) in zip(axs.flat, signal_df.columns):
-        signal_df[col].plot(ax=ax)
+        signal_df[col].plot(ax=ax, **plot_kwargs)
         ax.set_title(col)
         if xticks_off:
             ax.set_xticks([], [])
@@ -85,7 +94,7 @@ def plot_columns(
     fig.suptitle(title, fontsize=suptitle_fontsize)
     axs[0, 0].set_ylabel(ylabel)
     axs[1, 0].set_ylabel(ylabel)
-    plt.show()
+    return fig, axs
 
 
 def synergy_heatmap(
@@ -116,6 +125,28 @@ def synergy_heatmap(
     plt.title("Heatmap of muscle synergies")
     return fig, ax
 
+
+def plot_fft(
+    signal_df,
+    sampling_frequency,
+    **kwargs
+) -> Tuple[plt.Figure, plt.Axes]:
+    """Plot spectrum of signal.
+
+    Args:
+        signal_df: a :py:class:`~pandas.DataFrame` with a different
+            discrete-time signal in each of its columns.
+
+        sampling_frequency: the sampling rate with which measurements were
+            made.
+
+        kwargs: passed along to :py:func:`plot_signal`.
+    """
+    spectrum_df = fft_spectrum(signal_df, sampling_frequency)
+    return plot_signal(
+        spectrum_df,
+        **kwargs
+    )
 
 def fft_spectrum(
     signal_df: pandas.DataFrame, sampling_frequency: int
@@ -149,25 +180,6 @@ def fft_spectrum(
     return pandas.DataFrame(fft_ampls_arr, index=fft_freqs, columns=signal_df.columns)
 
 
-def plot_fft(
-    signal_df,
-    sampling_frequency,
-    plot_dims=(2, 4),
-    title="EMG spectrum",
-    xlabel="frequency (Hz)",
-    ylabel="magnitude (V)",
-    figsize=(18, 10),
-):
-    """Plot spectrum of signal"""
-    spectrum_df = fft_spectrum(signal_df, sampling_frequency)
-    plot_emg_signal(
-        spectrum_df,
-        plot_dims=plot_dims,
-        title="EMG spectrum",
-        xlabel="frequency (Hz)",
-        ylabel="magnitude (V)",
-        xticks_off=False,
-        figsize=figsize,
     )
 
 

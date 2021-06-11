@@ -88,14 +88,33 @@ def plot_columns(
     plt.show()
 
 
-def synergy_heatmap(components, columns):
-    """Plot synergy heatmap."""
+def synergy_heatmap(
+    components: pandas.DataFrame, columns=None, synergy_names: Sequence[str] = None
+) -> Tuple[plt.Figure, plt.Axes]:
+    """Plot synergy heatmap.
+
+    Args:
+        components: a `(num_components, num_muscles)`
+            :py:class:`~pandas.DataFrame` with one synergy component per row.
+
+        columns: column labels referring to the muscles that will be displayed
+            in the heatmap. For example, if the synergy components were
+            obtained from a :py:class:`~pandas.DataFrame`, its `.columns`
+            member could contain labels that might make the plot more
+            informative.
+
+        synergy_names: the names of each synergy component (each row of
+            `components`) to be displayed in the heatmap. By default, `"synergy
+            {i}"` will be used as a format string and `i` will start from 1.
+    """
+    fig, ax = plt.subplots()
     num_synergies = components.shape[0]
-    synergy_names = [f"synergy {i}" for i in range(1, num_synergies + 1)]
+    if synergy_names is None:
+        synergy_names = [f"synergy {i}" for i in range(1, num_synergies + 1)]
     synergies = pandas.DataFrame(components, index=synergy_names, columns=columns)
-    sns.heatmap(synergies, annot=True, fmt=".2f")
+    sns.heatmap(synergies, annot=True, fmt=".2f", ax=ax)
     plt.title("Heatmap of muscle synergies")
-    return plt.gca()
+    return fig, ax
 
 
 def fft_spectrum(

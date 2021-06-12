@@ -517,7 +517,7 @@ class ForcePlateGrouper:
         For example, "Imported AMTI OR6 Series Force Plate #1 - Force" becomes
         "Imported AMTI OR6 Series Force Plate #1".
         """
-        force_plate_name, measurement_name = header_str.split("-")
+        force_plate_name, _ = header_str.split("-")
         return force_plate_name[:-1]
 
     def _col_of_header_header_str(self, header: ColOfHeader) -> str:
@@ -728,7 +728,7 @@ class ForcesEMGDevicesState(_DevicesState):
         assert device_type is not DeviceType.TRAJECTORY_MARKER
 
         if device_type is DeviceType.EMG:
-            return self._last_col_of_emg(first_col)
+            return self._last_col_of_emg()
         if device_type is DeviceType.FORCE_PLATE:
             return self._last_col_of_force_plate(first_col)
         return None
@@ -737,7 +737,7 @@ class ForcesEMGDevicesState(_DevicesState):
         """Determine the last column of a force plate."""
         return first_col + 9 - 1
 
-    def _last_col_of_emg(self, first_col: int) -> None:
+    def _last_col_of_emg(self) -> None:
         """Determine the last column of an EMG device."""
         return None
 

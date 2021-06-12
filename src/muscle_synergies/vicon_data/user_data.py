@@ -416,7 +416,7 @@ class DeviceData:
     """the name of the device, as it occurs on the CSV file. """
     dev_type: DeviceType
     """the data associated with the device."""
-    units: List[str]
+    units: Tuple[str]
     """physical units of each column in the :py:class:`~pandas.DataFrame`."""
     df: pd.DataFrame
     """the type of the device (can be a force plate, trajectory marker or EMG

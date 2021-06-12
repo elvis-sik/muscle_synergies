@@ -16,8 +16,6 @@ from dataclasses import dataclass
 from typing import Any, Mapping, Optional, Sequence, Tuple, Union
 
 import matplotlib.pyplot as plt
-
-plt.style.use("bmh")
 import numpy as np
 import pandas
 import scipy.interpolate as interpolate
@@ -25,6 +23,8 @@ import scipy.signal as signal
 import seaborn as sns
 from scipy.fftpack import fft, fftfreq
 from sklearn.decomposition import NMF
+
+plt.style.use("bmh")
 
 _NUMPY_ARRAY_LIKE = Any
 """An object that can be cast to a NumPy array of a numeric type."""
@@ -377,7 +377,7 @@ def digital_filter(
                 output="sos",
                 fs=sampling_frequency,
             )
-        elif filter_type == "cheby1":
+        if filter_type == "cheby1":
             coeff_func = signal.cheby1
         elif filter_type == "cheby2":
             coeff_func = signal.cheby2

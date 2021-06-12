@@ -17,7 +17,13 @@ disable=no-self-use,
         too-few-public-methods,
         missing-class-docstring,
         missing-module-docstring,
-        missing-function-docstring
+        missing-function-docstring,
+        too-many-instance-attributes,
+        fixme,
+        unnecessary-pass,
+        too-many-arguments,
+        invalid-name
+
 
 enable=useless-object-inheritance,
        unused-variable,
@@ -165,7 +171,7 @@ good-names=i,
            _
 
 # Include a hint for the correct naming format with invalid-name.
-include-naming-hint=no
+include-naming-hint=yes
 
 # Naming style matching correct inline iteration names.
 inlinevar-naming-style=any

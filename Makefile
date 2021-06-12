@@ -62,10 +62,12 @@ format:
 check-format:
 	@black --check src/muscle_synergies tests examples
 
+
 # help: clean-imports                  - remove unused imports
 .PHONY: clean-imports
 clean-imports:
 	@autoflake --recursive --in-place --remove-unused-variables src/muscle_synergies tests examples
+
 
 # help: sort-imports                   - apply import sort ordering
 .PHONY: sort-imports
@@ -141,6 +143,11 @@ dist-test: dist
 .PHONY: dist-upload
 dist-upload:
 	@twine upload dist/muscle_synergies-*-py3-none-any.whl
+
+
+# help: check-ci          - runs all checks used by the CI (Github actions)
+.PHONY: check-ci
+check-ci: check-style check-lint test coverage docs dist
 
 
 # Keep these lines at the end of the file to retain nice help

@@ -39,7 +39,7 @@ jobs:
         make check-style
     - name: Check static analysis
       run: |
-        make check-static-analysis
+        make check-lint
     - name: Install package
       run: |
         pip install .

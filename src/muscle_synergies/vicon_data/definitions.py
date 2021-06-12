@@ -115,8 +115,7 @@ class DeviceType(Enum):
         return SectionType.TRAJECTORIES
 
 
-@dataclass
-class ForcePlateMeasurement:
+class ForcePlateMeasurement(Enum):
     """The type of a measurement from a force plate.
 
     If we define a "measurement device" as a non-blank entry in the

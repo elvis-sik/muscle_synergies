@@ -36,12 +36,13 @@ def plot_signal(
     title: str = "",
     plot_dims: Optional[Tuple[int, int]] = None,
     xlabel: str = "time (s)",
-    ylabel: str = "mV",
+    ylabel: str = "V",
     xticks_off: bool = False,
     figsize: Tuple[int, int] = (18, 10),
     suptitle_fontsize: int = 20,
+    show: bool = True,
     **plot_kwargs,
-) -> Tuple[plt.Figure, plt.Axes]:
+) -> Optional[plt.Figure]:
     """Plot EMG signal in the time domain.
 
     This function will plot each column of `signal_df` as a different subplot.
@@ -49,8 +50,9 @@ def plot_signal(
     those columns (`signal_df[['muscle1', 'muscle2']]`). In case several
     columns are plotted, the dimensions of the subplot grid are given by
     `plot_dims`. :py:func:`plot_signal` was intended to be a way to quickly
-    visualize signals while analyzing them.  The user is encouraged to use
-    :py:mod:`matplotlib` directly if more customization is wanted.
+    visualize signals while analyzing them. The x axis can be customized by
+    changing the :py:class:`~pandas.DataFrame`'s index. The user is encouraged
+    to use :py:mod:`matplotlib` directly if more customization is wanted.
 
     Args:
         signal_df: a :py:class:`~pandas.DataFrame` with a different
@@ -76,6 +78,10 @@ def plot_signal(
 
         suptitle_fontsize: the size of the font of the title.
 
+        show: if `True`, suppress the return value and call
+            :py:func:`matplotlib.pyplot.show` on the
+            :py:class:`~matplotlib.pyplot.Figure` instead.
+
         plot_kwargs: keyword-arguments passed along to
             :py:class:`pandas.Series.plot`.
     """
@@ -94,49 +100,51 @@ def plot_signal(
     fig.suptitle(title, fontsize=suptitle_fontsize)
     axs[0, 0].set_ylabel(ylabel)
     axs[1, 0].set_ylabel(ylabel)
-    return fig, axs
+
+    if show:
+        plt.show(fig)
+        return
+    return fig
 
 
 def synergy_heatmap(
     components: pandas.DataFrame,
-    columns=None,
     synergy_names: Sequence[str] = None,
-) -> Tuple[plt.Figure, plt.Axes]:
+    show=True,
+) -> Optional[plt.Figure]:
     """Plot synergy heatmap.
 
     Args:
         components: a `(num_components, num_muscles)`
             :py:class:`~pandas.DataFrame` with one synergy component per row.
 
-        columns: column labels referring to the muscles that will be displayed
-            in the heatmap. For example, if the synergy components were
-            obtained from a :py:class:`~pandas.DataFrame`, its `.columns`
-            member could contain labels that might make the plot more
-            informative.
-
         synergy_names: the names of each synergy component (each row of
             `components`) to be displayed in the heatmap. By default, `"synergy
             {i}"` will be used as a format string and `i` will start from 1.
+
+        show: if `True`, suppress the return value and call
+            :py:func:`matplotlib.pyplot.show` on the
+            :py:class:`~matplotlib.pyplot.Figure` instead.
     """
     fig, ax = plt.subplots()
     num_synergies = components.shape[0]
     if synergy_names is None:
         synergy_names = [f"synergy {i}" for i in range(1, num_synergies + 1)]
-    synergies = pandas.DataFrame(
-        components,
-        index=synergy_names,
-        columns=columns,
-    )
-    sns.heatmap(synergies, annot=True, fmt=".2f", ax=ax)
+    sns.heatmap(components, annot=True, fmt=".2f", ax=ax, yticklabels=synergy_names)
     plt.title("Heatmap of muscle synergies")
-    return fig, ax
+
+    if show:
+        plt.show(fig)
+        return
+    return fig
 
 
 def plot_fft(
     signal_df,
     sampling_frequency,
+    xlabel="frequency",
     **kwargs,
-) -> Tuple[plt.Figure, plt.Axes]:
+) -> Optional[plt.Figure]:
     """Plot spectrum of signal.
 
     Args:
@@ -146,10 +154,12 @@ def plot_fft(
         sampling_frequency: the sampling rate with which measurements were
             made.
 
-        kwargs: passed along to :py:func:`plot_signal`.
+        xlabel: the x label of the plot.
+
+        **kwargs: passed along to :py:func:`plot_signal`.
     """
     spectrum_df = fft_spectrum(signal_df, sampling_frequency)
-    return plot_signal(spectrum_df, **kwargs)
+    return plot_signal(spectrum_df, xlabel=xlabel, **kwargs)
 
 
 def fft_spectrum(
@@ -484,7 +494,7 @@ def rms(
     ) -> int:
         """Ensure window size is given in units of number of array elements."""
         if sampling_frequency is not None:
-            return window_size * sampling_frequency
+            return round(window_size * sampling_frequency)
         return window_size
 
     window_size = window_size_in_num_entries(window_size, sampling_frequency)
@@ -570,11 +580,16 @@ def time_normalize(
     signal_len = signal_df.shape[0]
     percent_domain = np.linspace(0, 1, signal_len)
     interp_func = interpolate.interp1d(
-        percent_domain, signal_df, copy=False, kind=kind, fill_value=fill_value
+        percent_domain,
+        signal_df,
+        axis=0,
+        copy=False,
+        kind=kind,
+        fill_value=fill_value,
     )
     desired_domain = np.linspace(0, 1, reduce_to)
     return pandas.DataFrame(
-        interp_func(signal_df), index=desired_domain, columns=signal_df.columns
+        interp_func(desired_domain), index=desired_domain, columns=signal_df.columns
     )
 
 
@@ -627,7 +642,7 @@ def vaf(
         arr: _NUMPY_ARRAY_LIKE, axis: Optional[int]
     ) -> Union[float, np.ndarray]:
         """Compute the sum of squares of an array."""
-        return np.sum(arr ** 2, axis=axis)
+        return np.sum(arr.to_numpy() ** 2, axis=axis)
 
     def vaf_along_axis(
         original_signal: _NUMPY_ARRAY_LIKE,
@@ -642,11 +657,13 @@ def vaf(
     if reconstructed_signal is None:
         reconstructed_signal = transformed_signal @ components
     error = original_df - reconstructed_signal
-    vaf_all_signals = vaf_along_axis(original_df, error, axis=None)
-    vaf_per_column = vaf_along_axis(original_df, error, axis=1)
+    vaf_all_signals = vaf_along_axis(original_df, error, axis=(0, 1))
+    vaf_per_column = vaf_along_axis(original_df, error, axis=0)
     vaf_values = [vaf_all_signals] + list(vaf_per_column.reshape(-1))
-    column_labels = ["All signals"] + original_df.columns
-    return pandas.DataFrame(vaf_values, columns=column_labels)
+    column_labels = ["All signals"] + original_df.columns.tolist()
+    return pandas.DataFrame(
+        {lbl: [val] for (lbl, val) in zip(column_labels, vaf_values)}
+    )
 
 
 @dataclass
@@ -826,30 +843,30 @@ def find_synergies(
 
         Returns:
              a tuple `(reconstructed_signal, model)` with the version of the
-             original signal at each instant expressed as a linear combination
-             of the synergy components and the
+             original signal at each instant expressed in the space spanned
+             by the identified synergy components and the
              :py:class:`sklearn.decomposition.NMF` model used to look for the
              components.
         """
         model = NMF(n_components=n_components, **sklearn_kwargs)
-        reconstructed_signal = model.fit_transform(matrix)
-        return reconstructed_signal, model
+        transformed_signal = model.fit_transform(matrix)
+        return transformed_signal, model
 
     def single_synergy_run(
         processed_emg_df: pandas.DataFrame, n_components: int, **sklearn_kwargs
     ) -> SynergyRunResult:
         """Find synergies and determine their VAF."""
-        reconstructed_signal, model = nnmf(
+        transformed_signal, model = nnmf(
             processed_emg_df, n_components, **sklearn_kwargs
         )
         vaf_values = vaf(
             processed_emg_df,
-            reconstructed_signal=reconstructed_signal,
+            components=model.components_,
+            transformed_signal=transformed_signal,
         )
         comps = pandas.DataFrame(
             model.components_,
             columns=processed_emg_df.columns,
-            index=[n_components],
         )
         return SynergyRunResult(vaf_values, comps, model)
 
@@ -860,7 +877,7 @@ def find_synergies(
         vaf_values = pandas.concat(
             [res.vaf_values for res in run_results.values()],
         )
-        vaf_values.set_index(run_results.keys())
+        vaf_values.set_index(np.array(tuple(run_results.keys())), inplace=True)
         comps = {n_comp: res.components for (n_comp, res) in run_results.items()}
         models = {n_comp: res.model for (n_comp, res) in run_results.items()}
         return SynergyRunResult(vaf_values, comps, models)

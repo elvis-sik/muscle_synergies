@@ -473,29 +473,6 @@ class DeviceData:
         """
         return self.df.iloc[self._convert_key(frame, subframe)]
 
-    def ilocr(
-        self,
-        stop: Tuple[int, int],
-        start: Optional[Tuple[int, int]] = None,
-        step: Optional[int] = None,
-    ):
-        """Index a range of data rows given their frame and subframe.
-
-        This method is similar to :py:attr:`pandas.DataFrame.iloc`. See
-        :py:meth:`DeviceData.iloc` for more details.
-
-        Args:
-            stop: the (frame, subframe) pair in which to stop the range.
-
-            start: the (frame, subframe) pair in which to start the range.
-
-            step: the integer step.
-
-        Raises:
-            KeyError: if some of the (frame, subframe) pairs are out-of-bound.
-        """
-        return self.df[self._key_slice_frame_subframe(stop, start, step)]
-
     def _key_slice_frame_subframe(
         self,
         stop: Tuple[int, int],

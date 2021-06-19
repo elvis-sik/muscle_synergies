@@ -110,7 +110,7 @@ check-static-analysis: check-lint check-types
 
 # help: docs                           - generate project documentation
 .PHONY: docs
-docs: coverage
+docs:
 	@cd docs; rm -rf source/api/muscle_synergies*.rst source/api/modules.rst build/*
 	@cd docs; make html
 

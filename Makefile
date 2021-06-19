@@ -54,19 +54,19 @@ coverage:
 # help: format                         - perform code style format
 .PHONY: format
 format:
-	@black src/muscle_synergies tests examples
+	@black src/muscle_synergies tests
 
 
 # help: check-format                   - check code format compliance
 .PHONY: check-format
 check-format:
-	@black --check src/muscle_synergies tests examples
+	@black --check src/muscle_synergies tests
 
 
 # help: clean-imports                  - remove unused imports
 .PHONY: clean-imports
 clean-imports:
-	@autoflake --recursive --in-place --remove-unused-variables src/muscle_synergies tests examples
+	@autoflake --recursive --in-place --remove-unused-variables src/muscle_synergies tests
 
 
 # help: sort-imports                   - apply import sort ordering
@@ -100,7 +100,7 @@ check-types:
 # help: check-lint                     - run static analysis checks
 .PHONY: check-lint
 check-lint:
-	@pylint --rcfile=.pylintrc muscle_synergies ./tests setup.py ./examples
+	@pylint --rcfile=.pylintrc muscle_synergies ./tests setup.py
 
 
 # help: check-static-analysis          - check code style compliance

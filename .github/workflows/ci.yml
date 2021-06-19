@@ -34,24 +34,24 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-pip-
           ${{ runner.os }}-
+    - name: Run unit tests
+      run: |
+        make test
+    - name: Install package
+      run: |
+        pip install .
     - name: Check code style
       run: |
         make check-style
     - name: Check static analysis
       run: |
         make check-lint
-    - name: Run unit tests
-      run: |
-        make test
     - name: Generate code coverage report
       run: |
         make coverage
     - name: Generate docs
       run: |
         make docs
-    - name: Install package
-      run: |
-        pip install .
     - name: Generate package
       run: |
         make dist

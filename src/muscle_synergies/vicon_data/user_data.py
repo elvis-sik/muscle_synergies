@@ -466,10 +466,6 @@ class DeviceData:
 
         Raises:
             KeyError: if the frame and subframe are out of bounds.
-
-        See also:
-            :py:meth:`~DeviceData.ilocr`: a method similar to the present one
-                but which accepts a ranges of frame and subframes.
         """
         return self.df.iloc[self._convert_key(frame, subframe)]
 

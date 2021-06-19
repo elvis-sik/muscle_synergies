@@ -103,7 +103,7 @@ def plot_signal(
 
     if show:
         plt.show(fig)
-        return
+        return None
     return fig
 
 
@@ -135,7 +135,7 @@ def synergy_heatmap(
 
     if show:
         plt.show(fig)
-        return
+        return None
     return fig
 
 

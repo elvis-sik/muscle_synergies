@@ -34,9 +34,6 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-pip-
           ${{ runner.os }}-
-    - name: Install package
-      run: |
-        pip install .
     - name: Check code style
       run: |
         make check-style
@@ -52,6 +49,9 @@ jobs:
     - name: Generate docs
       run: |
         make docs
+    - name: Install package
+      run: |
+        pip install .
     - name: Generate package
       run: |
         make dist

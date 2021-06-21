@@ -53,7 +53,7 @@ automodapi_toctreedirnm = 'api/stubs'
 autosummary_generate = True
 
 # bibtex references file
-bibtex_bibfiles = ['refs.bib']
+bibtex_bibfiles = ['references/refs.bib']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

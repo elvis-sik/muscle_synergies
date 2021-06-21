@@ -94,7 +94,35 @@ def create_loading_run() -> _LoadingRun:
 
 
 def load_vicon_file(csv_filename: str) -> ViconNexusData:
-    """Load data from Vicon Nexus CSV file."""
+    """Load data from Vicon Nexus CSV file.
+
+    The file is expected to have 2 major sections separated by a blank line:
+      1. the first one containing data for force plates and EMG.
+      2. The second containing limb trajectory data.
+
+    Each section is expected to have lines in a specific order (for more
+    details on this order, see
+    :py:class:`~muscle_synergies.vicon_data.definitions.ViconCSVLines`),
+    beginning with headers and proceeding to the data. The ratio between the
+    sampling rate of the 2 sections (with the first section expected to have a
+    higher sampling rate) gives the number of subframes in each measurement
+    frame. This organization of the data in frames and subframes provides a way
+    to refer to measurements taken with different sampling rates occurring at
+    the same time. For more details on this, see
+    :py:class:`~muscle_synergies.vicon_data.definitions.SamplingFreq`.
+
+    Each measurement device ends up represented in a
+    single :py:class:`~muscle_synergies.vicon_data.user_data.DeviceData`
+    instance which contain:
+
+    + a :py:class:`~pandas.DataFrame` with the measurements.
+    + The information present in the header.
+
+    All the :py:class:`~muscle_synergies.vicon_data.user_data.DeviceData`
+    instances are organized by device type (i.e., force plates vs trajectory
+    markers vs EMG data) in the returned
+    :py:class:`~muscle_synergies.vicon_data.user_data.ViconNexusData`.
+    """
     loading_run = create_loading_run()
 
     for i, row in enumerate(csv_row_stream(csv_filename), start=1):

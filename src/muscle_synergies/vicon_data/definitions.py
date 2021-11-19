@@ -123,9 +123,9 @@ class ForcePlateMeasurement(Enum):
     `DevicesLine` (see :py:class:`ViconCSVLines`), a single force plate is
     actually represented as 3 different device headers, for example:
 
-    + Imported AMTI OR6 Series Force Plate #1 - Force
-    + Imported AMTI OR6 Series Force Plate #1 - Moment
-    + Imported AMTI OR6 Series Force Plate #1 - CoP
+    + `Imported AMTI OR6 Series Force Plate #1 - Force`
+    + `Imported AMTI OR6 Series Force Plate #1 - Moment`
+    + `Imported AMTI OR6 Series Force Plate #1 - CoP`
 
     These 3 clearly refer actually to different measurements (force, moment,
     origin) for the same experimental device (Force Plate #1). All of the

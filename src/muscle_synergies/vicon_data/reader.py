@@ -453,9 +453,9 @@ class ForcePlateGrouper:
 
     Force plates are represented as 3 headers, for example:
 
-    1. Imported AMTI OR6 Series Force Plate #1 - Force
-    2. Imported AMTI OR6 Series Force Plate #1 - Moment
-    3. Imported AMTI OR6 Series Force Plate #1 - CoP
+    1. `Imported AMTI OR6 Series Force Plate #1 - Force`
+    2. `Imported AMTI OR6 Series Force Plate #1 - Moment`
+    3. `Imported AMTI OR6 Series Force Plate #1 - CoP`
 
     It is assumed that each of these span 3 columns (referring to the 3 spatial
     coordinates) and occur contiguously precisely in that order, that is, for

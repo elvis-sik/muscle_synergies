@@ -47,6 +47,9 @@ class ViconNexusData:
     emg: "DeviceData"
     traj: Sequence["DeviceData"]
 
+    def __repr__(self):
+        return "ViconNexusData(forcepl=[...], emg=<DeviceData>, traj=[...])"
+
     def describe(self) -> str:
         """Represent ViconNexusData object as a Markdown list.
 

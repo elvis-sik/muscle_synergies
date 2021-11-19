@@ -679,28 +679,35 @@ class SynergyRunResult:
     variance in the original signal. So this class can either hold the results
     of a run with a single fixed number of synergy components, like 2, or the
     results of one with several possible number of components.
+
+    Attrs:
+        vaf_values:
+            the VAF for all muscles as well as for each individual one.
+            If several runs are made with different number of components in
+            each, then each row will correspond to a different number of
+            components. The number of components will be the index of the
+            :py:class:`~pandas.DataFrame`.
+
+        components:
+            the synergy components, one per row. Each column correspond
+            to a different muscle. If several runs are made each with a
+            different number of components, then this will be a `dict` mapping
+            from the `int` number of components to its corresponding
+            :py:class:`~pandas.DataFrame`.
+
+        model:
+            the :py:class:`sklearn.decomposition.NMF` used to decompose the
+            matrix.  If several runs are made each with a different number of
+            components, then this will be a `dict` mapping from the `int`
+            number of components to its corresponding
+            :py:class:`~pandas.DataFrame`.
     """
 
     vaf_values: pandas.DataFrame
-    """the VAF for all muscles as well as for each individual one. If several
-    runs are made with different number of components in each, then each row
-    will correspond to a different number of components. The number of
-    components will be the index of the :py:class:`~pandas.DataFrame`.
-    """
 
     components: Union[pandas.DataFrame, Mapping[int, pandas.DataFrame]]
-    """the synergy components, one per row. Each column correspond to a
-    different muscle. If several runs are made each with a different number of
-    components, then this will be a `dict` mapping from the `int` number of
-    components to its corresponding :py:class:`~pandas.DataFrame`.
-    """
 
     model: Union[NMF, Mapping[int, NMF]]
-    """the :py:class:`sklearn.decomposition.NMF` used to decompose the matrix.
-    If several runs are made each with a different number of components, then
-    this will be a `dict` mapping from the `int` number of components to its
-    corresponding :py:class:`~pandas.DataFrame`.
-    """
 
 
 def find_synergies(
@@ -786,7 +793,8 @@ def find_synergies(
             of :py:class:`sklearn.decomposition.NMF`.
 
     Raises:
-        ValueError if the number of synergies fall outside their given range.
+        ValueError
+            if the number of synergies fall outside their given range.
             `num_features >= max_components >= n_components >= 1`.  If
             `max_components is None`, then the requirement simplifies to
             `num_features >= n_components >= 1`. `num_features` in these

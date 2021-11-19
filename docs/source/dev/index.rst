@@ -24,23 +24,6 @@ Use the Makefile convenience rules to run the tests.
 
     (muscle_synergies) $ make test
 
-To run tests verbosely use:
-
-.. code-block:: console
-
-    (muscle_synergies) $ make test-verbose
-
-Alternatively, you may want to run the test suite directly. The following
-steps assume you are running in a virtual environment in which the
-``muscle_synergies`` package has been installed. If this is
-not the case then you will likely need to set the ``PYTHONPATH`` environment
-variable so that the ``muscle_synergies`` package can be found.
-
-.. code-block:: console
-
-    (muscle_synergies) $ cd tests
-    (muscle_synergies) $ python -m unittest
-
 Individual unit tests can be run also.
 
 .. code-block:: console

@@ -470,6 +470,10 @@ class DeviceData:
         """
         return self.df.iloc[self._convert_key(frame, subframe)]
 
+    def frame_subfr(self, index: int) -> Tuple[ int, int]:
+        """Find (frame, subframe) pair corresponding to index."""
+        return self._frame_tracker.frame_tracker(index)
+
     def _key_slice_frame_subframe(
         self,
         stop: Tuple[int, int],

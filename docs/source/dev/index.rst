@@ -43,8 +43,6 @@ Makefile convenience rule to run the code coverage checks.
 
     (muscle_synergies) $ make coverage
 
-The test code coverage report can be found `here <../_static/coverage/index.html>`_
-
 
 .. _style-compliance-label:
 

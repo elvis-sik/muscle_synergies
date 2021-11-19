@@ -8,8 +8,8 @@ From the point of view of the internal API, the main type in this module is
 devices, organized by their type (see
 :py:class:`~muscle_synergies.vicon_data.definitions.DeviceType`).
 
-Refer to the documentation for
-:py:mod:`~muscle_synergies.vicon_data.__init__.py` for more on how
+Refer to the documentation for the package
+:py:mod:`muscle_synergies.vicon_data.__init__.py` for more on how
 :py:class:`Builder` fits together with the other classes used for reading the
 data from disk.
 """

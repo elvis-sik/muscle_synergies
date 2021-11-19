@@ -9,8 +9,8 @@ aid those. The different states, in turn, refer to which line the
 :py:class:`Reader` is expecting (see
 :py:class:`~muscle_synergies.vicon_data.definitions.ViconCSVLines`).
 
-Refer to the documentation for
-:py:mod:`~muscle_synergies.vicon_data.__init__.py` for more on how
+Refer to the documentation for the package
+:py:mod:`muscle_synergies.vicon_data.__init__.py` for more on how
 :py:class:`Reader` fits together with the other classes used for reading the
 data from disk.
 """

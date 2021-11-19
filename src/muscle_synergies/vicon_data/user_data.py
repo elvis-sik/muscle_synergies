@@ -451,7 +451,7 @@ class DeviceData:
         """
         return self._frame_tracker.time_seq()
 
-    def iloc(self, frame: int, subframe: int) -> int:
+    def iloc(self, frame: int, subframe: int) -> pd.Series:
         """Index data rows by their frame and subframe.
 
         This method works similarly to :py:attr:`pandas.DataFrame.iloc`: its

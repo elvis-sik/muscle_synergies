@@ -105,5 +105,7 @@ venv.bak/
 # mypy
 .mypy_cache/
 
-# VSCode
+# Editors
 .vscode/
+*.el
+*.swp

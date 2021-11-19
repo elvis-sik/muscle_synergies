@@ -28,7 +28,7 @@ Individual unit tests can be run also.
 
 .. code-block:: console
 
-    (muscle_synergies) $ python -m test_version
+    (muscle_synergies) $ pytest -k TestAbridgedData
 
 
 .. _test-coverage-label:

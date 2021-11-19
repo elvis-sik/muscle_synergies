@@ -6,37 +6,37 @@ Getting Started
 Quick Start
 ===========
 
-Install the package with:
+Install the package:
 
 .. code-block:: console
 
     $ pip install muscle_synergies
 
-Load a dataset from a Vicon Nexus file with:
+Load a dataset from a Vicon Nexus file:
 
 .. code-block:: python
 
     import muscle_synergies as ms
     vicon_data = ms.load_vicon_data('vicon-nexus-output.csv')
 
-Then get a :py:class:`pandas.DataFrame` containing the EMG data with:
+Then get a :py:class:`pandas.DataFrame` containing the EMG data:
 
 .. code-block:: python
 
     emg_df = vicon_data.emg.df
 
-Plot it with:
+Plot it:
 
 .. code-block:: python
 
     ms.plot_signal(emg_df)
 
-See the tutorials for more detailed presentation and for how to find synergies.
+See the tutorials for more.
 
 For users new to Python
 =======================
 
-Using Google Colab is recommended because it is easy to start since it requires no installation. The user is encouraged to follow along the tutorials. Also, going through some course or tutorial introducing Python will likely make using this package easier.
+Using Google Colab is recommended because it requires no installation.
 
 Using Google Colab (recommended)
 --------------------------------
@@ -61,7 +61,7 @@ The user then may load the dataset with the following command:
    from muscle_synergies import load_vicon_file
    load_vicon_file('dynamic_trial.csv')
 
-And continue following along the tutorials.
+And continue following along the :ref:`tutorials-label`.
 
 Using Anaconda
 --------------
@@ -71,7 +71,6 @@ For local development (i.e., in the user's machine instead of the cloud service 
 Learning Python
 ---------------
 
-If the user wants to learn a bit of Python (likely needed to do anything non-trivial with this package), I recommend using a tutorial focused on scientific computing or data analysis.
-Ideally, they would get some exposure to `NumPy`, `Pandas` and `Matplotlib`.
-Googling around should easily bring a plethora of good materials.
-Just for the sake of completeness, the following course seems to include all of the basics needed: https://www.edx.org/course/python-basics-for-data-science. I have not checked it with any rigor though.
+Doing anything non-trivial with this package will benefit from some Python knowledge. Even learning just a little bit might go a long way towards making everything easier.
+For users who are interested in following this route, introductory materials focusing on scientific computing or data analysis would be recommended.
+Specifically, getting some exposure to `NumPy`, `Pandas` and `Matplotlib` would be useful.

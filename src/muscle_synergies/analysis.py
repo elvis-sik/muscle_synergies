@@ -263,6 +263,7 @@ def linear_envelope(
     """Find the linear envelope of a signal.
 
     This function finds the linear envelope of the raw EMG signal by:
+
     1. (optionally) zero-centering each signal.
     2. Taking the `abs` of each value (full-wave rectification).
     3. Low-pass filtering the signal.

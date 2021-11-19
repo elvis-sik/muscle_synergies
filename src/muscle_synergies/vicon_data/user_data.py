@@ -54,6 +54,7 @@ class ViconNexusData:
         loaded.  The returned value will be a multiline string similar to this:
 
             ViconNexusData:
+
             + emg: 8 columns
             + forcepl (2 devices): DeviceData("Force Plate 1"), DeviceData("Force Plate 2")
             + traj (14 devices): DeviceData("Traj 1"), ..., DeviceData("Traj 14")

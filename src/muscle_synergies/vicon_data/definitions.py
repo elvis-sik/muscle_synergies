@@ -14,6 +14,7 @@ X = TypeVar("X")
 Y = TypeVar("Y")
 # pylint: enable=invalid-name
 
+
 Row = NewType("Row", List[str])
 """a row from the CSV file is simply a list of strings, corresponding to
 different values"""

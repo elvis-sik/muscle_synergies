@@ -228,10 +228,10 @@ class SegmentPlotter:
         )
 
         fig.legend(legend)
-        fig.title(title)
-        plt.xlabel(xlabel)
-        plt.ylabel(ylabel)
-        plt.gcf().set_size_inches(*figsize)
+        ax.set_title(title)
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+        fig.set_size_inches(*figsize)
         if show:
             plt.show()
             return None

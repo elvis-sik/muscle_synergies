@@ -3,7 +3,7 @@
 from collections import OrderedDict
 from enum import Enum, auto
 from itertools import cycle
-from typing import List, Tuple, Union, Sequence, Mapping
+from typing import List, Tuple, Union, Sequence, Mapping, Optional
 
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt

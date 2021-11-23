@@ -217,7 +217,7 @@ class SegmentPlotter:
         ylabel="Force (N), z component",
     ) -> Optional[Tuple[plt.Figure, plt.Axes]]:
         """ blabla """
-        fig, ax = plt.subplot()
+        fig, ax = plt.subplots()
 
         left_reaction_plot = ax.plot(
             self.left_forcepl.time_seq(), self.left_forcepl.df["Fz"], left_color

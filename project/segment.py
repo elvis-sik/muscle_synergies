@@ -145,8 +145,8 @@ class Segmenter:
     def _get_times_of_cycle(
         self, trecho: Trecho, cycle: Cycle, return_slice: bool = False
     ) -> Union[slice, Tuple[FrameSubfr, FrameSubfr]]:
-        first_phase = next(self.segments[trecho][cycle].values())
-        last_phase = next(reversed(self.segments[trecho][cycle].values()))
+        first_phase = next(iter(self.segments[trecho][cycle].values()))
+        last_phase = next(iter(reversed(self.segments[trecho][cycle].values())))
         cycle_slice = slice(first_phase.start, last_phase.stop)
         return self._proc_slice(cycle_slice, return_slice)
 

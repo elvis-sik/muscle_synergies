@@ -215,7 +215,7 @@ class SegmentPlotter:
         title="Force plates",
         xlabel="time (s)",
         ylabel="Force (N), z component",
-    ) -> Optional[Tuple[plt.Figure, plt.Axis]]:
+    ) -> Optional[Tuple[plt.Figure, plt.Axes]]:
         """ blabla """
         fig, ax = plt.subplot()
 

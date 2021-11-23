@@ -291,41 +291,93 @@ class SegmentPlotter:
 
 
 def transition_indices(
-    left_reaction: pandas.Series, right_reaction: pandas.Series
+    left_reaction: pandas.Series,
+    right_reaction: pandas.Series,
+    min_phase_size: int = 10,
+    num_segments: int = 40,
 ) -> Sequence[int]:
     """Find indices where the number of force plates with z force changes.
+
+    Args:
+        left_reaction: ground reaction of the left force plate.
+        right_reaction: ground reaction of the right force plate.
+        min_phase_size: minimum number of adjacent measurements with a given
+            property. The data has stretches in which, for example, the right
+            force measurement remains negative (indicating that there is a
+            reaction) and the left one oscillates a bit close to 0. For
+            example, in adjacent subframes the left measurements could go like
+            `0.0, `-24.7177, 0.0`. Since the detection of transitions happens
+            by noticing when the number of force plates with nonzero
+            measurements changes, this would mean that some phases of the
+            movement would last a single subframe. This would make no sense,
+            the subject is not moving that fast. So transitions are only
+            considered if there are at least `min_phase_size` measurements
+            displaying the relevant property. For example, only if there are
+            `min_phase_size` measurements with `0.0` on the left force plate
+            and a negative value on the right one.
+        num_segments: number of segments to be looked for. If `0`, find as many
+            segments as possible and return them.
 
     Returns:
         a sequence of indices. The first index will be 0, corresponding to the
         start of the signal in which a single force plate is measuring ground
         reaction. The next index will be the start of the first "trecho", when
         both force plates have a reaction.
+
+    Raises:
+        ValueError if a segment with the desired property (e.g., just a single
+            leg active) could not be found. Generally this would mean that the
+            parsing process got too close to the end of the measurements.
+            Decreasing `min_phase_size` might help. If `num_segments` is equal
+            to 0, this should never happen.
+
+        IndexError if the end of the input (`left_reaction` and
+            `right_reaction`) was reached before `num_segments` were
+            identified. If `num_segments == 0`, this should never happen.
     """
 
-    def look_for_single_leg(left_reaction, right_reaction) -> int:
-        indices_tupl = np.where(np.logical_xor(left_reaction != 0, right_reaction != 0))
-        indices = indices_tupl[0]
-        return indices[0]
+    def has_num_of_active_legs(
+        left_reaction, right_reaction, legs: int
+    ) -> pandas.Series:
+        """Identify whether given number of legs are active at each index."""
+        if legs == 1:
+            return np.logical_xor(left_reaction != 0, right_reaction != 0)
+        elif legs == 2:
+            return np.logical_and(left_reaction != 0, right_reaction != 0)
 
-    def look_for_duplo_apoio(left_reaction, right_reaction) -> int:
-        indices_tupl = np.where(np.logical_and(left_reaction != 0, right_reaction != 0))
+    def look_for(left_reaction, right_reaction, legs: int, min_phase_size) -> int:
+        """Find first index with a given number of active legs."""
+        correct_activation = has_num_of_active_legs(left_reaction, right_reaction, legs)
+        indices_tupl = np.where(correct_activation)
+        # indices_tupl is a singleton since there is a single dimension in the array
         indices = indices_tupl[0]
-        return indices[0]
+        for ind in indices:
+            if correct_activation[ind : ind + min_phase_size].all():
+                return ind
+        raise ValueError(
+            f"no phase found with {min_phase_size} adjacent measurements with {legs} leg(s) with a nonzero reaction"
+        )
 
     starting_index = 0
-    index_seq = []
-    func_seq = cycle([look_for_single_leg, look_for_duplo_apoio])
+    index_seq: List[int] = []
+    num_legs_seq = cycle([1, 2])
 
-    for parsing_func in func_seq:
+    for num_legs in num_legs_seq:
         try:
-            next_index = parsing_func(left_reaction, right_reaction)
-        except IndexError:
-            return index_seq
+            next_index = look_for(
+                left_reaction, right_reaction, num_legs, min_phase_size
+            )
+        except (IndexError, ValueError):
+            if num_segments == 0:
+                return index_seq
 
         left_reaction = left_reaction[next_index:]
         right_reaction = right_reaction[next_index:]
         starting_index += next_index
         index_seq.append(starting_index)
+
+        if len(index_seq) == num_segments:
+            return index_seq
 
 
 def organize_transitions(

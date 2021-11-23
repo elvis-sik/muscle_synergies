@@ -205,11 +205,11 @@ class SegmentPlotter:
         self,
         box_legend: str,
         trecho: Optional[Trecho],
-        cycle: Optional[Cycle]=None,
-        phase: Optional[Phase]=None,
+        cycle: Optional[Cycle] = None,
+        phase: Optional[Phase] = None,
         y_min=-800,
         y_max=0,
-        **kwargs
+        **kwargs,
     ) -> Optional[Tuple[plt.Figure, plt.Axes]]:
         begin_time, end_time = self._time_ind_of_segment(trecho, cycle, phase)
 
@@ -225,7 +225,7 @@ class SegmentPlotter:
             forces_legend=["Left reaction", "Right reaction"],
             alpha=0.1,
             show=True,
-            **kwargs
+            **kwargs,
         )
 
     def _time_ind_of_segment(
@@ -278,7 +278,7 @@ class SegmentPlotter:
         forces_legend=["Left reaction", "Right reaction"],
         alpha=0.1,
         show=True,
-        **kwargs
+        **kwargs,
     ):
         """ blabla """
         fig, ax = self.plot_reactions(show=False, **kwargs)

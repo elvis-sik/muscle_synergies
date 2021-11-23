@@ -202,8 +202,41 @@ class SegmentPlotter:
     def right_forcepl(self):
         return self.segm.right_forcepl
 
-    def plot_box_around(self, ):
-        pass
+    def plot_segment(
+        self,
+        box_legend: str,
+        trecho: Optional[Trecho],
+        cycle: Optional[Cycle]=None,
+        phase: Optional[Phase]=None,
+        y_min=-800,
+        y_max=0,
+        **kwargs
+    ) -> Optional[Tuple[plt.Figure, plt.Axes]]:
+        begin_time, end_time = self._time_ind_of_segment(trecho, cycle, phase)
+
+        bottom_left_corner = begin_time, y_min
+        height = y_max - y_min
+        width = end_time - begin_time
+
+        self.plot_rectangle(
+            bottom_left_corner,
+            width,
+            height,
+            box_legend,
+            forces_legend=["Left reaction", "Right reaction"],
+            alpha=0.1,
+            show=True,
+            **kwargs
+        )
+
+    def _time_ind_of_segment(
+        self, trecho: Optional[Trecho], cycle: Optional[Cycle], phase: Optional[Phase]
+    ) -> Tuple[float, float]:
+        ind_slice = self.segm.get_times_of(trecho, cycle, phase, return_slice=True)
+        ind_x_min = ind_slice.start
+        ind_x_max = ind_slice.stop
+        time_seq = self.left_forcepl.time_seq()
+        return time_seq[ind_x_min], time_seq[ind_x_max]
 
     def plot_reactions(
         self,

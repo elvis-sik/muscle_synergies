@@ -196,11 +196,11 @@ class SegmentPlotter:
 
     @property
     def left_forcepl(self):
-        return self.segm.forcepl[0]
+        return self.segm.left_forcepl
 
     @property
     def right_forcepl(self):
-        return self.segm.forcepl[1]
+        return self.segm.right_forcepl
 
     def plot_box_around(self, ):
         pass

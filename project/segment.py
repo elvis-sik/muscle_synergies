@@ -156,11 +156,10 @@ class Segmenter:
         phase_slice = self.segments[trecho][cycle][phase]
         return self._proc_slice(phase_slice, return_slice)
 
-    @classmethod
-    def _proc_slice(cls, slic: slice, return_slice: bool = False):
+    def _proc_slice(self, slic: slice, return_slice: bool = False):
         if return_slice:
             return slic
-        return cls._to_frame_subfr(slic.start), cls._to_frame_subfr(slic.stop)
+        return self._to_frame_subfr(slic.start), self._to_frame_subfr(slic.stop)
 
     @property
     def left_forcepl(self):

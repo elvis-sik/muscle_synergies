@@ -204,7 +204,7 @@ class SegmentPlotter:
     def plot_segment(
         self,
         box_legend: str,
-        trecho: Optional[Trecho],
+        trecho: Trecho,
         cycle: Optional[Cycle] = None,
         phase: Optional[Phase] = None,
         y_min=-800,

@@ -209,6 +209,7 @@ class SegmentPlotter:
         phase: Optional[Phase] = None,
         y_min=-800,
         y_max=0,
+        show=True,
         **kwargs,
     ) -> Optional[Tuple[plt.Figure, plt.Axes]]:
         begin_time, end_time = self._time_ind_of_segment(trecho, cycle, phase)
@@ -224,7 +225,7 @@ class SegmentPlotter:
             box_legend,
             forces_legend=["Left reaction", "Right reaction"],
             alpha=0.1,
-            show=True,
+            show=show,
             **kwargs,
         )
 

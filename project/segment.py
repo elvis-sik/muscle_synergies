@@ -35,6 +35,18 @@ class Phase(Enum):
     DAE = auto()
     BL = auto()
 
+PhaseRef = Union[Phase, int]
+"""Reference to a phase in a cycle.
+
+Some methods expect to receive a reference to a specific phase in a specific
+:py:class:`Cycle` in a specific :py:class:`Trecho`. An user could specify the
+phase by telling the method either "the phase I want is DAA", in which case it
+makes more sense for them to pass a :py:class:`Phase` to the method, or "the
+phase I want is the 3-rd one in the cycle", in which case they should pass an
+:py:class:`int`. The 0-indexing convention is followed, so to get the 3-rd phase one should
+pass `2` to the method.
+"""
+
 
 class Trecho(Enum):
     """The 4 "trechos" (sections) of the measurements.
@@ -108,8 +120,8 @@ class Segmenter:
         self,
         trecho: Trecho,
         cycle: Optional[Cycle] = None,
-        phase: Optional[Phase] = None,
         return_slice: bool = False,
+        phase: Optional[PhaseRef] = None,
     ) -> Union[slice, Tuple[FrameSubfr, FrameSubfr]]:
         """Return times corresponding to segment of ground reactions signal.
 
@@ -145,14 +157,16 @@ class Segmenter:
     def _get_times_of_cycle(
         self, trecho: Trecho, cycle: Cycle, return_slice: bool = False
     ) -> Union[slice, Tuple[FrameSubfr, FrameSubfr]]:
-        first_phase = next(iter(self.segments[trecho][cycle].values()))
-        last_phase = next(iter(reversed(self.segments[trecho][cycle].values())))
+        first_phase = self._ith_phase_of_cycle(trecho, cycle, 0)
+        last_phase = self._ith_phase_of_cycle(trecho, cycle, -1)
         cycle_slice = slice(first_phase.start, last_phase.stop)
         return self._proc_slice(cycle_slice, return_slice)
 
     def _get_times_of_phase(
-        self, trecho: Trecho, cycle: Cycle, phase: Phase, return_slice: bool = False
+        self, trecho: Trecho, cycle: Cycle, phase: PhaseRef, return_slice: bool = False
     ) -> Union[slice, Tuple[FrameSubfr, FrameSubfr]]:
+        if phase not in Phase:
+            phase = self._ith_phase_of_cycle(trecho, cycle, phase)
         phase_slice = self.segments[trecho][cycle][phase]
         return self._proc_slice(phase_slice, return_slice)
 
@@ -160,6 +174,11 @@ class Segmenter:
         if return_slice:
             return slic
         return self._to_frame_subfr(slic.start), self._to_frame_subfr(slic.stop)
+
+    def _ith_phase_of_cycle(self, trecho: Trecho, cycle: Cycle, i: int) -> Phase:
+        phases = tuple(self.segments[trecho][cycle].values())
+        return phase[i]
+
 
     @property
     def left_forcepl(self):
@@ -206,7 +225,7 @@ class SegmentPlotter:
         box_legend: str,
         trecho: Trecho,
         cycle: Optional[Cycle] = None,
-        phase: Optional[Phase] = None,
+        phase: Optional[PhaseRef] = None,
         y_min=-800,
         y_max=0,
         show=True,
@@ -230,7 +249,7 @@ class SegmentPlotter:
         )
 
     def _time_ind_of_segment(
-        self, trecho: Optional[Trecho], cycle: Optional[Cycle], phase: Optional[Phase]
+        self, trecho: Optional[Trecho], cycle: Optional[Cycle], phase: Optional[PhaseRef]
     ) -> Tuple[float, float]:
         ind_slice = self.segm.get_times_of(trecho, cycle, phase, return_slice=True)
         ind_x_min = ind_slice.start

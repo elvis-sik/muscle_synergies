@@ -218,7 +218,7 @@ class SegmentPlotter:
         height = y_max - y_min
         width = end_time - begin_time
 
-        self.plot_rectangle(
+        return self.plot_rectangle(
             bottom_left_corner,
             width,
             height,

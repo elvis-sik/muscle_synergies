@@ -193,20 +193,24 @@ class Segmenter:
     def right_forcepl(self):
         return self.data.forcepl[1]
 
+    @property
+    def left_reaction(self):
+        return self.left_forcepl.df["Fz"]
+
+    @property
+    def right_reaction(self):
+        return self.right_forcepl.df["Fz"]
+
     def _to_frame_subfr(self, ind) -> FrameSubfr:
         return self.data.forcepl[0].frame_subfr(ind)
 
     def _organize_transitions(self) -> Segments:
         return organize_transitions(
-            *self._ground_reactions(), self._find_all_transitions()
+            self.left_reaction, self.right_reaction, self._find_all_transitions()
         )
 
     def _find_all_transitions(self) -> Sequence[int]:
-        return transition_indices(*self._ground_reactions())
-
-    def _ground_reactions(self) -> Tuple[pandas.Series, pandas.Series]:
-        """Return (left, right) ground reactions measured by force plates."""
-        return self.left_forcepl.df["Fz"], self.right_forcepl.df["Fz"]
+        return transition_indices(self.left_reaction, self.right_reaction)
 
 
 class SegmentPlotter:
@@ -227,6 +231,14 @@ class SegmentPlotter:
     @property
     def right_forcepl(self):
         return self.segm.right_forcepl
+
+    @property
+    def left_reaction(self):
+        return self.segm.left_reaction
+
+    @property
+    def right_reaction(self):
+        return self.segm.right_reaction
 
     def plot_segment(
         self,

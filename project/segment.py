@@ -138,7 +138,7 @@ class Segmenter:
         self, trecho: Trecho, return_slice: bool = False
     ) -> Union[slice, Tuple[FrameSubfr, FrameSubfr]]:
         first_cycle_slice = self._get_times_of_cycle(trecho, Cycle.FIRST, True)
-        second_cycle_slice = self._get_times_of_cycle(trecho, Cycle.FIRST, True)
+        second_cycle_slice = self._get_times_of_cycle(trecho, Cycle.SECOND, True)
         trecho_slice = slice(first_cycle_slice.start, second_cycle_slice.stop)
         return self._proc_slice(trecho_slice, return_slice)
 

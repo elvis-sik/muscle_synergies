@@ -106,6 +106,11 @@ The indices are given as single `int` objects corresponding to
 class Segmenter:
     """Segment Vicon Nexus data.
 
+    During its initialization, `Segmenter` parses the ground reaction data into
+    "trechos", cycles and phases and then works essentially as a glorified
+    dict. :py:meth:`~Segmenter.get_times_of` provides a way to get the times in
+    which the different segments begin and end.
+
     Attributes:
         data (ViconNexusData): the data.
 
@@ -205,7 +210,10 @@ class Segmenter:
 
 
 class SegmentPlotter:
-    """ blabla """
+    """Plot a rectangle indicating the different segments of the data.
+
+    The main method is :py:meth:`~SegmentPlotter.plot_segment`.
+    """
 
     segm: Segmenter
 
@@ -231,6 +239,17 @@ class SegmentPlotter:
         show=True,
         **kwargs,
     ) -> Optional[Tuple[plt.Figure, plt.Axes]]:
+        """Plot a rectangle on top of ground reaction to indicate segment.
+
+        Args:
+            box_legend: the description of the rectangle that appears on the
+                legend.
+            y_min, y_max: the vertical dimension and position of the box.
+            show: if `False`, return a tuple `(fig, ax)`. If `True`, the
+                function does not return and the
+                :py:func:`~matplotlib.pyplot.show` is called.
+            kwargs: passed to :py:meth:`SegmentPlotter.plot_rectangle`.
+        """
         begin_time, end_time = self._time_ind_of_segment(trecho, cycle, phase)
 
         bottom_left_corner = begin_time, y_min
@@ -268,7 +287,7 @@ class SegmentPlotter:
         xlabel="time (s)",
         ylabel="Force (N), z component",
     ) -> Optional[Tuple[plt.Figure, plt.Axes]]:
-        """ blabla """
+        """Plot ground reactions."""
         fig, ax = plt.subplots()
 
         left_reaction_plot = ax.plot(
@@ -300,7 +319,21 @@ class SegmentPlotter:
         show=True,
         **kwargs,
     ):
-        """ blabla """
+        """Plot a rectangle on given coordinates around reaction forces.
+
+        Args:
+            forces_legend: the description of the forces that appears on the
+                legend.
+            bottom_left_corner, width_height: position and size of the
+                rectangle. `bottom_left_corner` should be a `(x, y)` sequence.
+                :py:func:`~matplotlib.pyplot.show` is called.
+            box_legend: the description of the rectangle that appears on the
+                legend.
+            alpha: transparency of the rectangle.
+            show: if `False`, return a tuple `(fig, ax)`. If `True`, the
+                function does not return and the
+            kwargs: passed to :py:meth:`SegmentPlotter.plot_reactions`.
+        """
         fig, ax = self.plot_reactions(show=False, **kwargs)
         ax.add_patch(patches.Rectangle(bottom_left_corner, width, height, alpha=0.1))
         plt.legend(forces_legend + [box_legend])
@@ -405,6 +438,13 @@ def organize_transitions(
     right_reaction: pandas.Series,
     transitions: Sequence[int],
 ) -> Segments:
+    """Organize transitions into segments.
+
+    Args:
+        left_reaction, right_reaction: these are used essentially to check that
+            the phases occur in the correct order.
+        transitions: see :py:func:`transition_indices`.
+    """
     def build_cycle_dict(
         cycle: Sequence[Phase],
         indices: Sequence[int],

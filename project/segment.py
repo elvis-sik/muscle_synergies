@@ -125,8 +125,8 @@ class Segmenter:
         self,
         trecho: Trecho,
         cycle: Optional[Cycle] = None,
-        return_slice: bool = False,
         phase: Optional[PhaseRef] = None,
+        return_slice: bool = True,
     ) -> Union[slice, Tuple[FrameSubfr, FrameSubfr]]:
         """Return times corresponding to segment of ground reactions signal.
 

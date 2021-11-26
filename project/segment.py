@@ -251,6 +251,7 @@ class SegmentPlotter:
         y_min=-800,
         y_max=0,
         show=True,
+        show_entire=True,
         **kwargs,
     ) -> Optional[Tuple[plt.Figure, plt.Axes]]:
         """Plot a rectangle on top of ground reaction to indicate segment.
@@ -273,16 +274,24 @@ class SegmentPlotter:
         height = y_max - y_min
         width = end_time - begin_time
 
-        return self.plot_rectangle(
+        fig, ax = self.plot_rectangle(
             bottom_left_corner,
             width,
             height,
             box_legend,
             forces_legend=["Left reaction", "Right reaction"],
             alpha=0.1,
-            show=show,
             **kwargs,
         )
+        if not show_entire:
+            trecho_beginning, trecho_end = self._time_ind_of_segment(trecho, None, None)
+            segment_duration = trecho_end - trecho_beginning
+            margin = segment_duration * 0.1
+            ax.set_xlim(trecho_beginning - margin, trecho_end + margin)
+        if show:
+            plt.show()
+            return
+        return fig, ax
 
     def _time_ind_of_segment(
         self,
@@ -298,7 +307,6 @@ class SegmentPlotter:
 
     def plot_reactions(
         self,
-        show=True,
         figsize=(13, 5),
         left_color="g",
         right_color="r",
@@ -307,7 +315,10 @@ class SegmentPlotter:
         xlabel="time (s)",
         ylabel="Force (N), z component",
     ) -> Optional[Tuple[plt.Figure, plt.Axes]]:
-        """Plot ground reactions."""
+        """Plot ground reactions.
+
+        To display no legend, use `legend=None`.
+        """
         fig, ax = plt.subplots()
 
         left_reaction_plot = ax.plot(
@@ -318,14 +329,12 @@ class SegmentPlotter:
             self.right_forcepl.time_seq(), self.right_forcepl.df["Fz"], right_color
         )
 
-        fig.legend(legend)
+        if legend is not None:
+            fig.legend(legend)
         ax.set_title(title)
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
         fig.set_size_inches(*figsize)
-        if show:
-            plt.show()
-            return None
         return plt.gcf(), plt.gca()
 
     def plot_rectangle(
@@ -336,7 +345,6 @@ class SegmentPlotter:
         box_legend,
         forces_legend=["Left reaction", "Right reaction"],
         alpha=0.1,
-        show=True,
         **kwargs,
     ):
         """Plot a rectangle on given coordinates around reaction forces.
@@ -353,17 +361,12 @@ class SegmentPlotter:
                 legend.
 
             alpha: transparency of the rectangle.
-            show: if `False`, return a tuple `(fig, ax)`. If `True`, the
-                function does not return and the
 
             kwargs: passed to :py:meth:`SegmentPlotter.plot_reactions`.
         """
-        fig, ax = self.plot_reactions(show=False, **kwargs)
+        fig, ax = self.plot_reactions(legend=None, **kwargs)
         ax.add_patch(patches.Rectangle(bottom_left_corner, width, height, alpha=0.1))
         plt.legend(forces_legend + [box_legend])
-        if show:
-            plt.show()
-            return None
         return plt.gcf(), plt.gca()
 
 

@@ -257,10 +257,13 @@ class SegmentPlotter:
         Args:
             box_legend: the description of the rectangle that appears on the
                 legend.
+
             y_min, y_max: the vertical dimension and position of the box.
+
             show: if `False`, return a tuple `(fig, ax)`. If `True`, the
                 function does not return and the
                 :py:func:`~matplotlib.pyplot.show` is called.
+
             kwargs: passed to :py:meth:`SegmentPlotter.plot_rectangle`.
         """
         begin_time, end_time = self._time_ind_of_segment(trecho, cycle, phase)
@@ -281,7 +284,10 @@ class SegmentPlotter:
         )
 
     def _time_ind_of_segment(
-        self, trecho: Optional[Trecho], cycle: Optional[Cycle], phase: Optional[PhaseRef]
+        self,
+        trecho: Optional[Trecho],
+        cycle: Optional[Cycle],
+        phase: Optional[PhaseRef],
     ) -> Tuple[float, float]:
         ind_slice = self.segm.get_times_of(trecho, cycle, phase, return_slice=True)
         ind_x_min = ind_slice.start
@@ -337,14 +343,18 @@ class SegmentPlotter:
         Args:
             forces_legend: the description of the forces that appears on the
                 legend.
+
             bottom_left_corner, width_height: position and size of the
                 rectangle. `bottom_left_corner` should be a `(x, y)` sequence.
                 :py:func:`~matplotlib.pyplot.show` is called.
+
             box_legend: the description of the rectangle that appears on the
                 legend.
+
             alpha: transparency of the rectangle.
             show: if `False`, return a tuple `(fig, ax)`. If `True`, the
                 function does not return and the
+
             kwargs: passed to :py:meth:`SegmentPlotter.plot_reactions`.
         """
         fig, ax = self.plot_reactions(show=False, **kwargs)
@@ -366,7 +376,9 @@ def transition_indices(
 
     Args:
         left_reaction: ground reaction of the left force plate.
+
         right_reaction: ground reaction of the right force plate.
+
         min_phase_size: minimum number of adjacent measurements with a given
             property. The data has stretches in which, for example, the right
             force measurement remains negative (indicating that there is a
@@ -381,6 +393,7 @@ def transition_indices(
             displaying the relevant property. For example, only if there are
             `min_phase_size` measurements with `0.0` on the left force plate
             and a negative value on the right one.
+
         num_segments: number of segments to be looked for. If `0`, find as many
             segments as possible and return them.
 
@@ -456,8 +469,10 @@ def organize_transitions(
     Args:
         left_reaction, right_reaction: these are used essentially to check that
             the phases occur in the correct order.
+
         transitions: see :py:func:`transition_indices`.
     """
+
     def build_cycle_dict(
         cycle: Sequence[Phase],
         indices: Sequence[int],

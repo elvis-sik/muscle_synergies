@@ -30,10 +30,11 @@ class Phase(Enum):
         BL: balanço. Only the left leg is on the ground.
     """
 
-    DAA = auto()
-    AS = auto()
-    DAE = auto()
-    BL = auto()
+    DAA = "DAA"
+    AS = "AS"
+    DAE = "DAE"
+    BL = "BL"
+
 
 PhaseRef = Union[Phase, int]
 """Reference to a phase in a cycle.

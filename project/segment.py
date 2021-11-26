@@ -163,16 +163,18 @@ class Segmenter:
     def _get_times_of_cycle(
         self, trecho: Trecho, cycle: Cycle, return_slice: bool = False
     ) -> Union[slice, Tuple[FrameSubfr, FrameSubfr]]:
-        first_phase = self._ith_phase_of_cycle(trecho, cycle, 0)
-        last_phase = self._ith_phase_of_cycle(trecho, cycle, -1)
-        cycle_slice = slice(first_phase.start, last_phase.stop)
+        first_phase = self.ith_phase_of_cycle(trecho, cycle, 0)
+        last_phase = self.ith_phase_of_cycle(trecho, cycle, -1)
+        first_phase_slice = self.segments[trecho][cycle][first_phase]
+        last_phase_slice = self.segments[trecho][cycle][last_phase]
+        cycle_slice = slice(first_phase_slice.start, last_phase_slice.stop)
         return self._proc_slice(cycle_slice, return_slice)
 
     def _get_times_of_phase(
         self, trecho: Trecho, cycle: Cycle, phase: PhaseRef, return_slice: bool = False
     ) -> Union[slice, Tuple[FrameSubfr, FrameSubfr]]:
         if phase not in Phase:
-            phase = self._ith_phase_of_cycle(trecho, cycle, phase)
+            phase = self.ith_phase_of_cycle(trecho, cycle, phase)
         phase_slice = self.segments[trecho][cycle][phase]
         return self._proc_slice(phase_slice, return_slice)
 
@@ -181,10 +183,9 @@ class Segmenter:
             return slic
         return self._to_frame_subfr(slic.start), self._to_frame_subfr(slic.stop)
 
-    def _ith_phase_of_cycle(self, trecho: Trecho, cycle: Cycle, i: int) -> Phase:
-        phases = tuple(self.segments[trecho][cycle].values())
-        return phase[i]
-
+    def ith_phase_of_cycle(self, trecho: Trecho, cycle: Cycle, i: int) -> Phase:
+        all_phases = tuple(self.segments[trecho][cycle].keys())
+        return all_phases[i]
 
     @property
     def left_forcepl(self):

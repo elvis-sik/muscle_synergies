@@ -285,8 +285,8 @@ class SegmentPlotter:
         )
         if not show_entire:
             trecho_beginning, trecho_end = self._time_ind_of_segment(trecho, None, None)
-            segment_duration = trecho_end - trecho_beginning
-            margin = segment_duration * 0.1
+            trecho_duration = trecho_end - trecho_beginning
+            margin = trecho_duration * 0.3
             ax.set_xlim(trecho_beginning - margin, trecho_end + margin)
         if show:
             plt.show()

@@ -417,7 +417,28 @@ class TrajFrameTracker(_SectionFrameTracker):
 
 
 class DeviceData:
-    """Data associated with a measurement device."""
+    """Data associated with a measurement device.
+
+    Slicing returns rows of the data exactly like
+    :py:attribute:`pandas.DataFrame.iloc`. Using `(frame, subframe)` pairs for
+    consistency across devices is also supported. In case a range of `(frame,
+    subframe)` is specified with a step, it should be an `int`.
+
+    Examples:
+        Access the data directly:
+
+            >>> dev_data.df # returns a DataFrame
+            ...
+
+        Get row corresponding to a specific frame and subframe:
+
+            >>> dev_data[(frame, subfr)]
+            ...
+
+        Get rows corresponding to range specified as frame and subframe:
+            >>> dev_data[(start_fr, start_subf), (end_fr, end_subf), 3]
+            ... # return every 3 rows in range
+    """
 
     name: str
     """the name of the device, as it occurs on the CSV file. """

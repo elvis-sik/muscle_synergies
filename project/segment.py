@@ -10,9 +10,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas
 
-from muscle_synergies.vicon_data import DeviceType
-from muscle_synergies import ViconNexusData
-from muscle_synergies.vicon_data.user_data import DeviceData
+from muscle_synergies.vicon_data.user_data import (
+    DeviceType,
+    DeviceData,
+    ViconNexusData,
+    FrameSubfr,
+)
 
 
 class Phase(Enum):
@@ -87,9 +90,6 @@ class Cycle(Enum):
     FIRST = auto()
     SECOND = auto()
 
-
-FrameSubfr = Tuple[int, int]
-"""Time given as frame and subframe."""
 
 Segments = Mapping[Trecho, Mapping[Cycle, Mapping[Phase, slice]]]
 """Segments of the signal.

@@ -25,6 +25,9 @@ import pandas as pd
 from .aggregator import Aggregator, DeviceAggregator
 from .definitions import DeviceType, SamplingFreq
 
+FrameSubfr = Tuple[int, int]
+"""Time given as frame and subframe."""
+
 
 @dataclass
 class ViconNexusData:

@@ -330,7 +330,9 @@ class Segmenter:
 
     def _proc_slice(self, slic: slice, return_slice: bool, device_type: DeviceType):
         if not return_slice:
-            return self._to_frame_subfr(slic.start, device_type), self._to_frame_subfr(slic.stop, device_type)
+            return self._to_frame_subfr(slic.start, device_type), self._to_frame_subfr(
+                slic.stop, device_type
+            )
         return slic
 
     def ith_phase_of_cycle(self, trecho: Trecho, cycle: Cycle, i: int) -> Phase:

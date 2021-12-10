@@ -40,6 +40,14 @@ class Phase(Enum):
     DAE = "DAE"
     BL = "BL"
 
+    def from_str(phase: str) -> Optional["Phase"]:
+        return {
+            "DAA": Phase.DAA,
+            "DAE": Phase.DAE,
+            "AS": Phase.AS,
+            "BL": Phase.BL,
+        }[phase.upper()]
+
 
 PhaseRef = Union[Phase, int]
 """Reference to a phase in a cycle.

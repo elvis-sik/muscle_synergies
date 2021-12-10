@@ -109,6 +109,22 @@ class DeviceType(Enum):
     TRAJECTORY_MARKER = 3
     """a trajectory marker."""
 
+    @staticmethod
+    def from_str(device_type: str) -> "DeviceType":
+        """Parse string returning a DeviceType object.
+
+        Args:
+            device_type: one of `"emg"`, `"traj"` (or `"marker"`) or
+                `"forcepl"` (or `"fp"` or `"force plate"`). Case is ignored.
+        """
+        if device_type.upper() == "EMG":
+            return DeviceType.EMG
+        if device_type.upper() in {"FORCE PLATE", "FP", "FORCEPL"}:
+            return DeviceType.FORCE_PLATE
+        if device_type.upper() in {"TRAJ", "MARKER"}:
+            return DeviceType.TRAJECTORY_MARKER
+        raise ValueError(f"device type not understood: {device_type}")
+
     def section_type(self) -> SectionType:
         """Section type in which device occurs"""
         if self in {DeviceType.EMG, DeviceType.FORCE_PLATE}:

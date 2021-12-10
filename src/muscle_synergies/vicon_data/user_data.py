@@ -457,6 +457,17 @@ class DeviceData:
         """
         return self._frame_tracker.time_seq()
 
+    def __getitem__(self, indices: Union[int, FrameSubfr, slice]) -> pd.DataFrame:
+        try:
+            indices = self._slice_frame_subframe(indices)
+        except ValueError:
+            pass
+
+        try:
+            return self.df.iloc[indices]
+        except KeyError:
+            return self.iloc(*indices)
+
     def iloc(self, frame: int, subframe: int) -> pd.Series:
         """Index data rows by their frame and subframe.
 
@@ -474,33 +485,33 @@ class DeviceData:
         Raises:
             KeyError: if the frame and subframe are out of bounds.
         """
-        return self.df.iloc[self._convert_key(frame, subframe)]
+        return self.df.iloc[self._convert_index(frame, subframe)]
 
-    def frame_subfr(self, index: int) -> Tuple[ int, int]:
+    def frame_subfr(self, index: int) -> Tuple[int, int]:
         """Find (frame, subframe) pair corresponding to index."""
         return self._frame_tracker.frame_tracker(index)
 
-    def _key_slice_frame_subframe(
-        self,
-        stop: Tuple[int, int],
-        start: Optional[Tuple[int, int]] = None,
-        step: Optional[int] = None,
-    ) -> slice:
+    def _slice_frame_subframe(self, frame_slice: slice) -> slice:
         """Create slice with indexes corresponding to (frame, subframe) range.
+
+        Args:
+            frame_slice: `frame_slice.stop` and `frame_slice.stop` should be
+                coordinates given as a `(frame, subframe)` tuple,
+                `frame_slice.step` an :py:class:`int`.
 
         Raises:
             KeyError: if the frame and subframe are out-of-bounds.
         """
-        stop_index = self._convert_key(*stop)
-        if start is None:
+        stop_index = self._convert_index(*frame_slice.stop)
+        if frame_slice.start is None:
             return slice(stop_index)
 
-        start_index = self._convert_key(*start)
-        if step is None:
+        start_index = self._convert_index(*frame_slice.start)
+        if frame_slice.step is None:
             return slice(start_index, stop_index)
-        return slice(start_index, stop_index, step)
+        return slice(start_index, stop_index, frame_slice.step)
 
-    def _convert_key(self, frame: int, subframe: int) -> int:
+    def _convert_index(self, frame: int, subframe: int) -> int:
         """Get index corresponding to given frame and subframe.
 
         Raises:

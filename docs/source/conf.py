@@ -138,3 +138,9 @@ html_sidebars = {
         'navigation.html',
     ]
 }
+
+# Type aliases to remain unsimplified in the docs.
+# https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#confval-autodoc_type_aliases
+autodoc_type_aliases = {
+    'FrameSubfr': 'muscle_synergies.vicon_data.user_data.FrameSubfr',
+}

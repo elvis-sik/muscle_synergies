@@ -273,7 +273,7 @@ class Segmenter:
         phase: Optional[PhaseRef] = None,
         return_slice: bool = True,
         device_type: DeviceType = DeviceType.FORCE_PLATE,
-    ) -> Union[slice, Tuple[FrameSubfr, FrameSubfr]]:
+    ) -> Union[slice, Tuple["FrameSubfr", "FrameSubfr"]]:
         """Return times corresponding to segment of ground reactions signal.
 
         If `return_slice` is `True`, a `slice` object of the form
@@ -299,7 +299,7 @@ class Segmenter:
 
     def _get_times_of_trecho(
         self, trecho: Trecho, return_slice: bool, device_type: DeviceType
-    ) -> Union[slice, Tuple[FrameSubfr, FrameSubfr]]:
+    ) -> Union[slice, Tuple["FrameSubfr", "FrameSubfr"]]:
         first_cycle_slice = self._get_times_of_cycle(trecho, Cycle.FIRST, True)
         second_cycle_slice = self._get_times_of_cycle(trecho, Cycle.SECOND, True)
         trecho_slice = slice(first_cycle_slice.start, second_cycle_slice.stop)
@@ -307,7 +307,7 @@ class Segmenter:
 
     def _get_times_of_cycle(
         self, trecho: Trecho, cycle: Cycle, return_slice: bool, device_type: DeviceType
-    ) -> Union[slice, Tuple[FrameSubfr, FrameSubfr]]:
+    ) -> Union[slice, Tuple["FrameSubfr", "FrameSubfr"]]:
         first_phase = self.ith_phase_of_cycle(trecho, cycle, 0)
         last_phase = self.ith_phase_of_cycle(trecho, cycle, -1)
         first_phase_slice = self.segments[trecho][cycle][first_phase]
@@ -322,7 +322,7 @@ class Segmenter:
         phase: PhaseRef,
         return_slice: bool,
         device_type: DeviceType,
-    ) -> Union[slice, Tuple[FrameSubfr, FrameSubfr]]:
+    ) -> Union[slice, Tuple["FrameSubfr", "FrameSubfr"]]:
         if phase not in Phase:
             phase = self.ith_phase_of_cycle(trecho, cycle, phase)
         phase_slice = self.segments[trecho][cycle][phase]
@@ -355,7 +355,7 @@ class Segmenter:
     def right_reaction(self):
         return self.right_forcepl.df["Fz"]
 
-    def _to_frame_subfr(self, ind) -> FrameSubfr:
+    def _to_frame_subfr(self, ind) -> "FrameSubfr":
         return self.data.forcepl[0].frame_subfr(ind)
 
     def _organize_transitions(self) -> Segments:

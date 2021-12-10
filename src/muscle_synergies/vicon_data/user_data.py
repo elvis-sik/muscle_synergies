@@ -478,7 +478,7 @@ class DeviceData:
         """
         return self._frame_tracker.time_seq()
 
-    def __getitem__(self, indices: Union[int, FrameSubfr, slice]) -> pd.DataFrame:
+    def __getitem__(self, indices: Union[int, "FrameSubfr", slice]) -> pd.DataFrame:
         try:
             indices = self._slice_frame_subframe(indices)
         except ValueError:

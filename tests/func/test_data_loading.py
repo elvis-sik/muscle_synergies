@@ -38,14 +38,14 @@ class TestAbridgedData:
             (fixture_ref("traj_loaded"), fixture_ref("traj_index_seq")),
         ],
     )
-    def test_iloc(self, device, frame_subframe_seq, index_seq):
+    def test_get_frame_subfr(self, device, frame_subframe_seq, index_seq):
         for ((frame, subframe), ind) in zip(frame_subframe_seq, index_seq):
-            loaded_row = device.iloc(frame, subframe)
+            loaded_row = device[frame, subframe]
             exp_row = device.df.iloc[ind]
             assert loaded_row.equals(exp_row)
 
-    def test_specific_iloc(self, loaded_angelica_hv):
-        loaded_row = loaded_angelica_hv.iloc(2, 2)
+    def test_specific_get_frame_subfr(self, loaded_angelica_hv):
+        loaded_row = loaded_angelica_hv.[2, 2]
         loaded_row = list(loaded_row)
         expected_row = [209.475, 1219.82, 1780.88]
         assert loaded_row == expected_row
@@ -56,7 +56,7 @@ class TestAbridgedData:
         device_data = all_loaded
         for (frame, subframe) in invalid_frame_subframe_seq:
             with pt.raises(KeyError):
-                device_data.iloc(frame, subframe)
+                device_data[frame, subframe]
 
 
 class TestFullData:

@@ -487,26 +487,7 @@ class DeviceData:
         try:
             return self.df.iloc[indices]
         except KeyError:
-            return self.iloc(*indices)
-
-    def iloc(self, frame: int, subframe: int) -> pd.Series:
-        """Index data rows by their frame and subframe.
-
-        This method works similarly to :py:attr:`pandas.DataFrame.iloc`: its
-        purpose is to help the user index the data referring to rows. Whereas
-        the :py:class:`~pandas.DataFrame` version is used by directly indexing
-        it (`datafr.iloc[0]` returns the first row), the :py:class:`DeviceData`
-        version is a method.
-
-        To get the i-th row of the :py:class:`~pandas.DataFrame`, use its own
-        :py:attr:`~pandas.DataFrame.iloc`. This method should be used only when
-        the goal is to get not the i-th row but the one corresponding to a
-        given frame and subframe.
-
-        Raises:
-            KeyError: if the frame and subframe are out of bounds.
-        """
-        return self.df.iloc[self._convert_index(frame, subframe)]
+            return self.df.iloc[self._convert_index(*indices)]
 
     def frame_subfr(self, index: int) -> Tuple[int, int]:
         """Find (frame, subframe) pair corresponding to index."""

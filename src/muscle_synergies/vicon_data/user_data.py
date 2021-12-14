@@ -29,7 +29,6 @@ FrameSubfr = Tuple[int, int]
 """Time given as frame and subframe."""
 
 
-@dataclass
 class ViconNexusData:
     """The data contained in a Vicon Nexus CSV file.
 
@@ -49,6 +48,42 @@ class ViconNexusData:
     forcepl: Sequence["DeviceData"]
     emg: "DeviceData"
     traj: Sequence["DeviceData"]
+
+    def get_data(
+        device_type: Union[str, DeviceType],
+        time: Optional = None,
+        device_inds: Optional[Sequence[int]] = None,
+        cols=None,
+    ) -> Union[
+        pd.DataFrame, pd.Series, Tuple[pd.DataFrame], Tuple[pd.Series]
+    ]:
+        """Get the same data for many devices at once.
+
+        This method is used to get (possibly a subset of) the rows and
+        (possibly a subset of) the columns of the dataframes of (possibly a
+        subset of) all of the devices of a given type.
+
+        Args:
+            device_type: if a `str`, a description of the device type similar
+                to "emg". See :py:meth:`DeviceType.from_str` for the all the
+                accepted values.
+
+            time: if `None`, all of the rows of the each `~pandas.DataFrame` is
+                returned. Otherwise, it is passed directly to
+                :py:class:`DeviceData` via indexing as in `device_data[time]`.
+                See the documentation for :py:class:`DeviceData` for a
+                reference of what kinds of arguments are accepted.
+
+            device_inds: a sequence of indices corresponding to which devices
+                of the given type should be included.
+                If `None`, data for all of the devices is returned.
+                In case the device type is EMG, this should be `None`.
+
+            cols: if `None`, all columns of each :py:class:`~pandas.DataFrame`
+                are returned. Otherwise, pass this argument to the dataframes
+                as in `df[cols]`.
+        """
+        pass
 
     def __repr__(self):
         return "ViconNexusData(forcepl=[...], emg=<DeviceData>, traj=[...])"

@@ -105,13 +105,19 @@ Segments = Mapping[Trecho, Mapping[Cycle, Mapping[Phase, slice]]]
 For each :py:class:`Phase` in each :py:class:`Cycle` in each
 :py:class:`Trecho`, store a `slice`. The `slice` includes the (contiguous)
 indices in the force plate data corresponding to that specific
-:py:class:`Phase`, that is, it should be built similar to `slice(first_index,
-final_index)`.
+:py:class:`Phase`, that is, it should be built similar to `slice((start_frame,
+start_subframe), (final_frame, final_subframe))`.
 
-The indices are given as single `int` objects corresponding to
-:py:class:`pandas.Series` indices. In particular, they are not given as
-`(frame, subframe)` tuples.
+The mapping from phases to slices should preserve order. That is, when
+iterating over its keys, it should yield each of the four :py:class:`Phase`
+members in the order in which they occurred in the cycle.
 """
+
+
+def reactions(vicon_nexus_data: ViconNexusData) -> Tuple[pandas.Series, pandas.Series]:
+    """Get (left, right) ground reactions of force plate."""
+    left_fp, right_fp = vicon_nexus_data.forcepl
+    return left_fp.df["Fz"], right_fp.df["Fz"]
 
 
 class Segmenter:
@@ -359,12 +365,14 @@ class Segmenter:
         return self.data.forcepl[0].frame_subfr(ind)
 
     def _organize_transitions(self) -> Segments:
-        return organize_transitions(
-            self.left_reaction, self.right_reaction, self._find_all_transitions()
-        )
+        return _organize_transitions(self.data, self._find_all_transitions())
 
     def _find_all_transitions(self) -> Sequence[int]:
-        return transition_indices(self.left_reaction, self.right_reaction)
+        return _transition_indices(*self._reactions())
+
+    def _reactions(self):
+        return reactions(self.data)
+
 
 
 class SegmentPlotter:
@@ -522,7 +530,7 @@ class SegmentPlotter:
         return plt.gcf(), plt.gca()
 
 
-def transition_indices(
+def _transition_indices(
     left_reaction: pandas.Series,
     right_reaction: pandas.Series,
     min_phase_size: int = 10,
@@ -615,44 +623,113 @@ def transition_indices(
             return index_seq
 
 
-def organize_transitions(
-    left_reaction: pandas.Series,
-    right_reaction: pandas.Series,
+# NEXT TODO
+# 1. DONE Make `organize_transitions` return slices of `FrameSubfr` instead of
+#    indices somehow
+
+# 2. Then `Segmenter` needs to learn to work with that. Advantage will be to
+#    support different `DeviceData`.
+#
+#    Segmenter just returns slices now, it becomes simpler and cares much less
+#    about its data. It does nota make sense anymore for it to have
+#    `left_reaction`, for example.
+
+# 3. Make `ViconNexusData` be able to fetch a bunch of data at once. I.e., what
+#    I was trying to make `Segmenter` do.
+
+# 4. Then I have to fix `SegmentPlotter`. It very much needs to concern itself
+#    with force plates.
+
+# 5. Finally, I test everything:
+#    - Run the test suite
+#    - Run the Jupyter Notebooks, including the interactive one
+#    - Regenerate docs and see if the `FrameSubfr` thing worked. Try to use C-f
+#      to see if the definition of `Segments` occur anywhere in the docs. If
+#      they do, think about fixing that.
+#    - Manually test it. Get the data for all trechos 1 and 3 BL then for all
+#      trechos 2 and 4. Compute synergies.
+
+
+def _organize_transitions(
+    vicon_nexus_data: ViconNexusData,
     transitions: Sequence[int],
 ) -> Segments:
     """Organize transitions into segments.
 
     Args:
-        left_reaction, right_reaction: these are used essentially to check that
-            the phases occur in the correct order.
+        vicon_nexus_data: this object holds the
+            :py:class:`~muscle_synergies.vicon_data.user_data.DeviceData` of the
+            force plates.
 
         transitions: see :py:func:`transition_indices`.
     """
+
+    def frame_subfr(index: int) -> FrameSubfr:
+        """Convert array index to (frame, subframe) time."""
+        return vicon_nexus_data.forcepl[0].frame_subfr(index)
 
     def build_cycle_dict(
         cycle: Sequence[Phase],
         indices: Sequence[int],
     ) -> Mapping[Phase, slice]:
+        """Build mapping a phase to a (frame, subframe) slice.
+
+        Returns:
+            an :py:class:`~collections.OrderedDict`. Its keys
+            (:py:class:`Phase` members) are stored in the order in which the
+            phases ocurred in the cycle.
+        """
         slices = [
-            slice(indices[i], indices[i + 1] - 1) for i in range(len(indices) - 1)
+            slice(frame_subfr(indices[i]), frame_subfr(indices[i + 1] - 1))
+            for i in range(len(indices) - 1)
         ]
         return OrderedDict(zip(cycle, slices))
 
-    def phase_seq_in_cycle_trechos_1_and_3(phase_indices) -> List[Phase]:
-        if single_leg_phase_type(phase_indices[1]) is Phase.BL:
-            return [Phase.DAA, Phase.BL, Phase.DAE, Phase.AS]
-        elif single_leg_phase_type(phase_indices[1]) is Phase.AS:
-            return [Phase.DAE, Phase.AS, Phase.DAA, Phase.BL]
-        raise ValueError("expected second phase in a cycle to be either BL or AS.")
+    def phase_seq(phase_indices, trecho: Trecho) -> List[Phase]:
+        """Return phases in the order they occur in cycles of trecho.
 
-    def phase_seq_in_cycle_trechos_2_and_4(phase_indices) -> List[Phase]:
-        if single_leg_phase_type(phase_indices[1]) is Phase.BL:
-            return [Phase.DAE, Phase.BL, Phase.DAA, Phase.AS]
-        elif single_leg_phase_type(phase_indices[1]) is Phase.AS:
-            return [Phase.DAA, Phase.AS, Phase.DAE, Phase.BL]
-        raise ValueError("expected second phase in a cycle to be either BL or AS.")
+        Args:
+            phase_indices: a sequence containing the 8 array indices marking
+                the transitions between phases in a trecho.
+            trecho: the trecho in which indices occur.
+
+        Raises:
+            :py:class:`ValueError` if the second phase is not either BL or AS.
+        """
+
+        def wrong_second_phase():
+            raise ValueError("expected second phase in a cycle to be either BL or AS.")
+
+        if trecho in {Trecho.FIRST, Trecho.THIRD}:
+            if single_leg_phase_type(phase_indices[1]) is Phase.BL:
+                return [Phase.DAA, Phase.BL, Phase.DAE, Phase.AS]
+            elif single_leg_phase_type(phase_indices[1]) is Phase.AS:
+                return [Phase.DAE, Phase.AS, Phase.DAA, Phase.BL]
+            else:
+                wrong_second_phase()
+        elif trecho in {Trecho.SECOND, Trecho.FOURTH}:
+            if single_leg_phase_type(phase_indices[1]) is Phase.BL:
+                return [Phase.DAE, Phase.BL, Phase.DAA, Phase.AS]
+            elif single_leg_phase_type(phase_indices[1]) is Phase.AS:
+                return [Phase.DAA, Phase.AS, Phase.DAE, Phase.BL]
+            else:
+                wrong_second_phase()
 
     def single_leg_phase_type(ind: int) -> Phase:
+        """Find the phase type of a single leg phase occurring at a moment.
+
+        A "single leg phase" here refers to one of the phases in which a single
+        leg is on the ground, that is, either :py:data:`Phase.BL` or
+        :py:data:`Phase.AS`.
+
+        Args:
+            ind: index to be inspected to determine the phase. In particular,
+                it should be an array index and not a `(frame, subframe)` pair.
+
+        Raises:
+            :py:class:`ValueError` if the phase seems to not be a single leg
+            phase.
+        """
         reaction_in_both = left_reaction[ind] != 0 and right_reaction[ind] != 0
         reaction_in_none = left_reaction[ind] == 0 and right_reaction[ind] == 0
 
@@ -668,33 +745,39 @@ def organize_transitions(
         return Phase.AS
 
     def organize_cycles(
-        phase_indices: Sequence[int], end_of_cycle: int, trecho: Trecho
+        phase_indices: Sequence[int], end_of_trecho: int, trecho: Trecho
     ) -> Mapping[Cycle, Mapping[Phase, slice]]:
-        phase_indices = list(phase_indices)
+        """Organize cycle transition indices into a mapping to form `Segments`.
 
-        if trecho in {Trecho.FIRST, Trecho.THIRD}:
-            cycle = phase_seq_in_cycle_trechos_1_and_3(phase_indices)
-        else:
-            cycle = phase_seq_in_cycle_trechos_2_and_4(phase_indices)
+        Args:
+            phase_indices: the 8 adjacent array indices (not `(frame,
+                subframe)` pairs) with the transitions occurring in a cycle.
+            end_of_trecho: the first index not belong to the trecho.
+            trecho: the trecho in which the cycles occur.
+
+        Returns:
+            the mapping from :py:class:`Cycle` that occur in the definition of
+            :py:data:`Segments`.
+        """
+        phase_indices = list(phase_indices)
+        cycle = phase_seq(phase_indices, trecho)
 
         return {
             Cycle.FIRST: build_cycle_dict(cycle, phase_indices[:5]),
-            Cycle.SECOND: build_cycle_dict(
-                cycle, phase_indices[4:] + [end_of_cycle + 1]
-            ),
+            Cycle.SECOND: build_cycle_dict(cycle, phase_indices[4:] + [end_of_trecho]),
         }
 
+    left_reaction, right_reaction = reactions(vicon_nexus_data)
+
     return {
-        Trecho.FIRST: organize_cycles(
-            transitions[1:9], transitions[9] - 1, Trecho.FIRST
-        ),
+        Trecho.FIRST: organize_cycles(transitions[1:9], transitions[9], Trecho.FIRST),
         Trecho.SECOND: organize_cycles(
-            transitions[11:19], transitions[19] - 1, Trecho.SECOND
+            transitions[11:19], transitions[19], Trecho.SECOND
         ),
         Trecho.THIRD: organize_cycles(
-            transitions[21:29], transitions[29] - 1, Trecho.THIRD
+            transitions[21:29], transitions[29], Trecho.THIRD
         ),
         Trecho.FOURTH: organize_cycles(
-            transitions[31:39], transitions[39] - 1, Trecho.FOURTH
+            transitions[31:39], transitions[39], Trecho.FOURTH
         ),
     }

@@ -50,19 +50,6 @@ class Phase(Enum):
         }[phase.upper()]
 
 
-PhaseRef = Union[Phase, int]
-"""Reference to a phase in a cycle.
-
-Some methods expect to receive a reference to a specific phase in a specific
-:py:class:`Cycle` in a specific :py:class:`Trecho`. An user could specify the
-phase by telling the method either "the phase I want is DAA", in which case it
-makes more sense for them to pass a :py:class:`Phase` to the method, or "the
-phase I want is the 3-rd one in the cycle", in which case they should pass an
-:py:class:`int`. The 0-indexing convention is followed, so to get the 3-rd phase one should
-pass `2` to the method.
-"""
-
-
 class Trecho(Enum):
     """The 4 "trechos" (sections) of the measurements.
 
@@ -114,6 +101,18 @@ iterating over its keys, it should yield each of the four :py:class:`Phase`
 members in the order in which they occurred in the cycle.
 """
 
+PhaseRef = Union[Phase, int, str]
+"""Reference to a phase in a cycle.
+
+Some methods expect to receive a reference to a specific phase in a specific
+:py:class:`Cycle` in a specific :py:class:`Trecho`. An user could specify the
+phase by telling the method either "the phase I want is DAA", in which case it
+makes more sense for them to either pass a :py:class:`Phase` or a `"str"`
+description of it (like `"BL"`) to the method, or "the phase I want is the 3-rd
+one in the cycle", in which case they should pass an :py:class:`int`. The
+0-indexing convention is followed, so to get the 3-rd phase one should pass `2`
+to the method.
+"""
 
 def reactions(vicon_nexus_data: ViconNexusData) -> Tuple[pandas.Series, pandas.Series]:
     """Get (left, right) ground reactions of force plate."""
@@ -138,84 +137,65 @@ class Segmenter:
         self.data = data
         self._segments = self._organize_transitions()
 
-    def get_segments(
-        self,
-        device_type: str,
-        trecho: Union[Union[Trecho, int], Sequence],
-        cycle: Optional[Union[Cycle, int]] = None,
-        phase: Optional[Union[PhaseRef, str]] = None,
-        device_inds: Optional[Union[int, Sequence[int]]] = None,
-        device_cols: Optional[Sequence[str]] = None,
-    ) -> pandas.DataFrame:
-        """TODO
+    def ith_phase(self, trecho: Trecho, i: int) -> Phase:
+        """Determine the i-th phase occurring in a given trecho.
 
-        Args:
-            device_type: one of `"emg"`, `"traj"` (or `"marker"`) or
-                `"forcepl"` (or `"fp"` or `"force plate"`). Case is ignored.
-            trecho: if an `int`, a number from 1 to 4.
-            cycle: if an `int`, either 1 or 2.
-            phase: if a `str`, one of `"DAA"`, `"DAE"`, `"AS"` or `"BL"`
-                (case is ignored).
-
-            device_inds: indices of the devices from which to retrieve the
-                data. In the case of an EMG device,
-
-        Raises:
-            ValueError if one of the arguments does not have one of the values
-                explicitly mentioned as valid or if both `trecho`and `phase`
-                are present but `cycle`is not.
+        `i` should be given using Python convention: the first phase is `0`,
+        for example.
         """
-        pass
+        i = i % 4
+        cycle = Cycle.FIRST
+        all_phases = tuple(self._segments[trecho][cycle].keys())
+        return all_phases[i]
 
-    def _get_segment(
+    def get_times_of(
         self,
-        device_type: str,
         trecho: Union[Trecho, int],
         cycle: Optional[Union[Cycle, int]] = None,
-        phase: Optional[Union[PhaseRef, str]] = None,
-        device_inds: Optional[Union[int, Sequence[int]]] = None,
-        device_cols: Optional[Sequence[str]] = None,
-    ) -> Union[pandas.DataFrame, pandas.Series, Tuple[pandas.DataFrame]]:
-        device_type = self._parse_device_type(device_type)
+        phase: Optional[PhaseRef] = None,
+    ) -> slice:
+        """Return times corresponding to segment of ground reactions signal.
+
+        If `return_slice` is `True`, a `slice` object of the form
+        `slice(first_index, last_index)` is returned, where the indices refer
+        to the :py:class:`pandas.Series` containing the ground reaction forces.
+        If `return_slice` is `False`, a tuple of the form `(framsubfr_start,
+        framesubfr_end)` will be returned. That is, the time in which the given
+        segment starts (or ends) will be given as a `FrameSubfr` tuple.
+
+        If all of `trecho`, `cycle` and `phase` are given, the times will refer
+        to the beginning and end of exactly that specific :py:class:`Phase`.
+        If only `trecho` and `cycle` are given, the single returned `slice` (or
+        the single returned tuple with two `FrameSubfr` objects) will contain
+        the times for all 4 phases of that :py:class:`Cycle`. Similarly, the
+        times will refer to a single trecho if only :py:class:`Trecho` is
+        present.
+
+        Args:
+            trecho: if an `int`, a number from 1 to 4.
+            cycle: if an `int`, either 1 or 2.
+            phase: if a `str`, one of `"DAA"`, `"DAE"`, `"AS"` or `"BL"` (case
+                is ignored). If an `int`, should be a number from 0 to 3
+                specifying the phase using its order in the cycle.
+        """
         trecho, cycle, phase = self._parse_segment_args(trecho, cycle, phase)
-        start, end = self.get_times_of(trecho, cycle, phase, return_slice=False)
-        devices = self._get_devices(device_type, device_inds)
-        for dev in devices:
-            foo.append(dev.bar)
-
-        # TODO devices will be either a single DeviceData (if device_inds is an int)
-        # or a tuple of DeviceData (otherwise)
-        # Gotta extract cols from them and return either a single Series, a single DataFrame
-        # or several of those (in case device_inds is not an int)
-
-        dev_segment_data = []
-        for dev in devices:
-            dev_segment_data.append(None)
-        if 00:
-            pass
-        # TODO now index them
-
-    @staticmethod
-    def _parse_device_type(device_type: str) -> DeviceType:
-        if device_type.upper() == "EMG":
-            return DeviceType.EMG
-        if device_type.upper() in {"FORCE PLATE", "FP", "FORCEPL"}:
-            return DeviceType.FORCE_PLATE
-        if device_type.upper() in {"TRAJ", "MARKER"}:
-            return DeviceType.TRAJECTORY_MARKER
-        raise ValueError(f"device type not understood: {device_type}")
+        if phase is not None:
+            return self._get_times_of_phase(trecho, cycle, phase)
+        if cycle is not None:
+            return self._get_times_of_cycle(trecho, cycle)
+        return self._get_times_of_trecho(trecho)
 
     @classmethod
     def _parse_segment_args(
         cls,
         trecho: Union[Trecho, int],
         cycle: Optional[Union[Cycle, int]],
-        phase: Optional[Union[PhaseRef, str]],
-    ) -> Tuple[Trecho, Optional[Cycle], Optional[PhaseRef]]:
+        phase_ref: Optional[PhaseRef],
+    ) -> Tuple[Trecho, Optional[Cycle], Optional[Phase]]:
         return (
             cls._parse_trecho(trecho),
             cls._parse_cycle(cycle),
-            cls._parse_phase(phase),
+            cls._parse_phase(trecho, phase_ref),
         )
 
     @staticmethod
@@ -236,141 +216,45 @@ class Segmenter:
         cycle_ind = cycle - 1
         return tuple(Cycle)[cycle_ind]
 
-    @staticmethod
-    def _parse_phase(
-        phase: Optional[Union[PhaseRef, str]] = None,
-    ) -> Optional[PhaseRef]:
-        if phase in PhaseRef:
-            return phase
-        if phase is None:
-            return phase
-        return {
-            "DAA": PhaseRef.DAA,
-            "DAE": PhaseRef.DAE,
-            "AS": PhaseRef.AS,
-            "BL": PhaseRef.BL,
-        }[phase.upper()]
-
-    def _get_devices(
-        self,
-        device_type: DeviceType,
-        device_inds: Optional[Union[int, Sequence[int]]] = None,
-    ) -> Tuple[DeviceData]:
-        if device_type is DeviceType.EMG:
-            return self.data.emg
-        elif device_type is DeviceType.FORCE_PLATE:
-            devices = self.data.forcepl
-        elif device_type is DeviceType.TRAJECTORY_MARKER:
-            devices = self.data.traj
-        else:
-            raise ValueError(f"device type {device_type} not understood")
+    @statichmethod
+    def _parse_phase(trecho: Trecho, phase_ref: Optional[PhaseRef]) -> Optional[Phase]:
+        if phase_ref is None:
+            return None
+        if phase_ref in Phase:
+            return phase_ref
         try:
-            return (devices[device_inds],)
-        except IndexError:
+            return Phase.from_str(phase_ref)
+        except KeyError:
             pass
-        if device_inds is None:
-            device_inds = range(len(devices))
-        return tuple(devices[i] for i in device_inds)
+        return self.ith_phase(trecho, phase_ref)
 
-    def get_times_of(
-        self,
-        trecho: Trecho,
-        cycle: Optional[Cycle] = None,
-        phase: Optional[PhaseRef] = None,
-        return_slice: bool = True,
-        device_type: DeviceType = DeviceType.FORCE_PLATE,
-    ) -> Union[slice, Tuple["FrameSubfr", "FrameSubfr"]]:
-        """Return times corresponding to segment of ground reactions signal.
+    def _get_times_of_trecho(self, trecho: Trecho) -> slice:
+        first_cycle_slice = self._get_times_of_cycle(trecho, Cycle.FIRST)
+        second_cycle_slice = self._get_times_of_cycle(trecho, Cycle.SECOND)
+        return slice(first_cycle_slice.start, second_cycle_slice.stop)
 
-        If `return_slice` is `True`, a `slice` object of the form
-        `slice(first_index, last_index)` is returned, where the indices refer
-        to the :py:class:`pandas.Series` containing the ground reaction forces.
-        If `return_slice` is `False`, a tuple of the form `(framsubfr_start,
-        framesubfr_end)` will be returned. That is, the time in which the given
-        segment starts (or ends) will be given as a `FrameSubfr` tuple.
-
-        If all of `trecho`, `cycle` and `phase` are given, the times will refer
-        to the beginning and end of exactly that specific :py:class:`Phase`.
-        If only `trecho` and `cycle` are given, the single returned `slice` (or
-        the single returned tuple with two `FrameSubfr` objects) will contain
-        the times for all 4 phases of that :py:class:`Cycle`. Similarly, the
-        times will refer to a single trecho if only :py:class:`Trecho` is
-        present.
-        """
-        if phase is not None:
-            return self._get_times_of_phase(trecho, cycle, phase, return_slice)
-        if cycle is not None:
-            return self._get_times_of_cycle(trecho, cycle, return_slice)
-        return self._get_times_of_trecho(trecho, return_slice, device_type)
-
-    def _get_times_of_trecho(
-        self, trecho: Trecho, return_slice: bool, device_type: DeviceType
-    ) -> Union[slice, Tuple["FrameSubfr", "FrameSubfr"]]:
-        first_cycle_slice = self._get_times_of_cycle(trecho, Cycle.FIRST, True)
-        second_cycle_slice = self._get_times_of_cycle(trecho, Cycle.SECOND, True)
-        trecho_slice = slice(first_cycle_slice.start, second_cycle_slice.stop)
-        return self._proc_slice(trecho_slice, return_slice)
-
-    def _get_times_of_cycle(
-        self, trecho: Trecho, cycle: Cycle, return_slice: bool, device_type: DeviceType
-    ) -> Union[slice, Tuple["FrameSubfr", "FrameSubfr"]]:
-        first_phase = self.ith_phase_of_cycle(trecho, cycle, 0)
-        last_phase = self.ith_phase_of_cycle(trecho, cycle, -1)
-        cycle_slice = slice(first_phase_slice.start, last_phase_slice.stop)
-        return self._proc_slice(cycle_slice, return_slice)
+    def _get_times_of_cycle(self, trecho: Trecho, cycle: Cycle) -> slice:
+        first_phase = self.ith_phase(trecho, cycle, 0)
+        last_phase = self.ith_phase(trecho, cycle, -1)
         first_phase_slice = self._segments[trecho][cycle][first_phase]
         last_phase_slice = self._segments[trecho][cycle][last_phase]
+        return slice(first_phase_slice.start, last_phase_slice.stop)
 
     def _get_times_of_phase(
         self,
         trecho: Trecho,
         cycle: Cycle,
-        phase: PhaseRef,
-        return_slice: bool,
-        device_type: DeviceType,
-    ) -> Union[slice, Tuple["FrameSubfr", "FrameSubfr"]]:
+        phase: Phase,
+    ) -> slice:
         if phase not in Phase:
-            phase = self.ith_phase_of_cycle(trecho, cycle, phase)
-        return self._proc_slice(phase_slice, return_slice)
-
-    def _proc_slice(self, slic: slice, return_slice: bool, device_type: DeviceType):
-        if not return_slice:
-            return self._to_frame_subfr(slic.start, device_type), self._to_frame_subfr(
-                slic.stop, device_type
-            )
-        return slic
-
-    def ith_phase_of_cycle(self, trecho: Trecho, cycle: Cycle, i: int) -> Phase:
-        return all_phases[i]
-
-    @property
-    def left_forcepl(self):
-        return self.data.forcepl[0]
-
-    @property
-    def right_forcepl(self):
-        return self.data.forcepl[1]
-
-    @property
-    def left_reaction(self):
-        return self.left_forcepl.df["Fz"]
-
-    @property
-    def right_reaction(self):
-        return self.right_forcepl.df["Fz"]
-
-    def _to_frame_subfr(self, ind) -> "FrameSubfr":
-        return self.data.forcepl[0].frame_subfr(ind)
+            phase = self.ith_phase(trecho, cycle, phase)
+        return self._segments[trecho][cycle][phase]
 
     def _organize_transitions(self) -> Segments:
         return _organize_transitions(self.data, self._find_all_transitions())
 
     def _find_all_transitions(self) -> Sequence[int]:
-        return _transition_indices(*self._reactions())
-
-    def _reactions(self):
-        return reactions(self.data)
-
+        return _transition_indices(*reactions())
 
 
 class SegmentPlotter:

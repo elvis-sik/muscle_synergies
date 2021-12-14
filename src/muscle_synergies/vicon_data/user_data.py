@@ -325,7 +325,7 @@ class _SectionFrameTracker(abc.ABC):
         self._validate_frame_tracker_args(frame, subframe)
 
     @abc.abstractmethod
-    def frame_tracker(self, index: int) -> Tuple[int, int]:
+    def frame_tracker(self, index: int) -> FrameSubfr:
         """Frame and subframe associated with given array index.
 
         Raises:
@@ -387,7 +387,7 @@ class ForcesEMGFrameTracker(_SectionFrameTracker):
         super().index(frame, subframe)
         return (frame - 1) * self.num_subframes + subframe
 
-    def frame_tracker(self, index: int) -> Tuple[int, int]:
+    def frame_tracker(self, index: int) -> FrameSubfr:
         super().frame_tracker(index)
         frame = (index // self.num_subframes) + 1
         subframe = index % self.num_subframes
@@ -407,7 +407,7 @@ class TrajFrameTracker(_SectionFrameTracker):
         super().index(frame, subframe)
         return frame - 1
 
-    def frame_tracker(self, index: int) -> Tuple[int, int]:
+    def frame_tracker(self, index: int) -> FrameSubfr:
         super().frame_tracker(index)
         return index + 1, 0
 
@@ -489,7 +489,7 @@ class DeviceData:
         except KeyError:
             return self.df.iloc[self._convert_index(*indices)]
 
-    def frame_subfr(self, index: int) -> Tuple[int, int]:
+    def frame_subfr(self, index: int) -> FrameSubfr:
         """Find (frame, subframe) pair corresponding to index."""
         return self._frame_tracker.frame_tracker(index)
 

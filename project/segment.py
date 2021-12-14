@@ -129,14 +129,13 @@ class Segmenter:
     which the different segments begin and end.
 
     Attributes:
-        data (ViconNexusData): the data.
-
-        segments (Segments).
+        data (ViconNexusData): the data, which is taken as an argument and
+            stored without processing.
     """
 
     def __init__(self, data: ViconNexusData):
         self.data = data
-        self.segments = self._organize_transitions()
+        self._segments = self._organize_transitions()
 
     def get_segments(
         self,
@@ -316,10 +315,10 @@ class Segmenter:
     ) -> Union[slice, Tuple["FrameSubfr", "FrameSubfr"]]:
         first_phase = self.ith_phase_of_cycle(trecho, cycle, 0)
         last_phase = self.ith_phase_of_cycle(trecho, cycle, -1)
-        first_phase_slice = self.segments[trecho][cycle][first_phase]
-        last_phase_slice = self.segments[trecho][cycle][last_phase]
         cycle_slice = slice(first_phase_slice.start, last_phase_slice.stop)
         return self._proc_slice(cycle_slice, return_slice)
+        first_phase_slice = self._segments[trecho][cycle][first_phase]
+        last_phase_slice = self._segments[trecho][cycle][last_phase]
 
     def _get_times_of_phase(
         self,
@@ -331,7 +330,6 @@ class Segmenter:
     ) -> Union[slice, Tuple["FrameSubfr", "FrameSubfr"]]:
         if phase not in Phase:
             phase = self.ith_phase_of_cycle(trecho, cycle, phase)
-        phase_slice = self.segments[trecho][cycle][phase]
         return self._proc_slice(phase_slice, return_slice)
 
     def _proc_slice(self, slic: slice, return_slice: bool, device_type: DeviceType):
@@ -342,7 +340,6 @@ class Segmenter:
         return slic
 
     def ith_phase_of_cycle(self, trecho: Trecho, cycle: Cycle, i: int) -> Phase:
-        all_phases = tuple(self.segments[trecho][cycle].keys())
         return all_phases[i]
 
     @property

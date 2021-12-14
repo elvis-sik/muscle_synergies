@@ -40,7 +40,8 @@ class Phase(Enum):
     DAE = "DAE"
     BL = "BL"
 
-    def from_str(phase: str) -> Optional["Phase"]:
+    @staticmethod
+    def from_str(phase: str) -> "Phase":
         return {
             "DAA": Phase.DAA,
             "DAE": Phase.DAE,

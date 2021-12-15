@@ -67,13 +67,12 @@ class ViconNexusData:
         raise KeyError(f"device type not understood: {device_type}")
 
     def get_cols(
+        self,
         device_type: Union[str, DeviceType],
-        time: Optional = None,
+        time=None,
         device_inds: Optional[Sequence[int]] = None,
         cols=None,
-    ) -> Union[
-        pd.DataFrame, pd.Series, Tuple[pd.DataFrame], Tuple[pd.Series]
-    ]:
+    ) -> Union[pd.DataFrame, pd.Series, Tuple[pd.DataFrame], Tuple[pd.Series]]:
         """Get the same data for many devices at once.
 
         This method is used to get (possibly a subset of) the rows and
@@ -94,13 +93,47 @@ class ViconNexusData:
             device_inds: a sequence of indices corresponding to which devices
                 of the given type should be included.
                 If `None`, data for all of the devices is returned.
-                In case the device type is EMG, this should be `None`.
+                In case the device type is EMG, this is ignored.
 
             cols: if `None`, all columns of each :py:class:`~pandas.DataFrame`
                 are returned. Otherwise, pass this argument to the dataframes
                 as in `df[cols]`.
+
+        Returns:
+            In case the device type is EMG, either a single dataframe or series
+            with the data. Otherwise, a tuple whose values are of one of those
+            types, one value for each device in `device_ind`.
         """
-        pass
+
+        def iter_dev_data(
+            vicon_nexus_data: ViconNexusData,
+            device_type: Union[DeviceType, str],
+            device_inds: Optional[Sequence[Int]],
+        ) -> Iterator[DeviceData]:
+            if device_inds is None:
+                yield from vicon_nexus_data[device_type]
+
+            for dev_data in vicon_nexus_data[device_type]:
+                yield dev_data
+
+        def get_cols_of_single_dev_data(
+            device_data: DeviceData, time, cols
+        ) -> Union[pd.DataFrame, pd.Series, Tuple[pd.DataFrame], Tuple[pd.Series]]:
+            if time is None:
+                dataframe = device_data.df
+            else:
+                dataframe = device_data[time]
+            return dataframe[cols]
+
+        device_type = self._parse_device_type(device_type)
+
+        if device_type is DeviceType.EMG:
+            return get_cols_of_single_dev_data(self.emg, time, cols)
+
+        data = []
+        for dev_data in iter_dev_data(self, device_type, device_inds):
+            data.append(get_cols_of_single_dev_data(dev_data, time, cols))
+        return tuple(data)
 
     @staticmethod
     def _parse_device_type(device_type):

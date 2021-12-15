@@ -33,6 +33,11 @@ class ViconNexusData:
     """The data contained in a Vicon Nexus CSV file.
 
     The initialization arguments are stored as they are under the same names.
+    They can also be accessed by indexing similar to
+    `vicon_nexus_data["forcepl"]` or
+    `vicon_nexus_data[DeviceType.FORCE_PLATE]`.  For all the supported string
+    descriptions for device types, see
+    :py:class:`~muscle_synergies.vicon_data.definitions.DeviceType`.
 
     Args:
         forcepl: a sequence of :py:class:`DeviceData` corresponding to the
@@ -49,7 +54,19 @@ class ViconNexusData:
     emg: "DeviceData"
     traj: Sequence["DeviceData"]
 
-    def get_data(
+    def __getitem__(
+        self, device_type: Union[DeviceType, str]
+    ) -> Union["DeviceData", Sequence["DeviceData"]]:
+        device_type = self._parse_device_type(device_type)
+        if device_type is DeviceType.FORCE_PLATE:
+            return self.forcepl
+        elif device_type is DeviceType.EMG:
+            return self.emg
+        elif device_type is DeviceType.TRAJECTORY_MARKER:
+            return self.traj
+        raise KeyError(f"device type not understood: {device_type}")
+
+    def get_cols(
         device_type: Union[str, DeviceType],
         time: Optional = None,
         device_inds: Optional[Sequence[int]] = None,
@@ -84,6 +101,13 @@ class ViconNexusData:
                 as in `df[cols]`.
         """
         pass
+
+    @staticmethod
+    def _parse_device_type(device_type):
+        try:
+            return DeviceType.from_str(device_type)
+        except ValueError:
+            return device_type
 
     def __repr__(self):
         return "ViconNexusData(forcepl=[...], emg=<DeviceData>, traj=[...])"

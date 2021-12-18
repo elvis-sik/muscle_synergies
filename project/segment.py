@@ -110,7 +110,7 @@ phase by telling the method either "the phase I want is DAA", in which case it
 makes more sense for them to either pass a :py:class:`Phase` or a `"str"`
 description of it (like `"BL"`) to the method, or "the phase I want is the 3-rd
 one in the cycle", in which case they should pass an :py:class:`int`. The
-0-indexing convention is followed, so to get the 3-rd phase one should pass `2`
+1-indexing convention is followed, so to get the 3-rd phase one should pass `3`
 to the method.
 """
 
@@ -140,10 +140,10 @@ class Segmenter:
     def ith_phase(self, trecho: Trecho, i: int) -> Phase:
         """Determine the i-th phase occurring in a given trecho.
 
-        `i` should be given using Python convention: the first phase is `0`,
-        for example.
+        `i=1` refers to the first phase, 0-based indexing is *not* used.
         """
-        i = i % 4
+        trecho = self._parse_trecho(trecho)
+        i = (i % 4) + 1
         cycle = Cycle.FIRST
         all_phases = tuple(self._segments[trecho][cycle].keys())
         return all_phases[i]
@@ -175,7 +175,7 @@ class Segmenter:
             trecho: if an `int`, a number from 1 to 4.
             cycle: if an `int`, either 1 or 2.
             phase: if a `str`, one of `"DAA"`, `"DAE"`, `"AS"` or `"BL"` (case
-                is ignored). If an `int`, should be a number from 0 to 3
+                is ignored). If an `int`, should be a number from 1 to 4
                 specifying the phase using its order in the cycle.
         """
         trecho, cycle, phase = self._parse_segment_args(trecho, cycle, phase)

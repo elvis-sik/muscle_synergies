@@ -517,10 +517,11 @@ class TrajFrameTracker(_SectionFrameTracker):
 class DeviceData:
     """Data associated with a measurement device.
 
-    Slicing returns rows of the data exactly like
-    :py:attribute:`pandas.DataFrame.iloc`. Using `(frame, subframe)` pairs for
-    consistency across devices is also supported. In case a range of `(frame,
-    subframe)` is specified with a step, it should be an `int`.
+    Slicing returns rows of the data frame at specific `(frame, subframe)`
+    coordinates.  That may be helpful to get data for the same time period
+    across different device types since they each have a different sampling
+    rate. In case a range of `(frame, subframe)` is specified with a step, it
+    should be an `int`.
 
     Examples:
         Access the data directly:
@@ -576,16 +577,15 @@ class DeviceData:
         """
         return self._frame_tracker.time_seq()
 
-    def __getitem__(self, indices: Union[int, "FrameSubfr", slice]) -> pd.DataFrame:
+    def __getitem__(self, indices: Union["FrameSubfr", slice]) -> pd.DataFrame:
         try:
             indices = self._slice_frame_subframe(indices)
-        except ValueError:
+        except AttributeError:
             pass
-
-        try:
+        else:
             return self.df.iloc[indices]
-        except KeyError:
-            return self.df.iloc[self._convert_index(*indices)]
+
+        return self.df.iloc[self._convert_index(*indices)]
 
     def frame_subfr(self, index: int) -> FrameSubfr:
         """Find (frame, subframe) pair corresponding to index."""

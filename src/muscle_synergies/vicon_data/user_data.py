@@ -78,7 +78,9 @@ class ViconNexusData:
         time=None,
         device_inds: Optional[Sequence[int]] = None,
         cols=None,
-    ) -> Union[pd.DataFrame, pd.Series, Tuple[pd.DataFrame], Tuple[pd.Series]]:
+    ) -> Union[
+        pd.DataFrame, pd.Series, Tuple[pd.DataFrame, ...], Tuple[pd.Series, ...]
+    ]:
         """Get the same data for many devices at once.
 
         This method is used to get (possibly a subset of) the rows and
@@ -124,7 +126,9 @@ class ViconNexusData:
 
         def get_cols_of_single_dev_data(
             device_data: DeviceData, time, cols
-        ) -> Union[pd.DataFrame, pd.Series, Tuple[pd.DataFrame], Tuple[pd.Series]]:
+        ) -> Union[
+            pd.DataFrame, pd.Series, Tuple[pd.DataFrame, ...], Tuple[pd.Series, ...]
+        ]:
             if time is None:
                 dataframe = device_data.df
             else:

@@ -525,17 +525,17 @@ class DeviceData:
     Examples:
         Access the data directly:
 
-            >>> dev_data.df # returns a DataFrame
-            ...
+            >>> dev_data.df # doctest: +SKIP
+            ... # returns entire DataFrame
 
         Get row corresponding to a specific frame and subframe:
 
-            >>> dev_data[(frame, subfr)]
-            ...
+            >>> dev_data[(frame, subfr)] # doctest: +SKIP
+            ... # returns single row of data frame
 
         Get rows corresponding to range specified as frame and subframe:
-            >>> dev_data[(start_fr, start_subf), (end_fr, end_subf), 3]
-            ... # return every 3 rows in range
+            >>> dev_data[(start_fr, start_subf), (end_fr, end_subf), 3] # doctest: +SKIP
+            ... # returns every 3 rows in range
     """
 
     name: str

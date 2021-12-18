@@ -114,6 +114,7 @@ one in the cycle", in which case they should pass an :py:class:`int`. The
 to the method.
 """
 
+
 def reactions(vicon_nexus_data: ViconNexusData) -> Tuple[pandas.Series, pandas.Series]:
     """Get (left, right) ground reactions of force plate."""
     left_fp, right_fp = vicon_nexus_data.forcepl

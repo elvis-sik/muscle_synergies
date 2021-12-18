@@ -45,7 +45,7 @@ class TestAbridgedData:
             assert loaded_row.equals(exp_row)
 
     def test_specific_get_frame_subfr(self, loaded_angelica_hv):
-        loaded_row = loaded_angelica_hv.[2, 2]
+        loaded_row = loaded_angelica_hv[2, 2]
         loaded_row = list(loaded_row)
         expected_row = [209.475, 1219.82, 1780.88]
         assert loaded_row == expected_row

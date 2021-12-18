@@ -136,7 +136,7 @@ class Segmenter:
     def __init__(self, data: ViconNexusData):
         self._segments = self._organize_transitions(data)
 
-    def ith_phase(self, trecho: Trecho, i: int) -> Phase:
+    def ith_phase(self, trecho: Union[Trecho, int], i: int) -> Phase:
         """Determine the i-th phase occurring in a given trecho.
 
         `i=1` refers to the first phase, 0-based indexing is *not* used.
@@ -155,20 +155,12 @@ class Segmenter:
     ) -> slice:
         """Return times corresponding to segment of ground reactions signal.
 
-        If `return_slice` is `True`, a `slice` object of the form
-        `slice(first_index, last_index)` is returned, where the indices refer
-        to the :py:class:`pandas.Series` containing the ground reaction forces.
-        If `return_slice` is `False`, a tuple of the form `(framsubfr_start,
-        framesubfr_end)` will be returned. That is, the time in which the given
-        segment starts (or ends) will be given as a `FrameSubfr` tuple.
-
         If all of `trecho`, `cycle` and `phase` are given, the times will refer
         to the beginning and end of exactly that specific :py:class:`Phase`.
-        If only `trecho` and `cycle` are given, the single returned `slice` (or
-        the single returned tuple with two `FrameSubfr` objects) will contain
-        the times for all 4 phases of that :py:class:`Cycle`. Similarly, the
-        times will refer to a single trecho if only :py:class:`Trecho` is
-        present.
+        If only `trecho` and `cycle` are given, the single returned `slice`
+        will contain the times for all 4 phases of that :py:class:`Cycle`.
+        Similarly, the times will refer to a single trecho if only
+        :py:class:`Trecho` is present.
 
         Args:
             trecho: if an `int`, a number from 1 to 4.
@@ -176,26 +168,37 @@ class Segmenter:
             phase: if a `str`, one of `"DAA"`, `"DAE"`, `"AS"` or `"BL"` (case
                 is ignored). If an `int`, should be a number from 1 to 4
                 specifying the phase using its order in the cycle.
+
+        Raises:
+            `ValueError` if `phase` is not `None` but `cycle` is `None`.
+
+        Returns:
+            a `slice` object with the `(frame, subframe)` range of the segment.
+            Its attributes can be used to get the `(frame, subframe)` instants
+            in which the segment begins and ends like this: `slic.start` and
+            `slic.stop`. Or they could be passed directly to
+            :py:class:`~muscle_synergies.vicon_data.user_data.DeviceData`
+            instances via indexing as in `dev_data[segmenter.get_times_of(1)]`.
         """
         trecho, cycle, phase = self._parse_segment_args(trecho, cycle, phase)
         if phase is not None:
+            if cycle is None:
+                raise ValueError("if a phase is given, a cycle should also be")
             return self._get_times_of_phase(trecho, cycle, phase)
         if cycle is not None:
             return self._get_times_of_cycle(trecho, cycle)
         return self._get_times_of_trecho(trecho)
 
-    @classmethod
     def _parse_segment_args(
-        cls,
+        self,
         trecho: Union[Trecho, int],
         cycle: Optional[Union[Cycle, int]],
         phase_ref: Optional[PhaseRef],
     ) -> Tuple[Trecho, Optional[Cycle], Optional[Phase]]:
-        return (
-            cls._parse_trecho(trecho),
-            cls._parse_cycle(cycle),
-            cls._parse_phase(trecho, phase_ref),
-        )
+        trecho = self._parse_trecho(trecho)
+        cycle = self._parse_cycle(cycle)
+        phase = self._parse_phase(trecho, phase_ref)
+        return trecho, cycle, phase
 
     @staticmethod
     def _parse_trecho(trecho: Union[Trecho, int]) -> Trecho:
@@ -215,8 +218,9 @@ class Segmenter:
         cycle_ind = cycle - 1
         return tuple(Cycle)[cycle_ind]
 
-    @statichmethod
-    def _parse_phase(trecho: Trecho, phase_ref: Optional[PhaseRef]) -> Optional[Phase]:
+    def _parse_phase(
+        self, trecho: Trecho, phase_ref: Optional[PhaseRef]
+    ) -> Optional[Phase]:
         if phase_ref is None:
             return None
         if phase_ref in Phase:
@@ -228,16 +232,14 @@ class Segmenter:
         return self.ith_phase(trecho, phase_ref)
 
     def _get_times_of_trecho(self, trecho: Trecho) -> slice:
-        first_cycle_slice = self._get_times_of_cycle(trecho, Cycle.FIRST)
-        second_cycle_slice = self._get_times_of_cycle(trecho, Cycle.SECOND)
-        return slice(first_cycle_slice.start, second_cycle_slice.stop)
+        first_cycle = self.get_times_of(trecho, Cycle.FIRST)
+        second_cycle = self.get_times_of(trecho, Cycle.SECOND)
+        return slice(first_cycle.start, second_cycle.stop)
 
     def _get_times_of_cycle(self, trecho: Trecho, cycle: Cycle) -> slice:
-        first_phase = self.ith_phase(trecho, cycle, 0)
-        last_phase = self.ith_phase(trecho, cycle, -1)
-        first_phase_slice = self._segments[trecho][cycle][first_phase]
-        last_phase_slice = self._segments[trecho][cycle][last_phase]
-        return slice(first_phase_slice.start, last_phase_slice.stop)
+        first_phase = self.get_times_of(trecho, cycle, 1)
+        last_phase = self.get_times_of(trecho, cycle, 4)
+        return slice(first_phase.start, last_phase.stop)
 
     def _get_times_of_phase(
         self,
@@ -245,8 +247,6 @@ class Segmenter:
         cycle: Cycle,
         phase: Phase,
     ) -> slice:
-        if phase not in Phase:
-            phase = self.ith_phase(trecho, cycle, phase)
         return self._segments[trecho][cycle][phase]
 
     def _organize_transitions(self, data: ViconNexusData) -> Segments:

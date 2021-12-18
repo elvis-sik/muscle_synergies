@@ -50,9 +50,15 @@ class ViconNexusData:
             different trajectory devices.
     """
 
-    forcepl: Sequence["DeviceData"]
-    emg: "DeviceData"
-    traj: Sequence["DeviceData"]
+    def __init__(
+        self,
+        forcepl: Sequence["DeviceData"],
+        emg: "DeviceData",
+        traj: Sequence["DeviceData"],
+    ):
+        self.forcepl = forcepl
+        self.emg = emg
+        self.traj = traj
 
     def __getitem__(
         self, device_type: Union[DeviceType, str]

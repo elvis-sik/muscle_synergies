@@ -129,14 +129,12 @@ class Segmenter:
     dict. :py:meth:`~Segmenter.get_times_of` provides a way to get the times in
     which the different segments begin and end.
 
-    Attributes:
-        data (ViconNexusData): the data, which is taken as an argument and
-            stored without processing.
+    Args:
+        data (ViconNexusData): the data.
     """
 
     def __init__(self, data: ViconNexusData):
-        self.data = data
-        self._segments = self._organize_transitions()
+        self._segments = self._organize_transitions(data)
 
     def ith_phase(self, trecho: Trecho, i: int) -> Phase:
         """Determine the i-th phase occurring in a given trecho.
@@ -251,11 +249,11 @@ class Segmenter:
             phase = self.ith_phase(trecho, cycle, phase)
         return self._segments[trecho][cycle][phase]
 
-    def _organize_transitions(self) -> Segments:
-        return _organize_transitions(self.data, self._find_all_transitions())
+    def _organize_transitions(self, data: ViconNexusData) -> Segments:
+        return _organize_transitions(data, self._find_all_transitions(data))
 
-    def _find_all_transitions(self) -> Sequence[int]:
-        return _transition_indices(*reactions())
+    def _find_all_transitions(self, data: ViconNexusData) -> Sequence[int]:
+        return _transition_indices(*reactions(data))
 
 
 class SegmentPlotter:

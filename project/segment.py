@@ -269,40 +269,42 @@ class Segmenter:
 class SegmentPlotter:
     """Plot a rectangle indicating the different segments of the data.
 
-    The main method is :py:meth:`~SegmentPlotter.plot_segment`.
+    The most useful method is :py:meth:`~SegmentPlotter.plot_segment`.
     """
 
     segm: Segmenter
 
-    def __init__(self, segmented_data: Segmenter):
-        self.segm = segmented_data
+    def __init__(self, data: ViconNexusData, segmenter: Segmenter):
+        self.data = data
+        self.segm = segmenter
 
     @property
-    def left_forcepl(self):
-        return self.segm.left_forcepl
+    def left_forcepl(self) -> DeviceData:
+        return self.data.forcepl[0]
 
     @property
-    def right_forcepl(self):
-        return self.segm.right_forcepl
+    def right_forcepl(self) -> DeviceData:
+        return self.data.forcepl[1]
 
     @property
-    def left_reaction(self):
-        return self.segm.left_reaction
+    def left_reaction(self) -> pandas.Series:
+        return reactions(self.data)[0]
 
     @property
-    def right_reaction(self):
-        return self.segm.right_reaction
+    def right_reaction(self) -> pandas.Series:
+        return reactions(self.data)[1]
 
     def plot_segment(
         self,
         box_legend: str,
-        trecho: Trecho,
-        cycle: Optional[Cycle] = None,
+        trecho: Union[Trecho, int] = 0,
+        cycle: Optional[Union[Cycle, int]] = None,
         phase: Optional[PhaseRef] = None,
         y_min=-800,
         y_max=0,
         show=True,
         show_entire=True,
+        display_legend=True,
         **kwargs,
     ) -> Optional[Tuple[plt.Figure, plt.Axes]]:
         """Plot a rectangle on top of ground reaction to indicate segment.
@@ -319,26 +321,35 @@ class SegmentPlotter:
 
             kwargs: passed to :py:meth:`SegmentPlotter.plot_rectangle`.
         """
-        begin_time, end_time = self._time_ind_of_segment(trecho, cycle, phase)
+        begin_time, end_time = self._time_ind_of_segment(
+            self.left_forcepl, trecho, cycle, phase
+        )
 
         bottom_left_corner = begin_time, y_min
         height = y_max - y_min
         width = end_time - begin_time
 
-        fig, ax = self.plot_rectangle(
+        fig, ax = self.plot_reactions()
+
+        self._add_rectangle(
+            ax,
+            box_legend,
             bottom_left_corner,
             width,
             height,
-            box_legend,
-            forces_legend=["Left reaction", "Right reaction"],
             alpha=0.1,
-            **kwargs,
         )
+
         if not show_entire:
-            trecho_beginning, trecho_end = self._time_ind_of_segment(trecho, None, None)
+            trecho_beginning, trecho_end = self._time_ind_of_segment(
+                self.left_forcepl, trecho, None, None
+            )
             trecho_duration = trecho_end - trecho_beginning
             margin = trecho_duration * 0.3
             ax.set_xlim(trecho_beginning - margin, trecho_end + margin)
+
+        ax.legend()
+
         if show:
             plt.show()
             return
@@ -346,58 +357,135 @@ class SegmentPlotter:
 
     def _time_ind_of_segment(
         self,
-        trecho: Optional[Trecho],
-        cycle: Optional[Cycle],
-        phase: Optional[PhaseRef],
+        device: DeviceData,
+        trecho: Union[Trecho, int] = 0,
+        cycle: Optional[Union[Cycle, int]] = None,
+        phase: Optional[PhaseRef] = None,
     ) -> Tuple[float, float]:
-        ind_slice = self.segm.get_times_of(trecho, cycle, phase, return_slice=True)
+        framesubfr_slice = self.segm.get_times_of(trecho, cycle, phase)
+        ind_slice = device.to_index(framesubfr_slice)
         ind_x_min = ind_slice.start
         ind_x_max = ind_slice.stop
         time_seq = self.left_forcepl.time_seq()
         return time_seq[ind_x_min], time_seq[ind_x_max]
+
+    def plot_cols(
+        self,
+        # columns parameters
+        device_type: Union[str, DeviceType] = "force plate",
+        device_inds: Optional[Sequence[int]] = None,
+        col: str = "Fz",
+        # time parameters
+        trecho: Union[Trecho, int] = 0,
+        cycle: Optional[Union[Cycle, int]] = None,
+        phase: Optional[PhaseRef] = None,
+        # plot parameters
+        box_legend: Optional[str] = None,
+        y_min=-800,
+        y_max=0,
+        show=True,
+        show_entire=True,
+        **kwargs,
+    ) -> Optional[Tuple[plt.Figure, plt.Axes]]:
+        """Plot columns of data with rectangles on segments.
+
+        By default, the ground reactions will be shown with a rectangle around
+        the first trecho. This way, one can see the entire signal for the
+        ground reactions and the part that refers to the first trecho, which
+        could be useful to check that the signals have been segmented
+        correctly. From that default plot, many things could be changed by
+        fiddling with the arguments:
+
+        + instead of highlighting the first trecho, any trecho, cycle or phase
+          could be selected.
+
+        + Instead of plotting the ground reactions measured by both force
+          plates, a single column from any number of measurement devices of a
+          single type could be plotted.
+
+        + Graphical details of the plot could be changed, like the size and
+          color of the rectangle box.
+
+        The segment is specified with the parameters `trecho`, `cycle` and
+        `phase`. The easiest way to specify those would be to use `int`'s to
+        refer to the `trecho` and `cycle` (i.e., `trecho=1` and `cycle=2` for
+        first trecho, second cycle) and either a `str` or an `int` for the
+        phase. If `phase` is given as a `str`, it should be specified similar
+        to `"DAA"`.  If an `int`, it should be between `1` and `4`, with `1`
+        referring to the first phase occurring in the given cycle of the given
+        trecho. For more on how they work and what is supported, refer to
+        :py:meth:`Segmenter.get_times_of`.
+
+        The data columns are specified with the parameters `device_type`,
+        `device_inds` and `col`.  The first, `device_type` is one of `"force
+        plate"`, `"traj"` and `"emg"`.  The second, `device_inds`, if given, is
+        a sequence of indices referring to which devices, out of the list of
+        all of them, should be picked. Finally, the third, `col`, is the label
+        of the column of the data frames that will be plotted. Refer to
+        :py:meth:`~muscle_synergies.vicon_data.user_data.ViconNexusData.get_cols`
+        for further documentation on these parameters.
+
+        Plot arguments:
+            box_legend: the description of the rectangle (the one highlighting
+                the phase) that appears on the legend.
+
+            y_min, y_max: the vertical dimension and position of the box.
+
+            show: if `False`, return a tuple `(fig, ax)`. If `True`, the
+                function does not return and the
+                :py:func:`~matplotlib.pyplot.show` is called.
+
+            show_entire: if `False`, the x-axis will display the entire
+                duration of the experiment, i.e., start at frame 1, subframe 0
+                and end at the final ones. If `True`, the x-axis will be a
+                smaller window around the highlighted segment.
+
+            **kwargs:
+        """
+        pass
 
     def plot_reactions(
         self,
         figsize=(13, 5),
         left_color="g",
         right_color="r",
-        legend=["Left reaction", "Right reaction"],
+        labels=["Left reaction", "Right reaction"],
         title="Force plates",
         xlabel="time (s)",
         ylabel="Force (N), z component",
-    ) -> Optional[Tuple[plt.Figure, plt.Axes]]:
-        """Plot ground reactions.
-
-        To display no legend, use `legend=None`.
-        """
+    ) -> Tuple[plt.Figure, plt.Axes]:
+        """Plot ground reactions."""
         fig, ax = plt.subplots()
 
-        left_reaction_plot = ax.plot(
-            self.left_forcepl.time_seq(), self.left_forcepl.df["Fz"], left_color
+        ax.plot(
+            self.left_forcepl.time_seq(),
+            self.left_forcepl.df["Fz"],
+            left_color,
+            label=labels[0],
         )
 
-        right_reaction_plot = ax.plot(
-            self.right_forcepl.time_seq(), self.right_forcepl.df["Fz"], right_color
+        ax.plot(
+            self.right_forcepl.time_seq(),
+            self.right_forcepl.df["Fz"],
+            right_color,
+            label=labels[1],
         )
 
-        if legend is not None:
-            fig.legend(legend)
         ax.set_title(title)
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
         fig.set_size_inches(*figsize)
-        return plt.gcf(), plt.gca()
+        return fig, ax
 
-    def plot_rectangle(
+    def _add_rectangle(
         self,
-        bottom_left_corner,
-        width,
-        height,
-        box_legend,
-        forces_legend=["Left reaction", "Right reaction"],
-        alpha=0.1,
-        **kwargs,
-    ):
+        axes: plt.Axes,
+        label: str,
+        bottom_left_corner: Tuple[float, float],
+        width: float,
+        height: float,
+        alpha: float = 0.1,
+    ) -> plt.Axes:
         """Plot a rectangle on given coordinates around reaction forces.
 
         Args:
@@ -405,7 +493,7 @@ class SegmentPlotter:
                 legend.
 
             bottom_left_corner, width_height: position and size of the
-                rectangle. `bottom_left_corner` should be a `(x, y)` sequence.
+                rectangle. `bottom_left_corner` should be a `(x, y)` pair.
                 :py:func:`~matplotlib.pyplot.show` is called.
 
             box_legend: the description of the rectangle that appears on the
@@ -415,10 +503,10 @@ class SegmentPlotter:
 
             kwargs: passed to :py:meth:`SegmentPlotter.plot_reactions`.
         """
-        fig, ax = self.plot_reactions(legend=None, **kwargs)
-        ax.add_patch(patches.Rectangle(bottom_left_corner, width, height, alpha=0.1))
-        plt.legend(forces_legend + [box_legend])
-        return plt.gcf(), plt.gca()
+        axes.add_patch(
+            patches.Rectangle(bottom_left_corner, width, height, alpha=alpha, label=label)
+        )
+        return axes
 
 
 def _transition_indices(

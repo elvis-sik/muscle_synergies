@@ -139,10 +139,20 @@ class Segmenter:
     def ith_phase(self, trecho: Union[Trecho, int], i: int) -> Phase:
         """Determine the i-th phase occurring in a given trecho.
 
-        `i=1` refers to the first phase, 0-based indexing is *not* used.
+        Args:
+            trecho: needed because the phases in trechos 1 and 3 occur in a
+                different order than the ones in trechos 2 and 4.
+            i: the phase, should be a number between 1 and 4, with `i=1`
+                referring to the first phase. 0-based indexing is *not* used.
+
+        Raises:
+            `IndexError` if `i` is not between 1 and 4.
         """
+        if i not in range(1, 5):
+            raise IndexError("i should be a number between 1 and 4")
+
         trecho = self._parse_trecho(trecho)
-        i = (i % 4) + 1
+        i = ((i - 1) % 4)
         cycle = Cycle.FIRST
         all_phases = tuple(self._segments[trecho][cycle].keys())
         return all_phases[i]
@@ -227,7 +237,7 @@ class Segmenter:
             return phase_ref
         try:
             return Phase.from_str(phase_ref)
-        except KeyError:
+        except (KeyError, AttributeError):
             pass
         return self.ith_phase(trecho, phase_ref)
 

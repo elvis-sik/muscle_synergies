@@ -55,7 +55,7 @@ class TestAbridgedData:
     ):
         device_data = all_loaded
         for (frame, subframe) in invalid_frame_subframe_seq:
-            with pt.raises(KeyError):
+            with pt.raises(IndexError):
                 device_data[frame, subframe]
 
 

@@ -545,9 +545,9 @@ def _organize_transitions(
         transitions: see :py:func:`transition_indices`.
     """
 
-    def frame_subfr(index: int) -> FrameSubfr:
+    def to_framesubfr(index: int) -> FrameSubfr:
         """Convert array index to (frame, subframe) time."""
-        return vicon_nexus_data.forcepl[0].frame_subfr(index)
+        return vicon_nexus_data.forcepl[0].to_framesubfr(index)
 
     def build_cycle_dict(
         cycle: Sequence[Phase],
@@ -561,7 +561,7 @@ def _organize_transitions(
             phases ocurred in the cycle.
         """
         slices = [
-            slice(frame_subfr(indices[i]), frame_subfr(indices[i + 1] - 1))
+            slice(to_framesubfr(indices[i]), to_framesubfr(indices[i + 1] - 1))
             for i in range(len(indices) - 1)
         ]
         return OrderedDict(zip(cycle, slices))

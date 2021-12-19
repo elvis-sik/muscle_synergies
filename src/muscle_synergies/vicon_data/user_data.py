@@ -17,7 +17,17 @@ import abc
 from collections import defaultdict
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Iterator, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import (
+    Iterator,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+    Callable,
+    Any,
+)
 
 import numpy as np
 import pandas as pd
@@ -413,28 +423,53 @@ class _SectionFrameTracker(abc.ABC):
         """Sampling frequency in Hz with which the measurements were made."""
         pass
 
-    @abc.abstractmethod
-    def index(self, frame: int, subframe: int) -> int:
+    def to_index(
+        self, frame: Union[int, FrameSubfr, slice], subframe: Optional[int]
+    ) -> Union[int, slice]:
         """Array index associated with frame and subframe.
 
         Raises:
-            ValueError if the arguments are outside of the allowed range.
+            `IndexError` if the arguments are outside of the allowed range.
                 `frame` should be between 1 and
                 :py:attr:`~_SectionFrameTracker.num_frames`.  `subframe` should
                 be between 0 and
                 :py:attr:`~_SectionFrameTracker.num_subframes`.
         """
-        self._validate_frame_tracker_args(frame, subframe)
+        if subframe is None:
+            if isinstance(frame, slice):
+                slice_ = frame
+                self._validate_slice(slice_, self._validate_framesubfr_args)
+                return self._map_slice(slice_, self._to_index)
+            frame, subframe = frame
+            return self._to_index((frame, subframe))
 
-    @abc.abstractmethod
-    def frame_tracker(self, index: int) -> FrameSubfr:
+        self._validate_framesubfr_args((frame, subframe))
+        return self._to_index((frame, subframe))
+
+    def to_framesubfr(self, index: Union[int, slice]) -> Union[FrameSubfr, slice]:
         """Frame and subframe associated with given array index.
 
         Raises:
-            ValueError if the argument is outside of the allowed range (from 0
+            `IndexError` if the argument is outside of the allowed range (from 0
                 to :py:attr:`~_SectionFrameTracker.final_index`).
         """
+        if isinstance(index, slice):
+            slice_ = index
+            self._validate_slice(slice_, self._validate_index_arg)
+            return self._map_slice(slice_, self._to_framesubfr)
+
         self._validate_index_arg(index)
+        return self._to_framesubfr(index)
+
+    @abc.abstractmethod
+    def _to_index(self, framesubfr: FrameSubfr) -> int:
+        """Convert (frame, subframe) pair to array index."""
+        pass
+
+    @abc.abstractmethod
+    def _to_framesubfr(self, index: int) -> FrameSubfr:
+        """Convert array index to (frame, subframe) pair."""
+        pass
 
     @abc.abstractproperty
     def final_index(self) -> int:
@@ -459,14 +494,23 @@ class _SectionFrameTracker(abc.ABC):
     def _validate_index_arg(self, index: int):
         """Raise exception if index is outside of allowed range."""
         if index not in range(self.final_index + 1):
-            raise ValueError(f"index {index} out of bounds (max is self.final_index)")
+            raise IndexError(f"index {index} out of bounds (max is self.final_index)")
 
-    def _validate_frame_tracker_args(self, frame: int, subframe: int):
+    def _validate_framesubfr_args(self, framesubfr: FrameSubfr):
         """Raise exception if frame and subframe are not in allowed range."""
+        frame, subframe = framesubfr
         if frame not in range(1, self.num_frames + 1):
-            raise ValueError(f"frame {frame} is out of bounds")
+            raise IndexError(f"frame {frame} is out of bounds")
         if subframe not in range(self.num_subframes):
-            raise ValueError(f"subframe {subframe} out of range")
+            raise IndexError(f"subframe {subframe} out of range")
+
+    @staticmethod
+    def _validate_slice(slice_, validate_func: Callable):
+        validate_func(slice_.stop)
+
+        for arg in {slice_.start, slice_.step}:
+            if arg is not None:
+                validate_func(arg)
 
     def time_seq(self) -> pd.Series:
         """Create Series with times in seconds of all measurements."""
@@ -479,18 +523,32 @@ class _SectionFrameTracker(abc.ABC):
         period = 1 / sampling_frequency
         return pd.Series(period * np.arange(1, num_measurements + 1, 1))
 
+    @staticmethod
+    def _map_slice(slice_: slice, func: Callable) -> slice:
+        """Apply func to each non-None member of a slice."""
+
+        def apply_or_not(arg: Union[None, Any], func: Callable):
+            """Apply function if value is not None, otherwise return None."""
+            if arg is None:
+                return None
+            return func(arg)
+
+        start = apply_or_not(slice_.start, func)
+        step = apply_or_not(slice_.step, func)
+        stop = apply_or_not(slice_.stop, func)
+        return slice(start, stop, step)
+
 
 class ForcesEMGFrameTracker(_SectionFrameTracker):
     @property
     def sampling_frequency(self) -> int:
         return self._freq_forces_emg
 
-    def index(self, frame: int, subframe: int) -> int:
-        super().index(frame, subframe)
+    def _to_index(self, framesubfr: FrameSubfr) -> int:
+        frame, subframe = framesubfr
         return (frame - 1) * self.num_subframes + subframe
 
-    def frame_tracker(self, index: int) -> FrameSubfr:
-        super().frame_tracker(index)
+    def _to_framesubfr(self, index: int) -> FrameSubfr:
         frame = (index // self.num_subframes) + 1
         subframe = index % self.num_subframes
         return frame, subframe
@@ -505,12 +563,11 @@ class TrajFrameTracker(_SectionFrameTracker):
     def sampling_frequency(self) -> int:
         return self._freq_traj
 
-    def index(self, frame: int, subframe: int) -> int:
-        super().index(frame, subframe)
+    def _to_index(self, framesubfr: FrameSubfr) -> int:
+        frame, subframe = framesubfr
         return frame - 1
 
-    def frame_tracker(self, index: int) -> FrameSubfr:
-        super().frame_tracker(index)
+    def _to_framesubfr(self, index: int) -> FrameSubfr:
         return index + 1, 0
 
     @property
@@ -582,53 +639,37 @@ class DeviceData:
         return self._frame_tracker.time_seq()
 
     def __getitem__(self, indices: Union["FrameSubfr", slice]) -> pd.DataFrame:
-        try:
-            indices = self._slice_frame_subframe(indices)
-        except AttributeError:
-            pass
-        else:
-            return self.df.iloc[indices]
+        if isinstance(indices, slice):
+            return self.df.iloc[self.to_index(indices)]
 
-        return self.df.iloc[self._convert_index(*indices)]
+        return self.df.iloc[self.to_index(*indices)]
 
-    def frame_subfr(self, index: int) -> FrameSubfr:
-        """Find (frame, subframe) pair corresponding to index."""
-        return self._frame_tracker.frame_tracker(index)
+    def to_framesubfr(self, index: Union[int, slice]) -> Union[FrameSubfr, slice]:
+        """Find (frame, subframe) pair corresponding to index.
 
-    def _slice_frame_subframe(self, frame_slice: slice) -> slice:
-        """Create slice with indexes corresponding to (frame, subframe) range.
+        Returns:
+            If a single index is passed, a `(frame, subframe)` pair. If a
+            `slice` of array indexes, a `slice` of such pairs is returned.
+        """
+        return self._frame_tracker.to_framesubfr(index)
 
-        Args:
-            frame_slice: `frame_slice.stop` and `frame_slice.stop` should be
-                coordinates given as a `(frame, subframe)` tuple,
-                `frame_slice.step` an :py:class:`int`.
+    def to_index(
+        self, frame: Union[int, slice, FrameSubfr], subframe: Optional[int] = None
+    ) -> int:
+        """Return array indices corresponding to (frame, subframe) pair.
+
+        Returns:
+            A single `int` containing the array index corresponding to the
+            given `(frame, subframe)` pair. If a `slice` is passed containing a
+            range of such pairs, another `slice` is returned, this time
+            containing a range of array indexes.
 
         Raises:
-            KeyError: if the frame and subframe are out-of-bounds.
+            `ValueError` if the first argument (`frame`) is a `(frame,
+            subframe)` and the optional second argument (`subframe`) is not
+            `None`.
         """
-        stop_index = self._convert_index(*frame_slice.stop)
-        if frame_slice.start is None:
-            return slice(stop_index)
-
-        start_index = self._convert_index(*frame_slice.start)
-        if frame_slice.step is None:
-            return slice(start_index, stop_index)
-        return slice(start_index, stop_index, frame_slice.step)
-
-    def _convert_index(self, frame: int, subframe: int) -> int:
-        """Get index corresponding to given frame and subframe.
-
-        Raises:
-            KeyError: if the frame and subframe are out-of-bounds.
-        """
-        try:
-            return self._frame_tracker_index(frame, subframe)
-        except ValueError as err:
-            raise KeyError from err
-
-    def _frame_tracker_index(self, frame: int, subframe: int) -> int:
-        """Call FrameTracker.index with arguments."""
-        return self._frame_tracker.index(frame, subframe)
+        return self._frame_tracker.to_index(frame, subframe)
 
     def __eq__(self, other) -> bool:
         return (

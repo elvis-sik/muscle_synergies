@@ -768,7 +768,9 @@ def find_synergies(
 
     Args:
         processed_emg_df: a `(num_measurements, num_muscles)` array with the
-            signal from which to determine the synergy components.
+            signal from which to determine the synergy components. This would
+            normally include things like zero-centering, low-pass filtering and
+            time-normalization.
 
         n_components: if `max_components` is provided, the minimum number of
             components to be solved for. Otherwise, the number of components to

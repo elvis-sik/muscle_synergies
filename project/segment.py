@@ -8,7 +8,7 @@ from typing import List, Tuple, Union, Sequence, Mapping, Optional
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas
+import pandas as pd
 
 from muscle_synergies.vicon_data.user_data import (
     DeviceType,
@@ -115,7 +115,7 @@ to the method.
 """
 
 
-def reactions(vicon_nexus_data: ViconNexusData) -> Tuple[pandas.Series, pandas.Series]:
+def reactions(vicon_nexus_data: ViconNexusData) -> Tuple[pd.Series, pd.Series]:
     """Get (left, right) ground reactions of force plate."""
     left_fp, right_fp = vicon_nexus_data.forcepl
     return left_fp.df["Fz"], right_fp.df["Fz"]
@@ -152,14 +152,18 @@ class Segmenter:
             raise IndexError("i should be a number between 1 and 4")
 
         trecho = self._parse_trecho(trecho)
-        i = ((i - 1) % 4)
+        i = (i - 1) % 4
         cycle = Cycle.FIRST
         all_phases = tuple(self._segments[trecho][cycle].keys())
         return all_phases[i]
 
     def get_times_of(
         self,
-        trecho: Union[Trecho, int],
+        trecho: Union[
+            Tuple[Union[Trecho, int], Optional[Union[Cycle, int]], Optional[PhaseRef]],
+            Tuple[Union[Trecho, int], Optional[Union[Cycle, int]]],
+            Union[Trecho, int],
+        ],
         cycle: Optional[Union[Cycle, int]] = None,
         phase: Optional[PhaseRef] = None,
     ) -> slice:
@@ -173,14 +177,19 @@ class Segmenter:
         :py:class:`Trecho` is present.
 
         Args:
-            trecho: if an `int`, a number from 1 to 4.
+            trecho: a :py:class:`Trecho` or an `int`, if an `int`, a number
+                from 1 to 4. Alternatively, this first argument could be a
+                (`trecho, cycle, phase`) triple, in which case the optional
+                arguments should not be given.
             cycle: if an `int`, either 1 or 2.
             phase: if a `str`, one of `"DAA"`, `"DAE"`, `"AS"` or `"BL"` (case
                 is ignored). If an `int`, should be a number from 1 to 4
                 specifying the phase using its order in the cycle.
 
         Raises:
-            `ValueError` if `phase` is not `None` but `cycle` is `None`.
+            `ValueError` if `phase` is not `None` but `cycle` is `None` or if a
+            `(trecho, cycle, phase)` triple is given and the optional arguments
+            also are.
 
         Returns:
             a `slice` object with the `(frame, subframe)` range of the segment.
@@ -192,8 +201,6 @@ class Segmenter:
         """
         trecho, cycle, phase = self._parse_segment_args(trecho, cycle, phase)
         if phase is not None:
-            if cycle is None:
-                raise ValueError("if a phase is given, a cycle should also be")
             return self._get_times_of_phase(trecho, cycle, phase)
         if cycle is not None:
             return self._get_times_of_cycle(trecho, cycle)
@@ -201,10 +208,35 @@ class Segmenter:
 
     def _parse_segment_args(
         self,
-        trecho: Union[Trecho, int],
+        trecho: Union[
+            Tuple[Union[Trecho, int], Optional[Union[Cycle, int]], Optional[PhaseRef]],
+            Tuple[Union[Trecho, int], Optional[Union[Cycle, int]]],
+            Union[Trecho, int],
+        ],
         cycle: Optional[Union[Cycle, int]],
         phase_ref: Optional[PhaseRef],
     ) -> Tuple[Trecho, Optional[Cycle], Optional[Phase]]:
+        def optional_not_ommitted(optional_arguments_were_given: bool):
+            if optional_arguments_were_given:
+                raise ValueError(
+                    "the optional arguments should be ommitted if a (trecho, cycle, phase_ref) triple is given"
+                )
+
+        if phase_ref is not None and cycle is None:
+            raise ValueError("if a phase is given, a cycle should also be")
+
+        optional_arguments_were_given = cycle is not None or phase_ref is not None
+
+        try:
+            trecho, cycle, phase_ref = trecho
+        except TypeError:
+            pass
+        except ValueError:
+            trecho, cycle = trecho
+            optional_not_ommitted(optional_arguments_were_given)
+        else:
+            optional_not_ommitted(optional_arguments_were_given)
+
         trecho = self._parse_trecho(trecho)
         cycle = self._parse_cycle(cycle)
         phase = self._parse_phase(trecho, phase_ref)
@@ -287,14 +319,14 @@ class SegmentPlotter:
         return self.data.forcepl[1]
 
     @property
-    def left_reaction(self) -> pandas.Series:
+    def left_reaction(self) -> pd.Series:
         return reactions(self.data)[0]
 
     @property
-    def right_reaction(self) -> pandas.Series:
+    def right_reaction(self) -> pd.Series:
         return reactions(self.data)[1]
 
-    def plot_segment(
+    def plot_segment_og(
         self,
         box_legend: str,
         trecho: Union[Trecho, int] = 0,
@@ -355,37 +387,110 @@ class SegmentPlotter:
             return
         return fig, ax
 
-    def _time_ind_of_segment(
+    def _compute_focused_xlim(
         self,
-        device: DeviceData,
-        trecho: Union[Trecho, int] = 0,
-        cycle: Optional[Union[Cycle, int]] = None,
-        phase: Optional[PhaseRef] = None,
+        device_type: DeviceType,
+        time: Union[
+            Tuple[Union[Trecho, int], Optional[Union[Cycle, int]], Optional[PhaseRef]],
+            Tuple[Union[Trecho, int], Optional[Union[Cycle, int]]],
+            Union[Trecho, int],
+        ],
     ) -> Tuple[float, float]:
-        framesubfr_slice = self.segm.get_times_of(trecho, cycle, phase)
-        ind_slice = device.to_index(framesubfr_slice)
+        try:
+            trecho_beginning, trecho_end = self._get_times_in_seconds(
+                device_type, time[0]
+            )
+        except AttributeError:
+            trecho_beginning, trecho_end = self._get_times_in_seconds(device_type, time)
+
+        trecho_duration = trecho_end - trecho_beginning
+        margin = trecho_duration * 0.3
+        return trecho_beginning - margin, trecho_end + margin
+
+    def _calculate_rectangle_dimensions(
+        self,
+        device_type: Union[str, DeviceType],
+        y_min: float,
+        y_max: float,
+        time: Union[
+            Tuple[Union[Trecho, int], Optional[Union[Cycle, int]], Optional[PhaseRef]],
+            Tuple[Union[Trecho, int], Optional[Union[Cycle, int]]],
+            Union[Trecho, int],
+        ],
+    ) -> Mapping[str, Union[float, Tuple[float, float]]]:
+        begin_time, end_time = self._get_times_in_seconds(device_type, time)
+        return {
+            "xy": (begin_time, y_min),
+            "width": end_time - begin_time,
+            "height": y_max - y_min,
+        }
+
+    def _get_times_in_seconds(
+        self,
+        device_type: Union[str, DeviceType],
+        time: Union[
+            Tuple[Union[Trecho, int], Optional[Union[Cycle, int]], Optional[PhaseRef]],
+            Tuple[Union[Trecho, int], Optional[Union[Cycle, int]]],
+            Union[Trecho, int],
+        ],
+    ) -> Tuple[float, float]:
+        framesubfr_slice = self._get_slice_of_segment(time)
+        ind_slice = self.data.to_index(device_type, framesubfr_slice)
         ind_x_min = ind_slice.start
         ind_x_max = ind_slice.stop
-        time_seq = self.left_forcepl.time_seq()
+        time_seq = self.data.time_seq(device_type)
         return time_seq[ind_x_min], time_seq[ind_x_max]
 
-    def plot_cols(
+    def _get_slice_of_segment(
         self,
-        # columns parameters
-        device_type: Union[str, DeviceType] = "force plate",
+        time: Union[
+            Tuple[Union[Trecho, int], Optional[Union[Cycle, int]], Optional[PhaseRef]],
+            Tuple[Union[Trecho, int], Optional[Union[Cycle, int]]],
+            Union[Trecho, int],
+        ],
+    ):
+        return self.segm.get_times_of(time)
+
+    def _plot_cols(
+        self,
+        device_type: Union[str, DeviceType],
+        device_inds: Optional[Sequence[int]],
+        col: str,
+        labels: Optional[Sequence[str]] = None,
+        all_plots_kwargs={},
+    ) -> Tuple[plt.Figure, plt.Axes]:
+        return self.data.plot_cols(
+            device_type=device_type,
+            device_inds=device_inds,
+            col=col,
+            labels=labels,
+            show=False,
+            **all_plots_kwargs,
+        )
+
+    def plot_segment(
+        self,
+        # plot_cols parameters
+        device_type: Union[str, DeviceType],
+        col: str,
         device_inds: Optional[Sequence[int]] = None,
-        col: str = "Fz",
-        # time parameters
-        trecho: Union[Trecho, int] = 0,
-        cycle: Optional[Union[Cycle, int]] = None,
-        phase: Optional[PhaseRef] = None,
-        # plot parameters
-        box_legend: Optional[str] = None,
-        y_min=-800,
-        y_max=0,
+        labels: Optional[Sequence[str]] = None,
+        # rectangle parameters
+        time: Optional[
+            Union[
+                Tuple[
+                    Union[Trecho, int], Optional[Union[Cycle, int]], Optional[PhaseRef]
+                ],
+                Tuple[Union[Trecho, int], Optional[Union[Cycle, int]]],
+                Union[Trecho, int],
+            ]
+        ] = None,
+        rectangle_label: Optional[str] = None,
         show=True,
         show_entire=True,
-        **kwargs,
+        alpha=0.1,
+        show_legend: bool = False,
+        **all_plots_kwargs,
     ) -> Optional[Tuple[plt.Figure, plt.Axes]]:
         """Plot columns of data with rectangles on segments.
 
@@ -429,8 +534,6 @@ class SegmentPlotter:
             box_legend: the description of the rectangle (the one highlighting
                 the phase) that appears on the legend.
 
-            y_min, y_max: the vertical dimension and position of the box.
-
             show: if `False`, return a tuple `(fig, ax)`. If `True`, the
                 function does not return and the
                 :py:func:`~matplotlib.pyplot.show` is called.
@@ -442,9 +545,64 @@ class SegmentPlotter:
 
             **kwargs:
         """
-        pass
+        fig, ax = self._plot_cols(
+            device_type=device_type,
+            device_inds=device_inds,
+            col=col,
+            labels=labels,
+            all_plots_kwargs=all_plots_kwargs,
+        )
+
+        if time is not None:
+            y_min, y_max = ax.get_ylim()
+            rectangle_dims = self._calculate_rectangle_dimensions(
+                device_type, y_min, y_max, time
+            )
+            self._add_rectangle(
+                axes=ax,
+                label=rectangle_label,
+                rectangle_dims=rectangle_dims,
+                alpha=alpha,
+            )
+
+            if not show_entire:
+                x_min, x_max = self._compute_focused_xlim(device_type, time)
+                ax.set_xlim(x_min, x_max)
+
+        show_legend = show_legend and (
+            rectangle_label is not None or labels is not None
+        )
+
+        if show_legend:
+            ax.legend()
+
+        if show:
+            plt.show()
+            return
+
+        return fig, ax
 
     def plot_reactions(
+        self,
+        title="Force plates",
+        xlabel="time (s)",
+        ylabel="Force (N), z component",
+        figsize=(13, 5),
+    ):
+        fig, ax = self.plot_segment(
+            device_type=DeviceType.FORCE_PLATE,
+            col="Fz",
+            labels=["Left", "Right"],
+            show=False,
+            show_legend=True,
+        )
+        ax.set_title(title)
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+        fig.set_size_inches(*figsize)
+        return fig, ax
+
+    def plot_reactions_og(
         self,
         figsize=(13, 5),
         left_color="g",
@@ -480,21 +638,20 @@ class SegmentPlotter:
     def _add_rectangle(
         self,
         axes: plt.Axes,
-        label: str,
-        bottom_left_corner: Tuple[float, float],
-        width: float,
-        height: float,
+        label: Optional[str],
+        rectangle_dims: Mapping[str, Union[float, Tuple[float, float]]],
         alpha: float = 0.1,
-    ) -> plt.Axes:
+    ):
         """Plot a rectangle on given coordinates around reaction forces.
 
         Args:
             forces_legend: the description of the forces that appears on the
                 legend.
 
-            bottom_left_corner, width_height: position and size of the
-                rectangle. `bottom_left_corner` should be a `(x, y)` pair.
-                :py:func:`~matplotlib.pyplot.show` is called.
+            rectangle_dims: a mapping that should have the following keys:
+                `"xy"`, `"width"`, `"height"`. The first should be the `(x_pos,
+                y_pos)` coordinates of the rectangle's bottom-left corner, the
+                other two single numbers.
 
             box_legend: the description of the rectangle that appears on the
                 legend.
@@ -503,15 +660,13 @@ class SegmentPlotter:
 
             kwargs: passed to :py:meth:`SegmentPlotter.plot_reactions`.
         """
-        axes.add_patch(
-            patches.Rectangle(bottom_left_corner, width, height, alpha=alpha, label=label)
-        )
-        return axes
+        rect = patches.Rectangle(**rectangle_dims, alpha=alpha, label=label)
+        axes.add_patch(rect)
 
 
 def _transition_indices(
-    left_reaction: pandas.Series,
-    right_reaction: pandas.Series,
+    left_reaction: pd.Series,
+    right_reaction: pd.Series,
     min_phase_size: int = 10,
     num_segments: int = 40,
 ) -> Sequence[int]:
@@ -558,9 +713,7 @@ def _transition_indices(
             identified. If `num_segments == 0`, this should never happen.
     """
 
-    def has_num_of_active_legs(
-        left_reaction, right_reaction, legs: int
-    ) -> pandas.Series:
+    def has_num_of_active_legs(left_reaction, right_reaction, legs: int) -> pd.Series:
         """Identify whether given number of legs are active at each index."""
         if legs == 1:
             return np.logical_xor(left_reaction != 0, right_reaction != 0)
@@ -602,31 +755,33 @@ def _transition_indices(
             return index_seq
 
 
-# NEXT TODO
 # 1. DONE Make `organize_transitions` return slices of `FrameSubfr` instead of
 #    indices somehow
 
-# 2. Then `Segmenter` needs to learn to work with that. Advantage will be to
+# 2. DONE
+#    Then `Segmenter` needs to learn to work with that. Advantage will be to
 #    support different `DeviceData`.
 #
 #    Segmenter just returns slices now, it becomes simpler and cares much less
 #    about its data. It does nota make sense anymore for it to have
 #    `left_reaction`, for example.
 
-# 3. Make `ViconNexusData` be able to fetch a bunch of data at once. I.e., what
-#    I was trying to make `Segmenter` do.
+# 3. DONE Make `ViconNexusData` be able to fetch a bunch of data at once. I.e.,
+#    what I was trying to make `Segmenter` do.
 
+# NEXT
 # 4. Then I have to fix `SegmentPlotter`. It very much needs to concern itself
-#    with force plates.
+#    with force plates. Maybe it could plot other time series as well?
 
 # 5. Finally, I test everything:
-#    - Run the test suite
-#    - Run the Jupyter Notebooks, including the interactive one
-#    - Regenerate docs and see if the `FrameSubfr` thing worked. Try to use C-f
-#      to see if the definition of `Segments` occur anywhere in the docs. If
-#      they do, think about fixing that.
-#    - Manually test it. Get the data for all trechos 1 and 3 BL then for all
-#      trechos 2 and 4. Compute synergies.
+#    - [X] Run the test suite
+#    - [ ] Run the Jupyter Notebooks, including the interactive one
+#    - [ ] Regenerate docs and see if the `FrameSubfr` thing worked. Try to use
+#      C-f to see if the definition of `Segments` occur anywhere in the docs.
+#      If they do, think about fixing that.
+
+# 6. Manually test it. Get the data for all trechos 1 and 3 BL then for all
+#    trechos 2 and 4. Compute synergies.
 
 
 def _organize_transitions(

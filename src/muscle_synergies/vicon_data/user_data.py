@@ -29,6 +29,7 @@ from typing import (
     Any,
 )
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
@@ -82,11 +83,49 @@ class ViconNexusData:
             return self.traj
         raise KeyError(f"device type not understood: {device_type}")
 
+    def plot_cols(
+        self,
+        device_type: Union[str, DeviceType],
+        col: str,
+        device_inds: Optional[Sequence[int]] = None,
+        time=None,
+        labels: Optional[Sequence[str]] = None,
+        show=True,
+        **all_plots_kwargs,
+    ) -> Optional[Tuple[plt.Figure, plt.Axes]]:
+        """."""
+        fig, ax = plt.subplots()
+
+        all_series = self.get_cols(
+            device_type, device_inds=device_inds, time=time, cols=col
+        )
+
+        if self._parse_device_type(device_type) is DeviceType.EMG:
+            all_series = (all_series,)
+
+        if labels is None:
+            labels = [None] * len(all_series)
+
+        for i in range(len(all_series)):
+            current_col = all_series[i]
+            ax.plot(
+                self.time_seq(device_type),
+                current_col,
+                label=labels[i],
+                **all_plots_kwargs,
+            )
+
+        if show:
+            plt.show()
+            return
+
+        return fig, ax
+
     def get_cols(
         self,
         device_type: Union[str, DeviceType],
-        time=None,
         device_inds: Optional[Sequence[int]] = None,
+        time=None,
         cols=None,
     ) -> Union[
         pd.DataFrame, pd.Series, Tuple[pd.DataFrame, ...], Tuple[pd.Series, ...]
@@ -126,13 +165,13 @@ class ViconNexusData:
         def iter_dev_data(
             vicon_nexus_data: ViconNexusData,
             device_type: Union[DeviceType, str],
-            device_inds: Optional[Sequence[Int]],
+            device_inds: Optional[Sequence[int]],
         ) -> Iterator[DeviceData]:
             if device_inds is None:
                 yield from vicon_nexus_data[device_type]
-
-            for dev_data in vicon_nexus_data[device_type]:
-                yield dev_data
+            else:
+                for ind in device_inds:
+                    yield vicon_nexus_data[device_type][ind]
 
         def get_cols_of_single_dev_data(
             device_data: DeviceData, time, cols
@@ -155,11 +194,61 @@ class ViconNexusData:
             data.append(get_cols_of_single_dev_data(dev_data, time, cols))
         return tuple(data)
 
+    def sampling_frequency(self, device_type: Union[str, DeviceType]) -> int:
+        """Sampling rate with which measurements were made."""
+        return self._get_device_of_type(device_type).sampling_frequency
+
+    def time_seq(self, device_type: Union[str, DeviceType]) -> pd.Series:
+        """Compute the moment in seconds in which measurements were made.
+
+        Returns:
+            a :py:class:`pandas.Series` where each entry corresponds to
+        """
+        device_type = self._parse_device_type(device_type)
+        return self._get_device_of_type(device_type).time_seq()
+
+    def to_framesubfr(
+        self, device_type: Union[str, DeviceType], index: Union[int, slice]
+    ) -> Union[FrameSubfr, slice]:
+        """Find (frame, subframe) pair corresponding to index.
+
+        Returns:
+            If a single index is passed, a `(frame, subframe)` pair. If a
+            `slice` of array indexes, a `slice` of such pairs is returned.
+        """
+        return self._get_device_of_type(device_type).to_framesubfr(index)
+
+    def to_index(
+        self,
+        device_type: Union[str, DeviceType],
+        frame: Union[int, slice, FrameSubfr],
+        subframe: Optional[int] = None,
+    ) -> int:
+        """Return array indices corresponding to (frame, subframe) pair.
+
+        Returns:
+            A single `int` containing the array index corresponding to the
+            given `(frame, subframe)` pair. If a `slice` is passed containing a
+            range of such pairs, another `slice` is returned, this time
+            containing a range of array indexes.
+
+        Raises:
+            `ValueError` if the first argument (`frame`) is a `(frame,
+            subframe)` and the optional second argument (`subframe`) is not
+            `None`.
+        """
+        return self._get_device_of_type(device_type).to_index(frame, subframe)
+
+    def _get_device_of_type(self, device_type: Union[DeviceType, str]) -> "DeviceData":
+        if self._parse_device_type(device_type) is DeviceType.EMG:
+            return self.emg
+        return self[device_type][0]
+
     @staticmethod
     def _parse_device_type(device_type):
         try:
             return DeviceType.from_str(device_type)
-        except ValueError:
+        except AttributeError:
             return device_type
 
     def __repr__(self):

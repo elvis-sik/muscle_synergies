@@ -39,7 +39,7 @@ scrub:
 # help: test                           - run tests
 .PHONY: test
 test:
-	@PYTHONPATH=src pytest
+	cd tests; pytest
 
 
 # help: coverage                       - perform test coverage checks
@@ -147,7 +147,7 @@ dist-upload:
 
 # help: check-ci          - runs all checks used by the CI (Github actions)
 .PHONY: check-ci
-check-ci: check-style check-lint test coverage docs dist
+check-ci: check-style check-lint test docs dist
 
 
 # Keep these lines at the end of the file to retain nice help

@@ -47,9 +47,6 @@ jobs:
     - name: Check static analysis
       run: |
         make check-lint
-    - name: Generate code coverage report
-      run: |
-        make coverage
     - name: Generate docs
       run: |
         make docs

@@ -56,7 +56,9 @@ class TestAbridgedData:
         device_data = all_loaded
         for (frame, subframe) in invalid_frame_subframe_seq:
             with pt.raises(IndexError):
+                # pylint: disable=pointless-statement
                 device_data[frame, subframe]
+                # pylint: enable=pointless-statement
 
 
 class TestFullData:

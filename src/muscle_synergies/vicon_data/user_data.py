@@ -15,9 +15,10 @@ data from disk.
 """
 import abc
 from collections import defaultdict
-from dataclasses import dataclass
 from functools import lru_cache
 from typing import (
+    Any,
+    Callable,
     Iterator,
     List,
     Mapping,
@@ -25,8 +26,6 @@ from typing import (
     Sequence,
     Tuple,
     Union,
-    Callable,
-    Any,
 )
 
 import matplotlib.pyplot as plt
@@ -77,9 +76,9 @@ class ViconNexusData:
         device_type = self._parse_device_type(device_type)
         if device_type is DeviceType.FORCE_PLATE:
             return self.forcepl
-        elif device_type is DeviceType.EMG:
+        if device_type is DeviceType.EMG:
             return self.emg
-        elif device_type is DeviceType.TRAJECTORY_MARKER:
+        if device_type is DeviceType.TRAJECTORY_MARKER:
             return self.traj
         raise KeyError(f"device type not understood: {device_type}")
 
@@ -106,7 +105,7 @@ class ViconNexusData:
         if labels is None:
             labels = [None] * len(all_series)
 
-        for i in range(len(all_series)):
+        for i, current_col in enumerate(all_series):
             current_col = all_series[i]
             ax.plot(
                 self.time_seq(device_type),
@@ -117,7 +116,7 @@ class ViconNexusData:
 
         if show:
             plt.show()
-            return
+            return None
 
         return fig, ax
 
@@ -510,7 +509,6 @@ class _SectionFrameTracker(abc.ABC):
     @abc.abstractproperty
     def sampling_frequency(self) -> int:
         """Sampling frequency in Hz with which the measurements were made."""
-        pass
 
     def to_index(
         self, frame: Union[int, FrameSubfr, slice], subframe: Optional[int]
@@ -553,17 +551,14 @@ class _SectionFrameTracker(abc.ABC):
     @abc.abstractmethod
     def _to_index(self, framesubfr: FrameSubfr) -> int:
         """Convert (frame, subframe) pair to array index."""
-        pass
 
     @abc.abstractmethod
     def _to_framesubfr(self, index: int) -> FrameSubfr:
         """Convert array index to (frame, subframe) pair."""
-        pass
 
     @abc.abstractproperty
     def final_index(self) -> int:
         """The highest array index."""
-        pass
 
     @property
     def num_subframes(self) -> int:
@@ -653,7 +648,9 @@ class TrajFrameTracker(_SectionFrameTracker):
         return self._freq_traj
 
     def _to_index(self, framesubfr: FrameSubfr) -> int:
+        # pylint: disable=unused-variable
         frame, subframe = framesubfr
+        # pylint: enable=unused-variable
         return frame - 1
 
     def _to_framesubfr(self, index: int) -> FrameSubfr:

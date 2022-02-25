@@ -3,7 +3,7 @@
 from collections import OrderedDict
 from enum import Enum, auto
 from itertools import cycle
-from typing import List, Tuple, Union, Sequence, Mapping, Optional
+from typing import List, Mapping, Optional, Sequence, Tuple, Union
 
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
@@ -11,10 +11,10 @@ import numpy as np
 import pandas as pd
 
 from muscle_synergies.vicon_data.user_data import (
-    DeviceType,
     DeviceData,
-    ViconNexusData,
+    DeviceType,
     FrameSubfr,
+    ViconNexusData,
 )
 
 

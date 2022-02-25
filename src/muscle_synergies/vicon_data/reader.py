@@ -104,7 +104,6 @@ class _ReaderState(abc.ABC):
             reader: the `Reader` object which holds the
                 :py:class:`_ReaderState` instance.
         """
-        pass
 
     @abc.abstractproperty
     def line(self) -> ViconCSVLines:
@@ -113,7 +112,6 @@ class _ReaderState(abc.ABC):
         This is mainly useful to provide more helpful error messages when
         something goes wrong.
         """
-        pass
 
     def _preprocess_row(self, row: Row) -> Row:
         """Removes trailing/leading whitespace from cols and empty cols.
@@ -176,7 +174,6 @@ class _UpdateStateMixin:
             a callable that can be used to instantiate the next
             :py:class:`_ReaderState`.
         """
-        pass
 
 
 class _HasSingleColMixin:
@@ -219,7 +216,6 @@ class _AggregateDataMixin:
                 send the message to the
                 :py:class:`~muscle_synergies.vicon_data.aggregator.Aggregator`.
         """
-        pass
 
     def _aggregate_data(self, data: Any, reader: Reader):
         """Aggregate the results of parsing the line.
@@ -249,7 +245,6 @@ class _FixedNumColsMixin:
     @abc.abstractproperty
     def num_cols(self) -> int:
         """Number of columns expected by the _ReaderState."""
-        pass
 
 
 class SectionTypeState(_UpdateStateMixin, _HasSingleColMixin, _ReaderState):
@@ -643,7 +638,6 @@ class _DevicesState(_UpdateStateMixin, _ReaderState):
                 actually belong to a single force plate), concrete
                 implementations should do it.
         """
-        pass
 
     @abc.abstractmethod
     def _last_col(self, device_type: DeviceType, first_col: int) -> Optional[int]:
@@ -668,7 +662,6 @@ class _DevicesState(_UpdateStateMixin, _ReaderState):
         There are 3 empty columns at the end. Just by looking at the first
         line, one cannot know how many EMG measurements there are.
         """
-        pass
 
 
 class ForcesEMGDevicesState(_DevicesState):

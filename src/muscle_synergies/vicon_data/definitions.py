@@ -5,7 +5,7 @@ of the file.
 """
 from dataclasses import dataclass
 from enum import Enum
-from typing import List, NewType, TypeVar, Tuple
+from typing import List, NewType, TypeVar
 
 # type variables used to define generic types
 # pylint: disable=invalid-name

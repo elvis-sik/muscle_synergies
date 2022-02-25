@@ -39,7 +39,7 @@ scrub:
 # help: test                           - run tests
 .PHONY: test
 test:
-	cd tests; pytest
+	cd tests; PYTHONPATH=../src pytest
 
 
 # help: coverage                       - perform test coverage checks

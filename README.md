@@ -1,34 +1,32 @@
 # Muscle Synergies
 
+> [!NOTE]
+> **Historical project.** This repository contains work from a 2020–2022
+> undergraduate internship and is no longer actively maintained.
+
 Versão desse documento em português: [portuguese](README.pb.md)
 
-Extract muscle synergies from experimental data obtained using Vicon Nexus.
-
-## Contents
-
-- [Project status](#project-status)
-- [Acknowledgements](#acknowledgements)
-- [References](#references)
+Code for loading and exploring Vicon Nexus data as a first step toward
+extracting muscle synergies from EMG measurements. The repository includes an
+[example notebook](examples/1.%20Loading%20and%20plotting%20data.ipynb) that
+demonstrates the implemented data-loading workflow.
 
 ## Project status
 
-The project is being actively developed. Currently, loading the data from the
-CSV file is possible as demonstrated in an
-[example notebook](examples/1.%20Loading%20and%20plotting%20data.ipynb).
-The goal now is to analyse the EMG data to
-determine muscle synergies using the method in [[1]](#1). I'll also simultaneously
-fill the docstrings (most are missing) and work on general code and repo
-quality.
+Development stopped before the planned non-negative matrix factorization
+analysis was completed. The repository is preserved as a record of the
+internship work, not as a maintained analysis package.
 
 ## Acknowledgements
 
-This analysis is being developed for my internship under the supervision of
-professor Heiliane de Brito at the [Department of Morphological
-Sciences](https://mor.ccb.ufsc.br/) in the Federal University of Santa Catarina
+This analysis was developed during an internship supervised by Professor
+Heiliane de Brito at the [Department of Morphological
+Sciences](https://mor.ccb.ufsc.br/) at the Federal University of Santa Catarina
 (UFSC).
 
-## References
-<a id="1">[1]</a>
-Rabbi, M.F., Pizzolato, C., Lloyd, D.G. et al. Non-negative matrix factorisation is the most appropriate method for extraction of muscle synergies in walking and running.  
-Sci Rep 10, 8266 (2020).  
+## Reference
+
+Rabbi, M. F., Pizzolato, C., Lloyd, D. G. et al. “Non-negative matrix
+factorisation is the most appropriate method for extraction of muscle synergies
+in walking and running.” *Scientific Reports* 10, 8266 (2020).
 https://doi.org/10.1038/s41598-020-65257-w
